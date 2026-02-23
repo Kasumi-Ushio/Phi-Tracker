@@ -102,6 +102,9 @@ dependencies {
     // Image
     implementation(libs.coil.compose)
 
+    // QR Code
+    implementation(libs.zxing.core)
+
     // Logging
     implementation(libs.timber)
 

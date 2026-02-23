@@ -39,6 +39,9 @@ securityCrypto = "1.1.0-alpha06"
 # Compression
 zip4j = "2.11.5"
 
+# QR Code
+zxing = "3.5.3"
+
 # License
 aboutlibraries = "11.2.3"
 
@@ -95,6 +98,9 @@ androidx-security-crypto = { group = "androidx.security", name = "security-crypt
 
 # Compression
 zip4j = { group = "net.lingala.zip4j", name = "zip4j", version.ref = "zip4j" }
+
+# QR Code
+zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
 # License
 aboutlibraries-core = { group = "com.mikepenz", name = "aboutlibraries-core", version.ref = "aboutlibraries" }

@@ -12,6 +12,46 @@ object TapTapConstants {
     const val LC_ID = "rAK3FfdieFob2Nn8Am"
     const val LC_KEY = "Qr9AEqtuoSVS3zeD6iVbM4ZC0AtkJcQ89tywVyi0"
 
+    // Global 版本的 LeanCloud 密钥
+    const val LC_KEY_GLOBAL = "tG9CTm0LDD736k9HMM9lBZrbeBGRmUkjSfNLDNib"
+    const val LC_ID_GLOBAL = "kviehleldgxsagpozb"
+
+    /** OAuth 设备码请求 URL */
+    fun oauthCodeUrl(server: Server): String = when (server) {
+        Server.CN -> "https://accounts.tapapis.cn/oauth2/v1/device/code"
+        Server.GLOBAL -> "https://accounts.tapapis.com/oauth2/v1/device/code"
+    }
+
+    /** OAuth Token 轮询 URL */
+    fun oauthTokenUrl(server: Server): String = when (server) {
+        Server.CN -> "https://accounts.tapapis.cn/oauth2/v1/token"
+        Server.GLOBAL -> "https://accounts.tapapis.com/oauth2/v1/token"
+    }
+
+    /** TapTap Profile API URL */
+    fun profileUrl(server: Server): String = when (server) {
+        Server.CN -> "https://open.tapapis.cn/account/profile/v1?client_id=$LC_ID"
+        Server.GLOBAL -> "https://open.tapapis.com/account/profile/v1?client_id=$LC_ID_GLOBAL"
+    }
+
+    /** LeanCloud 用户登录 URL (用于 authData 换取 sessionToken) */
+    fun lcUsersUrl(server: Server): String = when (server) {
+        Server.CN -> "https://rak3ffdi.cloud.tds1.tapapis.cn/1.1/users"
+        Server.GLOBAL -> "https://kviehlel.cloud.ap-sg.tapapis.com/1.1/users"
+    }
+
+    /** 获取对应服务器的 LC AppKey */
+    fun lcAppKey(server: Server): String = when (server) {
+        Server.CN -> LC_KEY
+        Server.GLOBAL -> LC_KEY_GLOBAL
+    }
+
+    /** 获取对应服务器的 LC ClientId */
+    fun lcClientId(server: Server): String = when (server) {
+        Server.CN -> LC_ID
+        Server.GLOBAL -> LC_ID_GLOBAL
+    }
+
     object Endpoints {
         const val USERS_ME = "/users/me"
         const val GAME_SAVE = "/classes/_GameSave"
