@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
@@ -41,7 +42,8 @@ class HomeViewModel @Inject constructor(
     private val getB30UseCase: GetB30UseCase,
     private val syncSaveUseCase: SyncSaveUseCase,
     private val searchSongUseCase: SearchSongUseCase,
-    private val songDataProvider: SongDataProvider
+    private val songDataProvider: SongDataProvider,
+    private val illustrationProvider: IllustrationProvider
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -106,6 +108,10 @@ class HomeViewModel @Inject constructor(
             val filtered = searchSongUseCase(query, allSongsMap)
             state.copy(searchQuery = query, filteredSongs = filtered)
         }
+    }
+
+    fun getIllustrationUrl(songId: String): String {
+        return illustrationProvider.getLowUrl(songId)
     }
 
     fun logout() {

@@ -20,10 +20,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 
@@ -34,6 +36,7 @@ import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 fun ScoreCard(
     rank: Int,
     record: BestRecord,
+    illustrationUrl: String?,
     modifier: Modifier = Modifier
 ) {
     val diffColor = DifficultyColors.forDifficulty(record.difficulty)
@@ -67,7 +70,20 @@ fun ScoreCard(
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // 曲绘缩略图
+            if (illustrationUrl != null) {
+                AsyncImage(
+                    model = illustrationUrl,
+                    contentDescription = record.songName,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+            }
 
             // 曲名 + 难度标签
             Column(

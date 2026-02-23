@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -28,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 
@@ -40,12 +42,22 @@ fun B30Tab(
     challengeModeRank: Int,
     isSyncing: Boolean,
     onRefresh: () -> Unit,
+    onGenerateImage: () -> Unit,
+    getIllustrationUrl: (String) -> String?,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
             title = { Text("Best 30") },
             actions = {
+                // 生成图片按钮
+                IconButton(
+                    onClick = onGenerateImage,
+                    enabled = b30.isNotEmpty()
+                ) {
+                    Icon(Icons.Filled.Image, contentDescription = "生成图片")
+                }
+                // 刷新按钮
                 IconButton(onClick = onRefresh, enabled = !isSyncing) {
                     if (isSyncing) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -123,7 +135,8 @@ fun B30Tab(
                 Text(
                     text = "暂无数据\n点击右上角刷新同步存档",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
                 )
             }
         } else {
@@ -132,7 +145,11 @@ fun B30Tab(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(b30) { index, record ->
-                    ScoreCard(rank = index + 1, record = record)
+                    ScoreCard(
+                        rank = index + 1,
+                        record = record,
+                        illustrationUrl = getIllustrationUrl(record.songId)
+                    )
                 }
             }
         }

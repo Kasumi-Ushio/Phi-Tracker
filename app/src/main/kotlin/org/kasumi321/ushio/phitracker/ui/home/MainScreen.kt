@@ -37,6 +37,7 @@ data class BottomNavItem(
 @Composable
 fun MainScreen(
     onLogout: () -> Unit,
+    onNavigateToB30Image: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -90,12 +91,15 @@ fun MainScreen(
                 challengeModeRank = state.challengeModeRank,
                 isSyncing = state.isSyncing,
                 onRefresh = { viewModel.refresh() },
+                onGenerateImage = onNavigateToB30Image,
+                getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
                 modifier = Modifier.padding(innerPadding)
             )
             1 -> SongsTab(
                 songs = state.filteredSongs,
                 searchQuery = state.searchQuery,
                 onSearchChange = { viewModel.searchSongs(it) },
+                getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
                 modifier = Modifier.padding(innerPadding)
             )
             2 -> SettingsTab(
