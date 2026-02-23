@@ -102,13 +102,13 @@ object RksCalculator {
             .take(3)
             .map { it.copy(isPhi = true) }
 
-        // B27: 所有成绩按 RKS 降序, 取前 27
-        val b27 = allRecords
+        // B36 (27 B27 + 9 Overflow): 所有成绩按 RKS 降序, 取前 36
+        val b36 = allRecords
             .sortedByDescending { it.rks }
-            .take(27)
+            .take(36)
 
-        // 合并: Phi3 在前, B27 在后
-        return phi3 + b27
+        // 合并: Phi3 在前, B36 在后
+        return phi3 + b36
     }
 
     /**

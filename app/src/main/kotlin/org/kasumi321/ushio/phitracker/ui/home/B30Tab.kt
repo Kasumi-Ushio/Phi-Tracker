@@ -46,9 +46,11 @@ fun B30Tab(
     getIllustrationUrl: (String) -> String?,
     modifier: Modifier = Modifier
 ) {
-    // 分离 Phi3 和 B27
+    // 分离 Phi3, B27 和 Overflow
     val phi3 = b30.filter { it.isPhi }
-    val b27 = b30.filter { !it.isPhi }
+    val b36 = b30.filter { !it.isPhi }
+    val b27 = b36.take(27)
+    val overflow = b36.drop(27)
 
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
@@ -194,6 +196,30 @@ fun B30Tab(
                         record = record,
                         illustrationUrl = getIllustrationUrl(record.songId)
                     )
+                }
+
+                // Overflow section
+                if (overflow.isNotEmpty()) {
+                    item(contentType = "header") {
+                        Text(
+                            text = "Overflow",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)
+                        )
+                    }
+                    itemsIndexed(
+                        overflow,
+                        key = { _, r -> "overflow_${r.songId}_${r.difficulty}" },
+                        contentType = { _, _ -> "score_card" }
+                    ) { index, record ->
+                        ScoreCard(
+                            rank = index + 1, // 不跟随 B27 的排名序号
+                            record = record,
+                            illustrationUrl = getIllustrationUrl(record.songId)
+                        )
+                    }
                 }
             }
         }
