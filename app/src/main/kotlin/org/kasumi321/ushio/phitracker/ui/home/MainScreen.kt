@@ -58,6 +58,7 @@ fun MainScreen(
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val tip = remember(selectedTab) { viewModel.getRandomTip() }
 
     val navItems = listOf(
         BottomNavItem("B30", Icons.Filled.Star, Icons.Outlined.StarBorder),
@@ -169,19 +170,33 @@ fun MainScreen(
                 onGenerateImage = onNavigateToB30Image,
                 getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
                 onSongClick = onNavigateToSongDetail,
-                modifier = Modifier.padding(innerPadding)
+                tip = tip,
+                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
             1 -> SongsTab(
                 songs = state.filteredSongs,
                 searchQuery = state.searchQuery,
                 onSearchChange = { viewModel.searchSongs(it) },
+                availableChapters = state.availableChapters,
+                selectedChapter = state.selectedChapter,
+                onChapterSelect = { viewModel.filterByChapter(it) },
+                selectedDifficulty = state.selectedDifficulty,
+                onDifficultySelect = { viewModel.filterByDifficulty(it) },
+                minLevel = state.minLevel,
+                maxLevel = state.maxLevel,
+                onLevelRangeSelect = { min, max -> viewModel.filterByLevelRange(min, max) },
+                showFilterSheet = state.showFilterSheet,
+                onToggleFilterSheet = { viewModel.toggleFilterSheet(it) },
+                onResetFilters = { viewModel.resetFilters() },
                 getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
                 onSongClick = onNavigateToSongDetail,
-                modifier = Modifier.padding(innerPadding)
+                tip = tip,
+                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
             2 -> SettingsTab(
                 onLogout = { viewModel.logout() },
-                modifier = Modifier.padding(innerPadding)
+                tip = tip,
+                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
         }
     }

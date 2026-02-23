@@ -29,21 +29,34 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun SettingsTab(
     onLogout: () -> Unit,
+    tip: String = "",
     modifier: Modifier = Modifier
 ) {
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+        modifier = Modifier.fillMaxSize()
     ) {
         TopAppBar(
-            title = { Text("设置") }
+            title = {
+                Column {
+                    Text("设置")
+                    if (tip.isNotBlank()) {
+                        Text(
+                            text = tip,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth(0.75f)
+                        )
+                    }
+                }
+            }
         )
 
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = modifier
+                .padding(horizontal = 16.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             // 关于
             Text(

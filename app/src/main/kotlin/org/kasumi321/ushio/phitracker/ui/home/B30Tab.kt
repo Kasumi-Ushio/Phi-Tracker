@@ -45,6 +45,7 @@ fun B30Tab(
     onGenerateImage: () -> Unit,
     getIllustrationUrl: (String) -> String?,
     onSongClick: (String) -> Unit,
+    tip: String = "",
     modifier: Modifier = Modifier
 ) {
     // 分离 Phi3, B27 和 Overflow
@@ -55,7 +56,19 @@ fun B30Tab(
 
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
-            title = { Text("Best 30") },
+            title = {
+                Column {
+                    Text("Best 30")
+                    if (tip.isNotBlank()) {
+                        Text(
+                            text = tip,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.fillMaxWidth(0.75f)
+                        )
+                    }
+                }
+            },
             actions = {
                 // 生成图片按钮
                 IconButton(

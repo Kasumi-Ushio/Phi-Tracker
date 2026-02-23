@@ -18,7 +18,9 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
+import org.kasumi321.ushio.phitracker.data.TipsProvider
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
@@ -41,6 +43,12 @@ data class HomeUiState(
     val filteredSongs: List<SongInfo> = emptyList(),
     val allSongs: List<SongInfo> = emptyList(),
     val allRecords: List<BestRecord> = emptyList(),
+    val availableChapters: List<String> = emptyList(),
+    val selectedChapter: String? = null,
+    val selectedDifficulty: Difficulty? = null,
+    val minLevel: Int = 1,
+    val maxLevel: Int = 16,
+    val showFilterSheet: Boolean = false,
     // 曲绘预加载 — 阻塞式流程
     val illustrationReady: Boolean = false,   // true = 用户已处理预加载 (下载完/跳过), 可以显示内容
     val showPreloadDialog: Boolean = false,
@@ -58,7 +66,8 @@ class HomeViewModel @Inject constructor(
     private val syncSaveUseCase: SyncSaveUseCase,
     private val searchSongUseCase: SearchSongUseCase,
     private val songDataProvider: SongDataProvider,
-    private val illustrationProvider: IllustrationProvider
+    private val illustrationProvider: IllustrationProvider,
+    private val tipsProvider: TipsProvider
 ) : ViewModel() {
 
     companion object {
@@ -81,9 +90,11 @@ class HomeViewModel @Inject constructor(
     private fun loadSongs() {
         viewModelScope.launch {
             val songs = songDataProvider.getSongs().values.toList().sortedBy { it.name }
+            val chapters = songs.map { it.chapter }.filter { it.isNotBlank() }.distinct().sorted()
             _uiState.update {
-                it.copy(allSongs = songs, filteredSongs = songs)
+                it.copy(allSongs = songs, filteredSongs = songs, availableChapters = chapters)
             }
+            applyFilters()
         }
     }
 
@@ -229,11 +240,67 @@ class HomeViewModel @Inject constructor(
     }
 
     fun searchSongs(query: String) {
-        _uiState.update { state ->
-            val allSongsMap = songDataProvider.getSongs()
-            val filtered = searchSongUseCase(query, allSongsMap)
-            state.copy(searchQuery = query, filteredSongs = filtered)
+        _uiState.update { it.copy(searchQuery = query) }
+        applyFilters()
+    }
+
+    fun filterByChapter(chapter: String?) {
+        _uiState.update { it.copy(selectedChapter = chapter) }
+        applyFilters()
+    }
+
+    fun filterByDifficulty(diff: Difficulty?) {
+        _uiState.update { it.copy(selectedDifficulty = diff) }
+        applyFilters()
+    }
+
+    fun filterByLevelRange(min: Int, max: Int) {
+        _uiState.update { it.copy(minLevel = min, maxLevel = max) }
+        applyFilters()
+    }
+
+    fun toggleFilterSheet(show: Boolean) {
+        _uiState.update { it.copy(showFilterSheet = show) }
+    }
+
+    fun resetFilters() {
+        _uiState.update { 
+            it.copy(
+                selectedChapter = null,
+                selectedDifficulty = null,
+                minLevel = 1,
+                maxLevel = 16
+            )
         }
+        applyFilters()
+    }
+
+    private fun applyFilters() {
+        val state = _uiState.value
+        val allSongsMap = songDataProvider.getSongs()
+        val searchResults = if (state.searchQuery.isNotBlank()) {
+            searchSongUseCase(state.searchQuery, allSongsMap)
+        } else {
+            state.allSongs
+        }
+        
+        val chapter = state.selectedChapter
+        val diff = state.selectedDifficulty
+        val minLvl = state.minLevel.toFloat()
+        val maxLvl = state.maxLevel.toFloat() + 0.99f
+        
+        val filtered = searchResults.filter { song ->
+            val matchesChapter = chapter == null || song.chapter == chapter
+            val matchesLevelAndDiff = if (diff != null) {
+                val cc = song.difficulties[diff]
+                cc != null && cc >= minLvl && cc <= maxLvl
+            } else {
+                song.difficulties.values.any { cc -> cc >= minLvl && cc <= maxLvl }
+            }
+            matchesChapter && matchesLevelAndDiff
+        }
+        
+        _uiState.update { it.copy(filteredSongs = filtered) }
     }
 
     fun getIllustrationUrl(songId: String): String {
@@ -242,6 +309,10 @@ class HomeViewModel @Inject constructor(
 
     fun getStandardIllustrationUrl(songId: String): String {
         return illustrationProvider.getStandardUrl(songId)
+    }
+
+    fun getRandomTip(): String {
+        return tipsProvider.getRandomTip()
     }
 
     fun logout() {
