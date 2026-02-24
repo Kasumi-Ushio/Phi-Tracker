@@ -17,6 +17,8 @@ import kotlinx.serialization.json.Json
 import org.kasumi321.ushio.phitracker.data.database.AppDatabase
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.database.UserDao
+import org.kasumi321.ushio.phitracker.data.repository.SettingsRepositoryImpl
+import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import javax.inject.Singleton
 
 @Module
@@ -57,4 +59,10 @@ object DataModule {
 
     @Provides
     fun provideUserDao(db: AppDatabase): UserDao = db.userDao()
+
+    @Provides
+    @Singleton
+    fun provideSettingsRepository(
+        @ApplicationContext context: Context
+    ): SettingsRepository = SettingsRepositoryImpl(context)
 }

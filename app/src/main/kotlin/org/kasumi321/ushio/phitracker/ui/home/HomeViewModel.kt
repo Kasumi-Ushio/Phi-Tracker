@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import coil.ImageLoader
+import coil.imageLoader
+import coil.memory.MemoryCache
 import coil.request.ImageRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,6 +29,7 @@ import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -55,7 +58,12 @@ data class HomeUiState(
     val preloadProgress: Float = 0f,
     val preloadTotal: Int = 0,
     val preloadCompleted: Int = 0,
-    val isPreloading: Boolean = false
+    val isPreloading: Boolean = false,
+    
+    // 设置
+    val themeMode: Int = 0,
+    val showB30Overflow: Boolean = false,
+    val overflowCount: Int = 9
 )
 
 @HiltViewModel
@@ -67,15 +75,9 @@ class HomeViewModel @Inject constructor(
     private val searchSongUseCase: SearchSongUseCase,
     private val songDataProvider: SongDataProvider,
     private val illustrationProvider: IllustrationProvider,
-    private val tipsProvider: TipsProvider
+    private val tipsProvider: TipsProvider,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
-
-    companion object {
-        private const val PREFS_NAME = "illustration_prefs"
-        private const val KEY_PRELOAD_DONE = "preload_done"
-    }
-
-    private val prefs = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -85,6 +87,24 @@ class HomeViewModel @Inject constructor(
         observeB30()
         observeUserProfile()
         checkIllustrationState()
+        
+        // 观察设置流
+        viewModelScope.launch {
+            settingsRepository.themeMode.collect { mode ->
+                _uiState.update { it.copy(themeMode = mode) }
+            }
+        }
+
+        viewModelScope.launch {
+            settingsRepository.showB30Overflow.collect { show ->
+                _uiState.update { it.copy(showB30Overflow = show) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.overflowCount.collect { count ->
+                _uiState.update { it.copy(overflowCount = count) }
+            }
+        }
     }
 
     private fun loadSongs() {
@@ -141,13 +161,15 @@ class HomeViewModel @Inject constructor(
      * - 否则 → 弹出预加载对话框, 阻止内容展示
      */
     private fun checkIllustrationState() {
-        val alreadyDone = prefs.getBoolean(KEY_PRELOAD_DONE, false)
-        if (alreadyDone) {
-            Timber.d("Illustrations already preloaded, skipping dialog")
-            _uiState.update { it.copy(illustrationReady = true) }
-        } else {
-            Timber.d("First launch: showing preload dialog")
-            _uiState.update { it.copy(showPreloadDialog = true, illustrationReady = false) }
+        viewModelScope.launch {
+            val alreadyDone = settingsRepository.getPreloadDone()
+            if (alreadyDone) {
+                Timber.d("Illustrations already preloaded, skipping dialog")
+                _uiState.update { it.copy(illustrationReady = true) }
+            } else {
+                Timber.d("First launch: showing preload dialog")
+                _uiState.update { it.copy(showPreloadDialog = true, illustrationReady = false) }
+            }
         }
     }
 
@@ -158,7 +180,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val songs = songDataProvider.getSongs()
             val total = songs.size
-            val imageLoader = ImageLoader(appContext)
+            val imageLoader = appContext.imageLoader
             val semaphore = Semaphore(6)
 
             _uiState.update {
@@ -175,7 +197,7 @@ class HomeViewModel @Inject constructor(
                             val url = illustrationProvider.getLowUrl(songId)
                             val request = ImageRequest.Builder(appContext)
                                 .data(url)
-                                .size(128)
+                                .size(168) // 与 SongsTab 和 ScoreCard 调用的 size 保持绝对一致，以精准命中内存缓存
                                 .build()
                             imageLoader.execute(request)
                         } catch (e: Exception) {
@@ -197,7 +219,7 @@ class HomeViewModel @Inject constructor(
             jobs.forEach { it.join() }
 
             // 持久化: 标记已完成, 后续启动不再弹窗
-            prefs.edit().putBoolean(KEY_PRELOAD_DONE, true).apply()
+            settingsRepository.setPreloadDone(true)
 
             Timber.i("Preload complete: %d/%d illustrations cached", completed, total)
             _uiState.update {
@@ -214,9 +236,11 @@ class HomeViewModel @Inject constructor(
      * 跳过预加载 — 标记已处理, 不再弹窗, 但曲绘会按需加载
      */
     fun dismissPreload() {
-        prefs.edit().putBoolean(KEY_PRELOAD_DONE, true).apply()
-        _uiState.update {
-            it.copy(showPreloadDialog = false, illustrationReady = true)
+        viewModelScope.launch {
+            settingsRepository.setPreloadDone(true)
+            _uiState.update {
+                it.copy(showPreloadDialog = false, illustrationReady = true)
+            }
         }
     }
 
@@ -324,5 +348,41 @@ class HomeViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.update { it.copy(error = null) }
+    }
+
+    // --- 设置相关 ---
+    fun setThemeMode(mode: Int) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    fun setShowB30Overflow(show: Boolean) = viewModelScope.launch { settingsRepository.setShowB30Overflow(show) }
+    fun setOverflowCount(count: Int) = viewModelScope.launch { settingsRepository.setOverflowCount(count) }
+
+    @OptIn(coil.annotation.ExperimentalCoilApi::class)
+    fun clearHighResCache() {
+        viewModelScope.launch {
+            val imageLoader = appContext.imageLoader
+            val diskCache = imageLoader.diskCache
+            val memoryCache = imageLoader.memoryCache
+            val songs = songDataProvider.getSongs()
+            
+            var clearedCount = 0
+            songs.keys.forEach { songId ->
+                val standardUrl = illustrationProvider.getStandardUrl(songId)
+                diskCache?.remove(standardUrl)
+                memoryCache?.remove(MemoryCache.Key(standardUrl))
+                clearedCount++
+            }
+            Timber.i("Cleared high-res cache for %d songs", clearedCount)
+        }
+    }
+
+    fun resetIllustrationDownloadAndExit() {
+        viewModelScope.launch {
+            settingsRepository.setPreloadDone(false)
+            val imageLoader = appContext.imageLoader
+            imageLoader.diskCache?.clear()
+            imageLoader.memoryCache?.clear()
+            
+            Timber.i("All illustration cache cleared, exiting app to re-trigger download.")
+            kotlin.system.exitProcess(0)
+        }
     }
 }

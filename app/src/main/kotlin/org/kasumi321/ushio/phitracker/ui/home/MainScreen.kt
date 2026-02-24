@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsTab
 
 data class BottomNavItem(
@@ -52,6 +53,7 @@ data class BottomNavItem(
 fun MainScreen(
     onLogout: () -> Unit,
     onNavigateToB30Image: () -> Unit,
+    onNavigateToAbout: () -> Unit,
     onNavigateToSongDetail: (String) -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -170,6 +172,8 @@ fun MainScreen(
                 onGenerateImage = onNavigateToB30Image,
                 getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
                 onSongClick = onNavigateToSongDetail,
+                showB30Overflow = state.showB30Overflow,
+                overflowCount = state.overflowCount,
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
@@ -194,6 +198,15 @@ fun MainScreen(
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
             2 -> SettingsTab(
+                themeMode = state.themeMode,
+                showB30Overflow = state.showB30Overflow,
+                overflowCount = state.overflowCount,
+                onThemeModeChange = { viewModel.setThemeMode(it) },
+                onShowB30OverflowChange = { viewModel.setShowB30Overflow(it) },
+                onOverflowCountChange = { viewModel.setOverflowCount(it) },
+                onClearHighResCache = { viewModel.clearHighResCache() },
+                onRedownloadIllustrations = { viewModel.resetIllustrationDownloadAndExit() },
+                onNavigateToAbout = onNavigateToAbout,
                 onLogout = { viewModel.logout() },
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
@@ -240,7 +253,7 @@ private fun IllustrationPreloadDialog(
                     )
                 } else {
                     Text(
-                        text = "首次使用需要下载曲绘缩略图资源，以确保最佳显示效果。\n\n预计大小约 15MB，建议在 Wi-Fi 环境下下载。",
+                        text = "首次使用需要下载曲绘缩略图资源，以确保最佳显示效果。\n\n预计大小约 60 MB，建议在 Wi-Fi 环境下下载。",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Start
                     )

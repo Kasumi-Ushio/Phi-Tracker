@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.CachePolicy
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
@@ -109,7 +110,7 @@ fun SongsTab(
                 value = searchQuery,
                 onValueChange = onSearchChange,
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("搜索...") },
+                placeholder = { Text("搜索曲名或作曲...") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 singleLine = true
             )
@@ -292,6 +293,7 @@ fun SongItem(
             ImageRequest.Builder(context)
                 .data(it)
                 .size(168)
+                .networkCachePolicy(CachePolicy.READ_ONLY)
                 .crossfade(200)
                 .build()
         }

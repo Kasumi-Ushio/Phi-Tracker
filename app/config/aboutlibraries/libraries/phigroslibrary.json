@@ -1,0 +1,15 @@
+{
+    "uniqueId": "phigroslibrary",
+    "developers": [
+        {
+            "name": "7aGiven"
+        }
+    ],
+    "name": "PhigrosLibrary",
+    "description": "用于解析 Phigros 本地与云端存档数据的核心解析器来源",
+    "artifactVersion": "d0feb80",
+    "website": "https://github.com/7aGiven/PhigrosLibrary",
+    "licenses": [
+        "GPL-3.0-or-later"
+    ]
+}

@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.CachePolicy
 import coil.imageLoader
 import kotlinx.coroutines.launch
 import android.widget.Toast
@@ -116,6 +117,7 @@ fun SongDetailScreen(
                     model = ImageRequest.Builder(context)
                         .data(imageUrl)
                         .crossfade(true)
+                        .networkCachePolicy(CachePolicy.READ_ONLY)
                         .build(),
                     contentDescription = "Illustration",
                     modifier = Modifier

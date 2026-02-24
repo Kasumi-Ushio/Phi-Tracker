@@ -80,6 +80,8 @@ SPDX-License-Identifier: GPL-3.0-only。
 
 SPDX-License-Identifier: GPL-3.0-only。
 
+我们已获得原作者[授权](https://github.com/7aGiven/PhigrosLibrary/issues/11)，对于本项目：SPDX-License-Identifier: GPL-3.0-or-later。
+
 ## 免责声明
 
 本项目是一个非官方项目，与 Pigeon Games 和 TapTap 之间没有任何关联，也不以任何形式受其认可或支持。用户在使用过程中导入的所有资源均为其各自所有者的财产，我们不主张也不拥有这些资源的任何权利。

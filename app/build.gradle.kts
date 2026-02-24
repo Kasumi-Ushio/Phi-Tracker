@@ -26,6 +26,8 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
+
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -74,6 +76,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+aboutLibraries {
+    configPath = "app/config/aboutlibraries"
 }
 
 dependencies {

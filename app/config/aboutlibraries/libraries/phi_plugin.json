@@ -1,0 +1,15 @@
+{
+    "uniqueId": "phi_plugin",
+    "developers": [
+        {
+            "name": "Catrong"
+        }
+    ],
+    "name": "phi-plugin",
+    "description": "提供 Phigros 谱面定数等关键元数据的开源数据仓库",
+    "artifactVersion": "1.0.0-46c9957",
+    "website": "https://github.com/Catrong/phi-plugin",
+    "licenses": [
+        "GPL-3.0-only"
+    ]
+}

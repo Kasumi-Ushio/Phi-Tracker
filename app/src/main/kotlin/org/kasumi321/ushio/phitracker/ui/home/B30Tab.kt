@@ -45,6 +45,8 @@ fun B30Tab(
     onGenerateImage: () -> Unit,
     getIllustrationUrl: (String) -> String?,
     onSongClick: (String) -> Unit,
+    showB30Overflow: Boolean = false,
+    overflowCount: Int = 9,
     tip: String = "",
     modifier: Modifier = Modifier
 ) {
@@ -52,7 +54,7 @@ fun B30Tab(
     val phi3 = b30.filter { it.isPhi }
     val b36 = b30.filter { !it.isPhi }
     val b27 = b36.take(27)
-    val overflow = b36.drop(27)
+    val overflow = if (showB30Overflow) b36.drop(27).take(overflowCount) else emptyList()
 
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
@@ -64,7 +66,7 @@ fun B30Tab(
                             text = tip,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth(0.75f)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -106,7 +108,7 @@ fun B30Tab(
             ) {
                 Column {
                     Text(
-                        text = "Rating",
+                        text = "RKS",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
@@ -155,7 +157,7 @@ fun B30Tab(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "暂无数据\n点击右上角刷新同步存档",
+                    text = "暂无数据\n点击右上角刷新按钮以同步存档",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

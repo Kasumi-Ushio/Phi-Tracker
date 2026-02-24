@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.CachePolicy
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 
@@ -74,6 +75,7 @@ fun ScoreCard(
             ImageRequest.Builder(context)
                 .data(it)
                 .size(168) // 56dp * 3 (density)
+                .networkCachePolicy(CachePolicy.READ_ONLY)
                 .crossfade(200)
                 .build()
         }
