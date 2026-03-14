@@ -65,6 +65,7 @@ import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
+import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
 import org.kasumi321.ushio.phitracker.utils.ImageStorageHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -72,6 +73,7 @@ import org.kasumi321.ushio.phitracker.utils.ImageStorageHelper
 fun SongDetailScreen(
     songInfo: SongInfo,
     userRecords: List<BestRecord> = emptyList(),
+    syncHistory: List<SongSyncHistoryEntity> = emptyList(),
     getIllustrationUrl: (String) -> String?,
     getStandardIllustrationUrl: (String) -> String?,
     onBack: () -> Unit,
@@ -306,6 +308,44 @@ fun SongDetailScreen(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 同步历史记录
+                val filteredHistory = syncHistory
+                    .filter { it.difficulty == selectedDifficulty.name }
+                    .take(3)
+
+                if (filteredHistory.isNotEmpty()) {
+                    Text(
+                        text = "同步历史",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    filteredHistory.forEach { entry ->
+                        SyncHistoryCard(entry)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        )
+                    ) {
+                        Text(
+                            text = "暂无同步历史\n同步后发生变化的成绩将显示在这里",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -450,5 +490,61 @@ private fun StatusChip(text: String, bgColor: Color, contentColor: Color) {
             fontWeight = FontWeight.Bold,
             fontSize = 10.sp
         )
+    }
+}
+
+/**
+ * 同步历史卡片
+ */
+@Composable
+private fun SyncHistoryCard(entry: SongSyncHistoryEntity) {
+    val formattedTime = remember(entry.timestamp) {
+        java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
+            .format(java.util.Date(entry.timestamp))
+    }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = formattedTime,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = String.format("%,d", entry.score),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    if (entry.accuracy >= 100f) {
+                        StatusChip("φ", Color(0xFFFFD54F), Color(0xFF5D4037))
+                    } else if (entry.isFullCombo) {
+                        StatusChip("FC", Color(0xFF4FC3F7), Color.White)
+                    }
+                }
+            }
+            Text(
+                text = String.format("%.4f%%", entry.accuracy),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

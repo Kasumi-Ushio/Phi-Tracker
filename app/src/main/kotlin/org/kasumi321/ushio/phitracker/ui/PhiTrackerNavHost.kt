@@ -137,11 +137,13 @@ fun PhiTrackerNavHost() {
 
             val songInfo = state.allSongs.find { it.id == songId }
             val userRecords = state.allRecords.filter { it.songId == songId }
+            val syncHistory by viewModel.getSyncHistory(songId).collectAsState(initial = emptyList())
             
             if (songInfo != null) {
                 SongDetailScreen(
                     songInfo = songInfo,
                     userRecords = userRecords,
+                    syncHistory = syncHistory,
                     getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
                     getStandardIllustrationUrl = { viewModel.getStandardIllustrationUrl(it) },
                     onBack = { navController.popBackStack() }

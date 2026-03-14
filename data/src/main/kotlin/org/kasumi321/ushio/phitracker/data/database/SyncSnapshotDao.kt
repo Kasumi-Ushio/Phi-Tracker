@@ -12,6 +12,9 @@ interface SyncSnapshotDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(snapshot: SyncSnapshotEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAndGetId(snapshot: SyncSnapshotEntity): Long
+
     @Query("SELECT * FROM sync_snapshots ORDER BY timestamp DESC")
     fun getAll(): Flow<List<SyncSnapshotEntity>>
 

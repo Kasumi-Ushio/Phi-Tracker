@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,6 +33,8 @@ import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotDao
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
+import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryDao
+import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import timber.log.Timber
 import javax.inject.Inject
@@ -88,7 +91,8 @@ class HomeViewModel @Inject constructor(
     private val tipsProvider: TipsProvider,
     private val settingsRepository: SettingsRepository,
     private val syncSnapshotDao: SyncSnapshotDao,
-    private val recordDao: RecordDao
+    private val recordDao: RecordDao,
+    private val songSyncHistoryDao: SongSyncHistoryDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -303,6 +307,10 @@ class HomeViewModel @Inject constructor(
                 return@launch
             }
 
+            // 拍快照：同步前的旧记录（用于 diff 计算）
+            val oldRecords = recordDao.getAllRecordsOnce()
+            val oldRecordMap = oldRecords.associateBy { "${it.songId}:${it.difficulty}" }
+
             val result = syncSaveUseCase(tokenPair.first, tokenPair.second)
             if (result.isSuccess) {
                 val save = result.getOrThrow()
@@ -317,10 +325,37 @@ class HomeViewModel @Inject constructor(
                     .joinToString(" ") { "${it.value}${units.getOrElse(it.index) { "" }}" }
                 settingsRepository.setMoneyString(moneyStr)
 
+                val now = System.currentTimeMillis()
+
+                // 计算同步差异（发生变化的成绩）
+                val newRecords = recordDao.getAllRecordsOnce()
+                val changedEntries = mutableListOf<SongSyncHistoryEntity>()
+                for (newRec in newRecords) {
+                    val key = "${newRec.songId}:${newRec.difficulty}"
+                    val oldRec = oldRecordMap[key]
+                    if (oldRec == null ||
+                        oldRec.score != newRec.score ||
+                        oldRec.accuracy != newRec.accuracy ||
+                        oldRec.isFullCombo != newRec.isFullCombo
+                    ) {
+                        changedEntries.add(
+                            SongSyncHistoryEntity(
+                                snapshotId = 0,
+                                songId = newRec.songId,
+                                difficulty = newRec.difficulty,
+                                score = newRec.score,
+                                accuracy = newRec.accuracy,
+                                isFullCombo = newRec.isFullCombo,
+                                timestamp = now
+                            )
+                        )
+                    }
+                }
+
                 // 记录快照
                 val state = _uiState.value
                 val snapshot = SyncSnapshotEntity(
-                    timestamp = System.currentTimeMillis(),
+                    timestamp = now,
                     rks = state.displayRks,
                     nickname = state.nickname,
                     dataCount = recordDao.getDistinctSongCount(),
@@ -329,7 +364,15 @@ class HomeViewModel @Inject constructor(
                     lastSyncedScore = state.b30.firstOrNull()?.score,
                     lastSyncedAccuracy = state.b30.firstOrNull()?.accuracy
                 )
-                syncSnapshotDao.insert(snapshot)
+                val snapshotId = syncSnapshotDao.insertAndGetId(snapshot)
+
+                // 写入变化记录（带上 snapshotId）
+                if (changedEntries.isNotEmpty()) {
+                    val entriesWithSnapshot = changedEntries.map { it.copy(snapshotId = snapshotId) }
+                    songSyncHistoryDao.insertAll(entriesWithSnapshot)
+                    Timber.i("Recorded %d changed entries for snapshot #%d", entriesWithSnapshot.size, snapshotId)
+                }
+
                 _uiState.update {
                     it.copy(
                         isSyncing = false,
@@ -338,7 +381,7 @@ class HomeViewModel @Inject constructor(
                 }
                 // 刷新统计数据
                 loadStats()
-                Timber.i("Sync snapshot recorded: rks=%.4f, money=%s", snapshot.rks, moneyStr)
+                Timber.i("Sync snapshot #%d recorded: rks=%.4f, money=%s", snapshotId, snapshot.rks, moneyStr)
             } else {
                 _uiState.update {
                     it.copy(
@@ -354,6 +397,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.setAvatarUri(uri.toString())
         }
+    }
+
+    fun getSyncHistory(songId: String): Flow<List<SongSyncHistoryEntity>> {
+        return songSyncHistoryDao.getBySongId(songId)
     }
 
     fun searchSongs(query: String) {
