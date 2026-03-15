@@ -20,17 +20,20 @@ class SearchSongUseCase @Inject constructor() {
     ): List<SongInfo> {
         if (query.isBlank()) return allSongs.values.toList()
 
-        val hasWildcard = query.contains('*') || query.contains('?')
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return allSongs.values.toList()
+
+        val hasWildcard = trimmed.contains('*') || trimmed.contains('?')
 
         return if (hasWildcard) {
-            val regex = buildWildcardRegex(query)
+            val regex = buildWildcardRegex(trimmed) ?: return emptyList()
             allSongs.values.filter { song ->
-                regex.matches(song.name) ||
-                regex.matches(song.id) ||
-                regex.matches(song.composer)
+                regex.containsMatchIn(song.name) ||
+                regex.containsMatchIn(song.id) ||
+                regex.containsMatchIn(song.composer)
             }.sortedBy { it.name }
         } else {
-            val lowerQuery = query.lowercase()
+            val lowerQuery = trimmed.lowercase()
             allSongs.values.filter { song ->
                 song.name.lowercase().contains(lowerQuery) ||
                 song.id.lowercase().contains(lowerQuery) ||
@@ -40,23 +43,28 @@ class SearchSongUseCase @Inject constructor() {
     }
 
     /**
-     * 将通配符查询转为正则：
-     * - `*` → `[^\s]+`（至少一个非空格字符）
-     * - `?` → `[^\s]`（恰好一个非空格字符）
-     * - 空格 → `\s`
+     * 将通配符查询转为正则（部分匹配）：
+     * - `*` → `\S+`（至少一个非空白字符）
+     * - `?` → `\S`（恰好一个非空白字符）
+     * - 空格 → `\s+`（一个或多个空白字符）
      * - 其他字符转义
+     *
+     * 返回 null 表示无法编译（用户输入了不合法的模式）
      */
-    private fun buildWildcardRegex(query: String): Regex {
-        val sb = StringBuilder("^")
+    private fun buildWildcardRegex(query: String): Regex? {
+        val sb = StringBuilder()
         for (ch in query) {
             when (ch) {
-                '*' -> sb.append("[^\\s]+")
-                '?' -> sb.append("[^\\s]")
-                ' ' -> sb.append("\\s")
+                '*' -> sb.append("\\S+")
+                '?' -> sb.append("\\S")
+                ' ' -> sb.append("\\s+")
                 else -> sb.append(Regex.escape(ch.toString()))
             }
         }
-        sb.append("$")
-        return Regex(sb.toString(), RegexOption.IGNORE_CASE)
+        return try {
+            Regex(sb.toString(), RegexOption.IGNORE_CASE)
+        } catch (_: Exception) {
+            null
+        }
     }
 }
