@@ -42,16 +42,16 @@ fun PhiTrackerNavHost() {
         navController = navController,
         startDestination = Screen.Login.route,
         enterTransition = {
-            fadeIn(animationSpec = tween(150))
+            fadeIn(animationSpec = tween(250))
         },
         exitTransition = {
-            fadeOut(animationSpec = tween(150))
+            fadeOut(animationSpec = tween(250))
         },
         popEnterTransition = {
-            fadeIn(animationSpec = tween(150))
+            fadeIn(animationSpec = tween(250))
         },
         popExitTransition = {
-            fadeOut(animationSpec = tween(150))
+            fadeOut(animationSpec = tween(250))
         }
     ) {
         composable(Screen.Login.route) {

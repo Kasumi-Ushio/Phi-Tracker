@@ -58,7 +58,19 @@ fun ToolsTab(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("工具") },
+                title = {
+                    Column {
+                        Text("工具")
+                        if (tip.isNotBlank()) {
+                            Text(
+                                text = tip,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth(0.75f)
+                            )
+                        }
+                    }
+                },
             )
         }
     ) { padding ->
