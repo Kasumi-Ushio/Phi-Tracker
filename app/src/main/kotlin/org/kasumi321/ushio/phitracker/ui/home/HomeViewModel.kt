@@ -83,7 +83,10 @@ data class HomeUiState(
     val updateDataProgress: Int = 0,
     val updateDataTotal: Int = 0,
     val updateDataFileName: String = "",
-    val updateDataError: String? = null
+    val updateDataError: String? = null,
+    // 工具 Tab
+    val syncSnapshots: List<org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity> = emptyList(),
+    val sessionToken: String? = null
 )
 
 @HiltViewModel
@@ -138,6 +141,17 @@ class HomeViewModel @Inject constructor(
             settingsRepository.moneyString.collect { money ->
                 _uiState.update { it.copy(moneyString = money) }
             }
+        }
+        // 工具 Tab: 观察同步快照列表
+        viewModelScope.launch {
+            syncSnapshotDao.getAll().collect { list ->
+                _uiState.update { it.copy(syncSnapshots = list) }
+            }
+        }
+        // 工具 Tab: 加载 sessionToken
+        viewModelScope.launch {
+            val tokenPair = repository.getSessionToken()
+            _uiState.update { it.copy(sessionToken = tokenPair?.first) }
         }
         // 加载最近同步快照 + 统计数据
         viewModelScope.launch {

@@ -221,17 +221,12 @@ fun MainScreen(
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
-            3 -> {
-                // 工具 Tab 占位，将在工作流 3 实现
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = innerPadding.calculateBottomPadding()),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("工具正在开发中...", style = MaterialTheme.typography.bodyLarge)
-                }
-            }
+            3 -> ToolsTab(
+                syncSnapshots = state.syncSnapshots,
+                sessionToken = state.sessionToken,
+                tip = tip,
+                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+            )
         }
     }
 }

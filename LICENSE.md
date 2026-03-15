@@ -70,7 +70,7 @@ Respect to the original author of the code listed above.
 
 This project, include all of its source code, assets not belonging to the Pigeon Games and TapTap, and documentation, is Free-as-in-Freedom software.
 
-You can use, copy, distribute, modify and redistribute this project under the terms of the GNU General Public License version 3, which is published by the Free Software Foundation.
+You can use, copy, distribute, modify and redistribute this project under the terms of the GNU General Public License, either version 3, or (at your option) any later version, which is published by the Free Software Foundation.
 
 For more information, please refer to the [GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.en.html) or the COPYING file in this project.
 
@@ -92,7 +92,7 @@ We have got the [permission](https://github.com/7aGiven/PhigrosLibrary/issues/11
 
 This project is a fan-made project and is neither endorsed nor affiliated with the Pigeon Games and TapTap. We do not claim any ownership of the assets of user imported from the game. All of such assets are the property of their respective owners.
 
-Although this project is free software and licensed under the GNU General Public License version 3, which allows commercial uses, it does not mean that we support any of commercial uses of this project. Any kinds of feedback when we discovered that which happens in a commercial use case will NOT BE SOLVED.
+Although this project is free software and licensed under the GNU General Public License, which allows commercial uses, it does not mean that we support any of commercial uses of this project. Any kinds of feedback when we discovered that which happens in a commercial use case will NOT BE SOLVED.
 
 **We DO NOT endorse or provide the support of the cyperattacking to TapTap and/or Pigeon Games, or any other illegal uses of this project. All risks arising from the use of this project are borne by the user. The use of this project for any illegal activities is strictly prohibited under the criminal law of your country and region.**
 

@@ -312,7 +312,7 @@ fun SettingsTab(
         AlertDialog(
             onDismissRequest = { showClearCacheDialog = false },
             title = { Text("清理缓存") },
-            text = { Text("确定要清理所有高清曲绘缓存吗？缩略图将保留。") },
+            text = { Text("确定要清理所有高清曲绘缓存吗？\n之前下载的曲绘缩略图不会随缓存清理删除。") },
             confirmButton = {
                 TextButton(onClick = {
                     showClearCacheDialog = false
@@ -334,7 +334,7 @@ fun SettingsTab(
         AlertDialog(
             onDismissRequest = { showRedownloadDialog = false },
             title = { Text("重新下载") },
-            text = { Text("确定要删除本地所有曲绘信息吗？如点击确定，本应用将自动退出，下次进入应用时将自动重新唤起预加载窗口。") },
+            text = { Text("确定要删除本地所有曲绘信息吗？\n如点击确定，本应用将自动退出，下次进入应用时将自动重新唤起预加载窗口。") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -358,7 +358,7 @@ fun SettingsTab(
         AlertDialog(
             onDismissRequest = { showUpdateDataDialog = false },
             title = { Text("更新曲目数据") },
-            text = { Text("将从远程仓库下载最新的曲目数据，之后将自动刷新本地状态。\n下载完毕后，推荐重新下载所有曲绘。") },
+            text = { Text("将从远程仓库下载最新的曲目数据，之后将自动刷新本地曲目数据。\n下载完毕后，推荐重新下载所有曲绘。") },
             confirmButton = {
                 TextButton(onClick = {
                     showUpdateDataDialog = false
