@@ -113,6 +113,9 @@ dependencies {
     // QR Code
     implementation(libs.zxing.core)
 
+    // Serialization (for GitHub API)
+    implementation(libs.kotlinx.serialization.json)
+
     // Logging
     implementation(libs.timber)
 

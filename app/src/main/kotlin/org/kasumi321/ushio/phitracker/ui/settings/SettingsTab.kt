@@ -31,6 +31,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,6 +39,7 @@ import org.kasumi321.ushio.phitracker.BuildConfig
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.ui.window.DialogProperties
+import org.kasumi321.ushio.phitracker.ui.home.UpdateCheckState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,6 +61,11 @@ fun SettingsTab(
     onDismissUpdateError: () -> Unit = {},
     onNavigateToAbout: () -> Unit,
     onLogout: () -> Unit,
+    includePreRelease: Boolean = false,
+    updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
+    onCheckForUpdate: () -> Unit = {},
+    onIncludePreReleaseChange: (Boolean) -> Unit = {},
+    onDismissUpdateResult: () -> Unit = {},
     tip: String = "",
     onNavigateBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -215,6 +222,31 @@ fun SettingsTab(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
+            CategoryTitle("程序更新")
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("接收预发布版本更新", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "启用后将包含 Pre-Release 版本",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = includePreRelease,
+                    onCheckedChange = { onIncludePreReleaseChange(it) }
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
             CategoryTitle("数据与缓存")
 
             CenteredListItem(
@@ -259,6 +291,30 @@ fun SettingsTab(
             }
 
             CategoryTitle("关于")
+
+            CenteredListItem(
+                headlineContent = { Text("检查更新") },
+                supportingContent = {
+                    when (updateCheckState) {
+                        is UpdateCheckState.Checking -> Text("正在检查...")
+                        is UpdateCheckState.NoUpdate -> Text("已是最新版本")
+                        is UpdateCheckState.Error -> Text("检查失败: ${updateCheckState.message}")
+                        else -> Text("从 GitHub Releases 检查是否有新版本")
+                    }
+                },
+                leadingContent = {
+                    if (updateCheckState is UpdateCheckState.Checking) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null)
+                    }
+                },
+                modifier = Modifier.clickable(enabled = updateCheckState !is UpdateCheckState.Checking) {
+                    onCheckForUpdate()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             CenteredListItem(
                 headlineContent = { Text("关于 Phi Tracker") },
@@ -325,6 +381,42 @@ fun SettingsTab(
             dismissButton = {
                 TextButton(onClick = { showClearCacheDialog = false }) {
                     Text("取消")
+                }
+            }
+        )
+    }
+
+    // 更新可用弹窗
+    if (updateCheckState is UpdateCheckState.Available) {
+        val uriHandler = LocalUriHandler.current
+        AlertDialog(
+            onDismissRequest = { onDismissUpdateResult() },
+            title = { Text("发现新版本") },
+            text = {
+                Column {
+                    Text("最新版本: ${updateCheckState.version}")
+                    if (updateCheckState.body.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = updateCheckState.body,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 10
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDismissUpdateResult()
+                    uriHandler.openUri(updateCheckState.htmlUrl)
+                }) {
+                    Text("前往下载")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { onDismissUpdateResult() }) {
+                    Text("稍后再说")
                 }
             }
         )

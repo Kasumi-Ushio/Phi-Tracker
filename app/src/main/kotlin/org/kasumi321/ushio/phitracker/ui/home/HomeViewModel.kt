@@ -39,6 +39,23 @@ import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import timber.log.Timber
 import javax.inject.Inject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import java.net.HttpURLConnection
+import java.net.URL
+
+/**
+ * 应用更新检查状态
+ */
+sealed class UpdateCheckState {
+    data object Idle : UpdateCheckState()
+    data object Checking : UpdateCheckState()
+    data class Available(val version: String, val htmlUrl: String, val body: String) : UpdateCheckState()
+    data object NoUpdate : UpdateCheckState()
+    data class Error(val message: String) : UpdateCheckState()
+}
 
 data class HomeUiState(
     val b30: List<BestRecord> = emptyList(),
@@ -86,7 +103,10 @@ data class HomeUiState(
     val updateDataError: String? = null,
     // 工具 Tab
     val syncSnapshots: List<org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity> = emptyList(),
-    val sessionToken: String? = null
+    val sessionToken: String? = null,
+    // 应用更新
+    val includePreRelease: Boolean = false,
+    val updateCheckState: UpdateCheckState = UpdateCheckState.Idle
 )
 
 @HiltViewModel
@@ -152,6 +172,12 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val tokenPair = repository.getSessionToken()
             _uiState.update { it.copy(sessionToken = tokenPair?.first) }
+        }
+        // 观察更新频道设置
+        viewModelScope.launch {
+            settingsRepository.includePreRelease.collect { enabled ->
+                _uiState.update { it.copy(includePreRelease = enabled) }
+            }
         }
         // 加载最近同步快照 + 统计数据
         viewModelScope.launch {
@@ -584,4 +610,88 @@ class HomeViewModel @Inject constructor(
             kotlin.system.exitProcess(0)
         }
     }
+
+    // --- 应用内检查更新 ---
+
+    fun checkForUpdate() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(updateCheckState = UpdateCheckState.Checking) }
+            try {
+                val includePreRelease = _uiState.value.includePreRelease
+                val currentVersion = org.kasumi321.ushio.phitracker.BuildConfig.VERSION_NAME
+
+                val releases = withContext(Dispatchers.IO) {
+                    val url = URL("https://api.github.com/repos/Kasumi-Ushio/Ushio-Prober-Phigros/releases")
+                    val conn = url.openConnection() as HttpURLConnection
+                    conn.setRequestProperty("Accept", "application/vnd.github+json")
+                    conn.connectTimeout = 10_000
+                    conn.readTimeout = 10_000
+                    try {
+                        val responseText = conn.inputStream.bufferedReader().readText()
+                        val json = Json { ignoreUnknownKeys = true }
+                        json.decodeFromString<List<GitHubRelease>>(responseText)
+                    } finally {
+                        conn.disconnect()
+                    }
+                }
+
+                val candidates = if (includePreRelease) releases else releases.filter { !it.prerelease }
+                val latest = candidates.firstOrNull()
+
+                if (latest == null) {
+                    _uiState.update { it.copy(updateCheckState = UpdateCheckState.NoUpdate) }
+                    return@launch
+                }
+
+                val latestVersion = latest.tag_name.removePrefix("v")
+                if (isNewerVersion(latestVersion, currentVersion)) {
+                    _uiState.update {
+                        it.copy(updateCheckState = UpdateCheckState.Available(
+                            version = latest.tag_name,
+                            htmlUrl = latest.html_url,
+                            body = latest.body ?: ""
+                        ))
+                    }
+                } else {
+                    _uiState.update { it.copy(updateCheckState = UpdateCheckState.NoUpdate) }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to check for update")
+                _uiState.update { it.copy(updateCheckState = UpdateCheckState.Error(e.message ?: "未知错误")) }
+            }
+        }
+    }
+
+    fun setIncludePreRelease(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setIncludePreRelease(enabled) }
+    }
+
+    fun dismissUpdateResult() {
+        _uiState.update { it.copy(updateCheckState = UpdateCheckState.Idle) }
+    }
+
+    /**
+     * 简单版本号比较 (支持 x.y.z[-suffix] 格式)
+     * 返回 true 表示 newer 比 current 更新
+     */
+    private fun isNewerVersion(newer: String, current: String): Boolean {
+        val newerParts = newer.split("-")[0].split(".").map { it.toIntOrNull() ?: 0 }
+        val currentParts = current.split("-")[0].split(".").map { it.toIntOrNull() ?: 0 }
+        val maxLen = maxOf(newerParts.size, currentParts.size)
+        for (i in 0 until maxLen) {
+            val n = newerParts.getOrElse(i) { 0 }
+            val c = currentParts.getOrElse(i) { 0 }
+            if (n > c) return true
+            if (n < c) return false
+        }
+        return false
+    }
 }
+
+@Serializable
+private data class GitHubRelease(
+    val tag_name: String,
+    val html_url: String,
+    val prerelease: Boolean,
+    val body: String? = null
+)

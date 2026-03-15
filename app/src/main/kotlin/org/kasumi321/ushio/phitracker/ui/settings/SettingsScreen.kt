@@ -38,6 +38,11 @@ fun SettingsScreen(
         onDismissUpdateError = { viewModel.dismissUpdateDataError() },
         onNavigateToAbout = onNavigateToAbout,
         onLogout = { viewModel.logout(onLogout) },
+        includePreRelease = state.includePreRelease,
+        updateCheckState = state.updateCheckState,
+        onCheckForUpdate = { viewModel.checkForUpdate() },
+        onIncludePreReleaseChange = { viewModel.setIncludePreRelease(it) },
+        onDismissUpdateResult = { viewModel.dismissUpdateResult() },
         tip = tip,
         onNavigateBack = onNavigateBack
     )

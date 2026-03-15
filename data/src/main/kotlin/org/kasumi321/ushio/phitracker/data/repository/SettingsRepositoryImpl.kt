@@ -69,4 +69,12 @@ class SettingsRepositoryImpl @Inject constructor(
         prefs.edit { putString("money_string", money) }
         _moneyString.value = money
     }
+
+    private val _includePreRelease = MutableStateFlow(prefs.getBoolean("include_pre_release", false))
+    override val includePreRelease: Flow<Boolean> = _includePreRelease.asStateFlow()
+
+    override suspend fun setIncludePreRelease(enabled: Boolean) {
+        prefs.edit { putBoolean("include_pre_release", enabled) }
+        _includePreRelease.value = enabled
+    }
 }

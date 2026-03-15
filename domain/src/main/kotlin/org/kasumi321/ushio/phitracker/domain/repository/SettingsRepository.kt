@@ -22,4 +22,8 @@ interface SettingsRepository {
     // Data (货币)
     val moneyString: Flow<String>
     suspend fun setMoneyString(money: String)
+
+    // 更新频道
+    val includePreRelease: Flow<Boolean>
+    suspend fun setIncludePreRelease(enabled: Boolean)
 }
