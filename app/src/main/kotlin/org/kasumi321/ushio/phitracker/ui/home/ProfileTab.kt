@@ -3,6 +3,8 @@ package org.kasumi321.ushio.phitracker.ui.home
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -83,7 +85,7 @@ private val FcColor = Color(0xFF4FC3F7)
 private val PhiColor = Color(0xFFFFD54F)
 private val PhiTextColor = Color(0xFF5D4037)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileTab(
     nickname: String,
@@ -95,7 +97,7 @@ fun ProfileTab(
     phiCount: Int,
     avatarUri: String?,
     lastSyncTime: Long?,
-    lastSyncedRecord: BestRecord?,
+    recentSyncedRecords: List<BestRecord>,
     isSyncing: Boolean,
     onRefresh: () -> Unit,
     onAvatarSelected: (Uri) -> Unit,
@@ -129,7 +131,10 @@ fun ProfileTab(
                             text = tip,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth(1f)
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth(1f)
+                                .basicMarquee()
                         )
                     }
                 }
@@ -298,12 +303,25 @@ fun ProfileTab(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
 
-                if (lastSyncedRecord != null) {
-                    ScoreCard(
-                        rank = 0,
-                        record = lastSyncedRecord,
-                        illustrationUrl = getIllustrationUrl(lastSyncedRecord.songId),
-                        onSongClick = onSongClick
+                if (recentSyncedRecords.isNotEmpty()) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        recentSyncedRecords.forEachIndexed { index, record ->
+                            ScoreCard(
+                                rank = index + 1,
+                                record = record,
+                                illustrationUrl = getIllustrationUrl(record.songId),
+                                onSongClick = onSongClick
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "本次同步没有检测到分数或 ACC 变化",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             } else {

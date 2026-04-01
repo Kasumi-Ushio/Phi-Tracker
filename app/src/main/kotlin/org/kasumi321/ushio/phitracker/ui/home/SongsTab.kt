@@ -1,6 +1,7 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +43,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,7 +65,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SongsTab(
     songs: List<SongInfo>,
@@ -89,7 +91,7 @@ fun SongsTab(
     // 计算已激活的筛选数
     val activeFilterCount = remember(selectedChapters, selectedDifficulty, minLevel, maxLevel) {
         var count = 0
-        if (selectedChapters.isNotEmpty()) count++
+        if (selectedChapters.isNotEmpty()) count += selectedChapters.size
         if (selectedDifficulty != null) count++
         if (minLevel > 1 || maxLevel < 16) count++
         count
@@ -104,7 +106,10 @@ fun SongsTab(
                             text = tip,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth(0.75f)
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth(0.75f)
+                                .basicMarquee()
                         )
                     }
                 }

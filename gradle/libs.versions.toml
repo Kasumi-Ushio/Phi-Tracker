@@ -32,6 +32,7 @@ coil = "2.7.0"
 
 # Logging
 timber = "5.0.1"
+acra = "5.11.4"
 
 # Security
 securityCrypto = "1.1.0-alpha06"
@@ -92,6 +93,8 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 # Logging
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
+acra-core = { group = "ch.acra", name = "acra-core", version.ref = "acra" }
+acra-notification = { group = "ch.acra", name = "acra-notification", version.ref = "acra" }
 
 # Security
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }

@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Phi Tracker</string>
+    <string name="acra_notification_title">Phi Tracker 发生异常</string>
+    <string name="acra_notification_text">检测到崩溃报告，您可以点击“保留”以在下一次启动后导出报告以供反馈，或点击“丢弃”立即删除本次崩溃报告。</string>
+    <string name="acra_notification_channel_name">Debug 崩溃反馈提醒</string>
+    <string name="acra_notification_channel_description">用于提醒用户应用发生崩溃并导出本地报告</string>
+    <string name="acra_notification_send">保留</string>
+    <string name="acra_notification_discard">丢弃</string>
+    <string name="release_crash_notification_title">Phi Tracker 发生异常</string>
+    <string name="release_crash_notification_text">检测到崩溃，请安装 Debug 版尝试复现并导出日志反馈。</string>
+    <string name="release_crash_notification_channel_name">Release 崩溃提示</string>
+    <string name="release_crash_notification_channel_description">Release 版本崩溃后的本地提示通知</string>
 </resources>

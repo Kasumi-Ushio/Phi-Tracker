@@ -91,6 +91,7 @@ data class HomeUiState(
     val avatarUri: String? = null,
     val lastSyncTime: Long? = null,
     val lastSyncedRecord: BestRecord? = null,
+    val recentSyncedRecords: List<BestRecord> = emptyList(),
     val moneyString: String = "",
     val clearCounts: Map<String, Int> = emptyMap(),  // EZ/HD/IN/AT -> count
     val fcCount: Int = 0,
@@ -125,7 +126,6 @@ class HomeViewModel @Inject constructor(
     private val songSyncHistoryDao: SongSyncHistoryDao,
     private val songDataUpdater: SongDataUpdater
 ) : ViewModel() {
-
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
@@ -185,6 +185,11 @@ class HomeViewModel @Inject constructor(
             if (latest != null) {
                 _uiState.update {
                     it.copy(lastSyncTime = latest.timestamp)
+                }
+                loadSyncRecordsForSnapshot(latest.id)
+            } else {
+                _uiState.update {
+                    it.copy(recentSyncedRecords = emptyList(), lastSyncedRecord = null)
                 }
             }
             loadStats()
@@ -383,8 +388,7 @@ class HomeViewModel @Inject constructor(
                     val oldRec = oldRecordMap[key]
                     if (oldRec == null ||
                         oldRec.score != newRec.score ||
-                        oldRec.accuracy != newRec.accuracy ||
-                        oldRec.isFullCombo != newRec.isFullCombo
+                        oldRec.accuracy != newRec.accuracy
                     ) {
                         changedEntries.add(
                             SongSyncHistoryEntity(
@@ -400,36 +404,45 @@ class HomeViewModel @Inject constructor(
                     }
                 }
 
-                // 记录快照
-                val state = _uiState.value
-                val snapshot = SyncSnapshotEntity(
-                    timestamp = now,
-                    rks = state.displayRks,
-                    nickname = state.nickname,
-                    dataCount = recordDao.getDistinctSongCount(),
-                    lastSyncedSongId = state.b30.firstOrNull()?.songId,
-                    lastSyncedDifficulty = state.b30.firstOrNull()?.difficulty?.name,
-                    lastSyncedScore = state.b30.firstOrNull()?.score,
-                    lastSyncedAccuracy = state.b30.firstOrNull()?.accuracy
-                )
-                val snapshotId = syncSnapshotDao.insertAndGetId(snapshot)
-
-                // 写入变化记录（带上 snapshotId）
                 if (changedEntries.isNotEmpty()) {
+                    // 仅在有分数或 ACC 变化时写入同步快照
+                    val state = _uiState.value
+                    val snapshot = SyncSnapshotEntity(
+                        timestamp = now,
+                        rks = state.displayRks,
+                        nickname = state.nickname,
+                        dataCount = recordDao.getDistinctSongCount(),
+                        lastSyncedSongId = state.b30.firstOrNull()?.songId,
+                        lastSyncedDifficulty = state.b30.firstOrNull()?.difficulty?.name,
+                        lastSyncedScore = state.b30.firstOrNull()?.score,
+                        lastSyncedAccuracy = state.b30.firstOrNull()?.accuracy
+                    )
+                    val snapshotId = syncSnapshotDao.insertAndGetId(snapshot)
                     val entriesWithSnapshot = changedEntries.map { it.copy(snapshotId = snapshotId) }
                     songSyncHistoryDao.insertAll(entriesWithSnapshot)
                     Timber.i("Recorded %d changed entries for snapshot #%d", entriesWithSnapshot.size, snapshotId)
-                }
 
-                _uiState.update {
-                    it.copy(
-                        isSyncing = false,
-                        lastSyncTime = snapshot.timestamp
-                    )
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            lastSyncTime = snapshot.timestamp
+                        )
+                    }
+                    loadSyncRecordsForSnapshot(snapshotId)
+                    Timber.i("Sync snapshot #%d recorded: rks=%.4f, money=%s", snapshotId, snapshot.rks, moneyStr)
+                } else {
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            lastSyncTime = now,
+                            recentSyncedRecords = emptyList(),
+                            lastSyncedRecord = null
+                        )
+                    }
+                    Timber.i("Sync completed with no score/acc changes; snapshot not recorded")
                 }
                 // 刷新统计数据
                 loadStats()
-                Timber.i("Sync snapshot #%d recorded: rks=%.4f, money=%s", snapshotId, snapshot.rks, moneyStr)
             } else {
                 _uiState.update {
                     it.copy(
@@ -449,6 +462,36 @@ class HomeViewModel @Inject constructor(
 
     fun getSyncHistory(songId: String): Flow<List<SongSyncHistoryEntity>> {
         return songSyncHistoryDao.getBySongId(songId)
+    }
+
+    private suspend fun loadSyncRecordsForSnapshot(snapshotId: Long) {
+        val songs = songDataProvider.getSongs()
+        val recentHistory = songSyncHistoryDao.getBySnapshotId(snapshotId)
+        val recentRecords = recentHistory.mapNotNull { entry ->
+            val difficulty = runCatching { Difficulty.valueOf(entry.difficulty) }.getOrNull()
+                ?: return@mapNotNull null
+            val song = songs[entry.songId]
+            val chartConstant = song?.difficulties?.get(difficulty) ?: 0f
+            val rks = RksCalculator.calculateSingleRks(entry.accuracy, chartConstant)
+            BestRecord(
+                songId = entry.songId,
+                songName = song?.name ?: entry.songId,
+                difficulty = difficulty,
+                score = entry.score,
+                accuracy = entry.accuracy,
+                isFullCombo = entry.isFullCombo,
+                chartConstant = chartConstant,
+                rks = rks,
+                isPhi = entry.accuracy >= 100f
+            )
+        }
+
+        _uiState.update {
+            it.copy(
+                recentSyncedRecords = recentRecords,
+                lastSyncedRecord = recentRecords.firstOrNull()
+            )
+        }
     }
 
     fun updateSongData() {

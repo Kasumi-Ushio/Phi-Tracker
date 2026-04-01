@@ -2,6 +2,8 @@ package org.kasumi321.ushio.phitracker.ui.home
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +30,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,8 +47,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
-import org.kasumi321.ushio.phitracker.ui.settings.SettingsTab
+import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 
 data class BottomNavItem(
     val label: String,
@@ -66,6 +68,7 @@ fun MainScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val tip = remember(selectedTab) { viewModel.getRandomTip() }
+    val reducedMotionEnabled = rememberReducedMotionEnabled()
 
     val navItems = listOf(
         BottomNavItem("首页", Icons.Filled.Home, Icons.Outlined.Home),
@@ -104,21 +107,12 @@ fun MainScreen(
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
-                NavigationBar {
-                    navItems.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            icon = {
-                                Icon(
-                                    imageVector = if (selectedTab == index) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label
-                                )
-                            },
-                            label = { Text(item.label) }
-                        )
-                    }
-                }
+                MainBottomBar(
+                    navItems = navItems,
+                    selectedTab = selectedTab,
+                    reducedMotionEnabled = reducedMotionEnabled,
+                    onTabSelected = { selectedTab = it }
+                )
             }
         ) { innerPadding ->
             // 空白占位 — 不渲染任何内容, 不触发 AsyncImage
@@ -150,21 +144,12 @@ fun MainScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            NavigationBar {
-                navItems.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTab == index) item.selectedIcon else item.unselectedIcon,
-                                contentDescription = item.label
-                            )
-                        },
-                        label = { Text(item.label) }
-                    )
-                }
-            }
+            MainBottomBar(
+                navItems = navItems,
+                selectedTab = selectedTab,
+                reducedMotionEnabled = reducedMotionEnabled,
+                onTabSelected = { selectedTab = it }
+            )
         }
     ) { innerPadding ->
         when (selectedTab) {
@@ -178,7 +163,7 @@ fun MainScreen(
                 phiCount = state.phiCount,
                 avatarUri = state.avatarUri,
                 lastSyncTime = state.lastSyncTime,
-                lastSyncedRecord = state.lastSyncedRecord,
+                recentSyncedRecords = state.recentSyncedRecords,
                 isSyncing = state.isSyncing,
                 onRefresh = { viewModel.refresh() },
                 onAvatarSelected = { viewModel.setAvatarUri(it) },
@@ -228,6 +213,57 @@ fun MainScreen(
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
+        }
+    }
+}
+
+@Composable
+private fun MainBottomBar(
+    navItems: List<BottomNavItem>,
+    selectedTab: Int,
+    reducedMotionEnabled: Boolean,
+    onTabSelected: (Int) -> Unit
+) {
+    if (!reducedMotionEnabled) {
+        NavigationBar {
+            navItems.forEachIndexed { index, item ->
+                NavigationBarItem(
+                    selected = selectedTab == index,
+                    onClick = { onTabSelected(index) },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTab == index) item.selectedIcon else item.unselectedIcon,
+                            contentDescription = item.label
+                        )
+                    },
+                    label = { Text(item.label) }
+                )
+            }
+        }
+        return
+    }
+
+    Surface(
+        tonalElevation = 3.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            navItems.forEachIndexed { index, item ->
+                TextButton(onClick = { onTabSelected(index) }) {
+                    Text(
+                        text = item.label,
+                        color = if (selectedTab == index) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
         }
     }
 }

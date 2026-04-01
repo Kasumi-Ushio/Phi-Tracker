@@ -7,6 +7,8 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -45,7 +47,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ToolsTab(
     syncSnapshots: List<SyncSnapshotEntity>,
@@ -66,7 +68,10 @@ fun ToolsTab(
                                 text = tip,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth(0.75f)
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .fillMaxWidth(0.75f)
+                                    .basicMarquee()
                             )
                         }
                     }
@@ -357,20 +362,26 @@ private fun RksHistoryChartContent(snapshots: List<SyncSnapshotEntity>) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "%.4f".format(snapshot.rks),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
-                )
                 if (delta != null && delta != 0f) {
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = if (delta > 0) "+%.4f".format(delta) else "%.4f".format(delta),
                         style = MaterialTheme.typography.bodySmall,
                         color = if (delta > 0) Color(0xFF4CAF50) else Color(0xFFF44336),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width(72.dp)
                     )
+                } else {
+                    Spacer(modifier = Modifier.width(72.dp))
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "%.4f".format(snapshot.rks),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width(76.dp)
+                )
             }
         }
         if (index < recent.lastIndex) {

@@ -118,6 +118,8 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
+    implementation(libs.acra.core)
+    implementation(libs.acra.notification)
 
     // License
     implementation(libs.aboutlibraries.core)

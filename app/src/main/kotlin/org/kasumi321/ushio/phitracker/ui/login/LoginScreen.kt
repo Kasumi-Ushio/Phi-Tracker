@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -58,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
@@ -210,6 +213,8 @@ private fun QrLoginContent(
     onStartQrLogin: () -> Unit,
     onCancel: () -> Unit
 ) {
+    val uriHandler = LocalUriHandler.current
+
     // 清理: 离开页面时取消轮询
     DisposableEffect(Unit) {
         onDispose { onCancel() }
@@ -254,7 +259,10 @@ private fun QrLoginContent(
             QrStatus.WaitingScan, QrStatus.Scanned -> {
                 // QR 码显示
                 state.qrCodeUrl?.let { url ->
-                    QrCodeImage(url = url)
+                    QrCodeImage(
+                        url = url,
+                        onClick = { uriHandler.openUri(url) }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -272,6 +280,15 @@ private fun QrLoginContent(
                     color = if (state.qrStatus == QrStatus.Scanned)
                         MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "点击二维码可在浏览器或 TapTap 中打开",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
 
@@ -444,12 +461,16 @@ private fun TokenLoginContent(
 // ── QR 码图片生成 ────────────────────────────────────────────────────
 
 @Composable
-private fun QrCodeImage(url: String) {
+private fun QrCodeImage(
+    url: String,
+    onClick: () -> Unit
+) {
     val bitmap = remember(url) { generateQrBitmap(url, 512) }
 
     ElevatedCard(
         modifier = Modifier
-            .fillMaxWidth(0.7f)
+            .fillMaxWidth(0.6f)
+            .widthIn(max = 280.dp)
             .aspectRatio(1f),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
@@ -466,7 +487,8 @@ private fun QrCodeImage(url: String) {
                     contentDescription = "扫码登录二维码",
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(onClick = onClick),
                     contentScale = ContentScale.Fit
                 )
             } else {

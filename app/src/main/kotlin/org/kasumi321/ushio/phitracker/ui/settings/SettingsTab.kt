@@ -1,6 +1,10 @@
 package org.kasumi321.ushio.phitracker.ui.settings
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -31,6 +35,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalUriHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -39,7 +45,11 @@ import org.kasumi321.ushio.phitracker.BuildConfig
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.kasumi321.ushio.phitracker.ui.home.UpdateCheckState
+import org.kasumi321.ushio.phitracker.utils.CrashReportExporter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +88,37 @@ fun SettingsTab(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var isExporting by remember { mutableStateOf(false) }
+    var notificationPermissionGranted by remember { mutableStateOf(hasCrashNotificationPermission(context)) }
+    var showNotificationGuideDialog by remember { mutableStateOf(false) }
+
+    val requestNotificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notificationPermissionGranted = hasCrashNotificationPermission(context)
+        if (!granted) {
+            Toast.makeText(context, "通知权限未开启，崩溃提示可能无法显示", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                notificationPermissionGranted = hasCrashNotificationPermission(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("phitracker_settings", android.content.Context.MODE_PRIVATE)
+        val guideShown = prefs.getBoolean("crash_notification_guide_shown", false)
+        if (!guideShown && !notificationPermissionGranted) {
+            showNotificationGuideDialog = true
+            prefs.edit().putBoolean("crash_notification_guide_shown", true).apply()
+        }
+    }
 
     val createDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/plain")
@@ -86,16 +127,21 @@ fun SettingsTab(
             coroutineScope.launch {
                 isExporting = true
                 try {
+                    val exportText = withContext(Dispatchers.IO) {
+                        CrashReportExporter.buildExportText(context)
+                    }
+                    if (exportText.isBlank()) {
+                        Toast.makeText(context, "暂无可导出的崩溃日志", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
                     withContext(Dispatchers.IO) {
-                        val process = Runtime.getRuntime().exec("logcat -d -v time")
-                        process.inputStream.use { input ->
-                            context.contentResolver.openOutputStream(it)?.use { output ->
-                                input.copyTo(output)
-                            }
+                        context.contentResolver.openOutputStream(it)?.bufferedWriter()?.use { writer ->
+                            writer.write(exportText)
                         }
                     }
+                    Toast.makeText(context, "崩溃日志导出成功", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Toast.makeText(context, "导出失败: ${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
                 } finally {
                     isExporting = false
                 }
@@ -272,23 +318,56 @@ fun SettingsTab(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-            if (BuildConfig.DEBUG) {
-                CategoryTitle("调试选项 (仅 Debug)")
+            CategoryTitle("调试选项")
 
-                CenteredListItem(
-                    headlineContent = { Text("导出运行日志") },
-                    supportingContent = { 
-                        if (isExporting) Text("正在导出...") 
-                        else Text("导出 logcat 日志到本地文件以供排查问题") 
-                    },
-                    leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                    modifier = Modifier.clickable(enabled = !isExporting) {
-                        createDocumentLauncher.launch("phitracker_debug_log.txt")
+            CenteredListItem(
+                headlineContent = { Text("崩溃通知权限") },
+                supportingContent = {
+                    if (notificationPermissionGranted) {
+                        Text("已开启，可在应用崩溃后显示提醒通知")
+                    } else {
+                        Text("未开启，建议开启以便在崩溃后及时收到提示")
                     }
-                )
+                },
+                leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
+                modifier = Modifier.clickable {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                            }
+                        )
+                    }
+                    notificationPermissionGranted = hasCrashNotificationPermission(context)
+                }
+            )
 
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-            }
+            CenteredListItem(
+                headlineContent = { Text("导出崩溃日志") },
+                supportingContent = {
+                    if (isExporting) Text("正在导出...")
+                    else if (BuildConfig.DEBUG) Text("导出运行日志，当 App 出现崩溃时可用于 issue 反馈")
+                    else Text("Release 版不采集崩溃报告，请使用 Debug 版复现并导出")
+                },
+                leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                modifier = Modifier.clickable(enabled = !isExporting) {
+                    if (!BuildConfig.DEBUG) {
+                        Toast.makeText(context, "Release 版不采集崩溃报告，请安装 Debug 版复现并导出", Toast.LENGTH_SHORT).show()
+                        return@clickable
+                    }
+                    if (CrashReportExporter.hasReports(context)) {
+                        createDocumentLauncher.launch("phitracker_crash_reports.txt")
+                    } else {
+                        Toast.makeText(context, "暂无可导出的崩溃日志", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
             CategoryTitle("关于")
 
@@ -511,6 +590,41 @@ fun SettingsTab(
             }
         )
     }
+
+    if (showNotificationGuideDialog) {
+        AlertDialog(
+            onDismissRequest = { showNotificationGuideDialog = false },
+            title = { Text("开启崩溃通知") },
+            text = {
+                Text("为确保应用崩溃后能及时提醒并引导反馈，建议开启通知权限。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showNotificationGuideDialog = false
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            context.startActivity(
+                                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                }
+                            )
+                        }
+                    }
+                ) {
+                    Text("立即开启")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNotificationGuideDialog = false }) {
+                    Text("稍后")
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -521,4 +635,13 @@ private fun CategoryTitle(title: String) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(vertical = 8.dp)
     )
+}
+
+private fun hasCrashNotificationPermission(context: android.content.Context): Boolean {
+    if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+    return ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.POST_NOTIFICATIONS
+    ) == PackageManager.PERMISSION_GRANTED
 }

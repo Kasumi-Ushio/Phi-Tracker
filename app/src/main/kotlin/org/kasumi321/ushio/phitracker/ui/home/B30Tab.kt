@@ -1,6 +1,8 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -33,7 +35,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun B30Tab(
     b30: List<BestRecord>,
@@ -64,7 +66,10 @@ fun B30Tab(
                             text = tip,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .basicMarquee()
                         )
                     }
                 }
