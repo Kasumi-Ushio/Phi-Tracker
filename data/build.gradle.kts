@@ -30,6 +30,10 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
@@ -64,6 +68,7 @@ dependencies {
 
     // Logging
     implementation(libs.timber)
+    implementation(libs.okhttp.logging.interceptor)
 
     // Testing
     testImplementation(libs.junit)

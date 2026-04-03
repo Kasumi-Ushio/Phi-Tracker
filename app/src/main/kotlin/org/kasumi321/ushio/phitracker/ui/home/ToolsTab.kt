@@ -7,17 +7,20 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.AreaChart
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DataThresholding
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -41,80 +44,112 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
-import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
+import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ToolsTab(
-    syncSnapshots: List<SyncSnapshotEntity>,
-    sessionToken: String?,
-    tip: String,
-    modifier: Modifier = Modifier
+        syncSnapshots: List<SyncSnapshotEntity>,
+        sessionToken: String?,
+        apiEnabled: Boolean,
+        useApiData: Boolean,
+        defaultRks: Float,
+        apiRankByUser: ApiToolResult,
+        apiRankByPosition: ApiToolResult,
+        apiRksRankResult: ApiToolResult,
+        onFetchRankByUser: () -> Unit,
+        onFetchRankByPosition: (Int) -> Unit,
+        onFetchRksRank: (Float) -> Unit,
+        tip: String,
+        modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("工具")
-                        if (tip.isNotBlank()) {
-                            Text(
-                                text = tip,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                modifier = Modifier
-                                    .fillMaxWidth(0.75f)
-                                    .basicMarquee()
-                            )
-                        }
-                    }
-                },
-            )
-        }
+            topBar = {
+                TopAppBar(
+                        title = {
+                            Column {
+                                Text("工具")
+                                if (tip.isNotBlank()) {
+                                    Text(
+                                            text = tip,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            modifier = Modifier.fillMaxWidth(0.75f).basicMarquee()
+                                    )
+                                }
+                            }
+                        },
+                )
+            }
     ) { padding ->
         Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp)
-                .verticalScroll(scrollState),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier =
+                        modifier.fillMaxSize()
+                                .padding(padding)
+                                .padding(horizontal = 16.dp)
+                                .verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Spacer(modifier = Modifier.height(0.dp))
 
             // Section 1: 等效 RKS 计算器
             CollapsibleToolCard(
-                title = "等效 RKS 计算器",
-                subtitle = "根据定数和准确率计算等效 RKS",
-                icon = Icons.Default.Calculate
-            ) {
-                RksCalculatorContent()
-            }
+                    title = "等效 RKS 计算器",
+                    subtitle = "根据定数和准确率计算等效 RKS",
+                    icon = Icons.Default.Calculate
+            ) { RksCalculatorContent() }
 
             // Section 2: RKS 历史变化
             CollapsibleToolCard(
-                title = "RKS 历史变化",
-                subtitle = "查看每次同步后的 RKS 趋势",
-                icon = Icons.Default.ShowChart
-            ) {
-                RksHistoryChartContent(syncSnapshots)
+                    title = "RKS 历史变化",
+                    subtitle = "查看每次同步后的 RKS 趋势",
+                    icon = Icons.Default.ShowChart
+            ) { RksHistoryChartContent(syncSnapshots) }
+
+            if (apiEnabled && useApiData) {
+                CollapsibleToolCard(
+                        title = "排行榜（按用户）",
+                        subtitle = "查询当前玩家的排名情况",
+                        icon = Icons.Default.AccountCircle
+                ) { ApiRankByUserContent(state = apiRankByUser, onFetch = onFetchRankByUser) }
+
+                CollapsibleToolCard(
+                        title = "排行榜（按名次）",
+                        subtitle = "输入名次查询对应玩家信息",
+                        icon = Icons.Default.DataThresholding
+                ) {
+                    ApiRankByPositionContent(
+                            state = apiRankByPosition,
+                            onFetch = onFetchRankByPosition
+                    )
+                }
+
+                CollapsibleToolCard(
+                        title = "RKS 区间统计",
+                        subtitle = "查询大于给定 RKS 的用户数量",
+                        icon = Icons.Default.AreaChart
+                ) {
+                    ApiRksRankContent(
+                            state = apiRksRankResult,
+                            defaultRks = defaultRks,
+                            onFetch = onFetchRksRank
+                    )
+                }
             }
 
             // Section 3: 导出 sessionToken
             CollapsibleToolCard(
-                title = "sessionToken 导出",
-                subtitle = "查看并复制当前登录凭证",
-                icon = Icons.Default.ContentCopy
-            ) {
-                SessionTokenContent(sessionToken)
-            }
+                    title = "sessionToken 导出",
+                    subtitle = "查看并复制当前登录凭证",
+                    icon = Icons.Default.ContentCopy
+            ) { SessionTokenContent(sessionToken) }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -126,62 +161,60 @@ fun ToolsTab(
 // ══════════════════════════════════════════════════════════════
 @Composable
 private fun CollapsibleToolCard(
-    title: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    content: @Composable ColumnScope.() -> Unit
+        title: String,
+        subtitle: String,
+        icon: androidx.compose.ui.graphics.vector.ImageVector,
+        content: @Composable ColumnScope.() -> Unit
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
 
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         // 标题行（可点击展开/折叠）
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                modifier =
+                        Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Icon(
-                imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                contentDescription = if (expanded) "折叠" else "展开",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    imageVector =
+                            if (expanded) Icons.Default.KeyboardArrowUp
+                            else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "折叠" else "展开",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
 
         // 展开内容
         AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically(),
-            exit = shrinkVertically()
+                visible = expanded,
+                enter = expandVertically(),
+                exit = shrinkVertically()
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                content = content
+                    modifier =
+                            Modifier.fillMaxWidth()
+                                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    content = content
             )
         }
     }
@@ -198,55 +231,59 @@ private fun RksCalculatorContent() {
     val chartConstant = chartConstantInput.toFloatOrNull()
     val accuracy = accuracyInput.toFloatOrNull()
 
-    val resultRks = if (chartConstant != null && accuracy != null && accuracy in 0f..100f && chartConstant >= 0f) {
-        RksCalculator.calculateSingleRks(accuracy, chartConstant)
-    } else null
+    val resultRks =
+            if (chartConstant != null &&
+                            accuracy != null &&
+                            accuracy in 0f..100f &&
+                            chartConstant >= 0f
+            ) {
+                RksCalculator.calculateSingleRks(accuracy, chartConstant)
+            } else null
 
     Text(
-        text = "计算公式：RKS = ((acc − 55) / 45)² × 定数",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
+            text = "计算公式：RKS = ((acc − 55) / 45)² × 定数",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
     )
 
     // 输入框并排放置
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
-            value = chartConstantInput,
-            onValueChange = { chartConstantInput = it },
-            label = { Text("谱面定数") },
-            placeholder = { Text("15.3") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.weight(1f)
+                value = chartConstantInput,
+                onValueChange = { chartConstantInput = it },
+                label = { Text("谱面定数") },
+                placeholder = { Text("15.3") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f)
         )
 
         OutlinedTextField(
-            value = accuracyInput,
-            onValueChange = { accuracyInput = it },
-            label = { Text("准确率") },
-            placeholder = { Text("97.50") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.weight(1f)
+                value = accuracyInput,
+                onValueChange = { accuracyInput = it },
+                label = { Text("准确率") },
+                placeholder = { Text("97.50") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                modifier = Modifier.weight(1f)
         )
     }
 
     // 计算结果 — 左对齐
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "计算结果",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "计算结果",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = if (resultRks != null) "%.4f".format(resultRks) else "—",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (resultRks != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                text = if (resultRks != null) "%.4f".format(resultRks) else "—",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color =
+                        if (resultRks != null) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -258,17 +295,16 @@ private fun RksCalculatorContent() {
 private fun RksHistoryChartContent(snapshots: List<SyncSnapshotEntity>) {
     if (snapshots.size < 2) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp),
-            contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxWidth().height(120.dp),
+                contentAlignment = Alignment.Center
         ) {
             Text(
-                text = if (snapshots.isEmpty()) "暂无同步记录\n同步存档后，数据将在此处展示"
-                else "需要至少 2 次同步记录才能绘制趋势图",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                    text =
+                            if (snapshots.isEmpty()) "暂无同步记录\n同步存档后，数据将在此处展示"
+                            else "需要至少 2 次同步记录才能绘制趋势图",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
             )
         }
         return
@@ -283,12 +319,8 @@ private fun RksHistoryChartContent(snapshots: List<SyncSnapshotEntity>) {
     val textColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     // 折线图
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(180.dp)
-    ) {
-        val paddingLeft = 96f   // 增大左侧留白以避免坐标轴与折线重合
+    Canvas(modifier = Modifier.fillMaxWidth().height(180.dp)) {
+        val paddingLeft = 96f // 增大左侧留白以避免坐标轴与折线重合
         val paddingRight = 16f
         val paddingTop = 16f
         val paddingBottom = 32f
@@ -305,20 +337,20 @@ private fun RksHistoryChartContent(snapshots: List<SyncSnapshotEntity>) {
             val y = paddingTop + chartHeight * (1f - i / 2f)
             val rksValue = yMin + yRange * (i / 2f)
             drawLine(
-                color = gridColor,
-                start = Offset(paddingLeft, y),
-                end = Offset(paddingLeft + chartWidth, y),
-                strokeWidth = 1f
+                    color = gridColor,
+                    start = Offset(paddingLeft, y),
+                    end = Offset(paddingLeft + chartWidth, y),
+                    strokeWidth = 1f
             )
             drawContext.canvas.nativeCanvas.drawText(
-                "%.2f".format(rksValue),
-                4f,
-                y + 5f,
-                android.graphics.Paint().apply {
-                    color = textColor.hashCode()
-                    textSize = 22f
-                    isAntiAlias = true
-                }
+                    "%.2f".format(rksValue),
+                    4f,
+                    y + 5f,
+                    android.graphics.Paint().apply {
+                        color = textColor.hashCode()
+                        textSize = 22f
+                        isAntiAlias = true
+                    }
             )
         }
 
@@ -350,37 +382,35 @@ private fun RksHistoryChartContent(snapshots: List<SyncSnapshotEntity>) {
         val delta = if (prevRks != null) snapshot.rks - prevRks else null
 
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = sdf.format(Date(snapshot.timestamp)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = sdf.format(Date(snapshot.timestamp)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (delta != null && delta != 0f) {
                     Text(
-                        text = if (delta > 0) "+%.4f".format(delta) else "%.4f".format(delta),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (delta > 0) Color(0xFF4CAF50) else Color(0xFFF44336),
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.End,
-                        modifier = Modifier.width(72.dp)
+                            text = if (delta > 0) "+%.4f".format(delta) else "%.4f".format(delta),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (delta > 0) Color(0xFF4CAF50) else Color(0xFFF44336),
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.width(72.dp)
                     )
                 } else {
                     Spacer(modifier = Modifier.width(72.dp))
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "%.4f".format(snapshot.rks),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width(76.dp)
+                        text = "%.4f".format(snapshot.rks),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width(76.dp)
                 )
             }
         }
@@ -388,6 +418,100 @@ private fun RksHistoryChartContent(snapshots: List<SyncSnapshotEntity>) {
             HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
         }
     }
+}
+
+// ══════════════════════════════════════════════════════════════
+// API: 排行榜（按用户）
+// ══════════════════════════════════════════════════════════════
+@Composable
+private fun ApiRankByUserContent(state: ApiToolResult, onFetch: () -> Unit) {
+    OutlinedButton(
+            onClick = onFetch,
+            enabled = !state.isLoading,
+            modifier = Modifier.fillMaxWidth()
+    ) {
+        if (state.isLoading) {
+            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Text("查询当前用户排名")
+    }
+    Text(
+            text = state.message ?: "尚未查询",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+// ══════════════════════════════════════════════════════════════
+// API: 排行榜（按名次）
+// ══════════════════════════════════════════════════════════════
+@Composable
+private fun ApiRankByPositionContent(state: ApiToolResult, onFetch: (Int) -> Unit) {
+    var rankInput by rememberSaveable { mutableStateOf("") }
+    Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+                value = rankInput,
+                onValueChange = { rankInput = it },
+                label = { Text("名次") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+        )
+        Button(onClick = { onFetch(rankInput.toIntOrNull() ?: -1) }, enabled = !state.isLoading) {
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+            } else {
+                Text("查询")
+            }
+        }
+    }
+    Text(
+            text = state.message ?: "尚未查询",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+// ══════════════════════════════════════════════════════════════
+// API: RKS 区间统计
+// ══════════════════════════════════════════════════════════════
+@Composable
+private fun ApiRksRankContent(state: ApiToolResult, defaultRks: Float, onFetch: (Float) -> Unit) {
+    var rksInput by
+            rememberSaveable(defaultRks) {
+                mutableStateOf(if (defaultRks > 0f) "%.4f".format(defaultRks) else "")
+            }
+    Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+                value = rksInput,
+                onValueChange = { rksInput = it },
+                label = { Text("目标 RKS") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                modifier = Modifier.weight(1f)
+        )
+        Button(onClick = { onFetch(rksInput.toFloatOrNull() ?: -1f) }, enabled = !state.isLoading) {
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+            } else {
+                Text("查询")
+            }
+        }
+    }
+    Text(
+            text = state.message ?: "尚未查询",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -400,15 +524,12 @@ private fun SessionTokenContent(sessionToken: String?) {
 
     if (sessionToken == null) {
         Text(
-            text = "当前未登录，无法导出。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "当前未登录，无法导出。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     } else {
-        OutlinedButton(
-            onClick = { showTokenDialog = true },
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        OutlinedButton(onClick = { showTokenDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Key, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("显示 sessionToken")
@@ -417,44 +538,58 @@ private fun SessionTokenContent(sessionToken: String?) {
 
     if (showTokenDialog && sessionToken != null) {
         AlertDialog(
-            onDismissRequest = { showTokenDialog = false },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("安全提示") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        text = "sessionToken 是您的账号凭证，拥有此 Token 的人可以读取您的游戏存档。\n\n请勿将此 Token 分享给任何不信任的人。",
-                        style = MaterialTheme.typography.bodyMedium
+                onDismissRequest = { showTokenDialog = false },
+                icon = {
+                    Icon(
+                            Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
                     )
-                    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                },
+                title = { Text("安全提示") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            text = sessionToken,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp
-                            ),
-                            modifier = Modifier.padding(12.dp)
+                                text =
+                                        "sessionToken 是您的账号凭证，拥有此 Token 的人可以读取您的游戏存档。\n\n请勿将此 Token 分享给任何不信任的人。",
+                                style = MaterialTheme.typography.bodyMedium
                         )
+                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                    text = sessionToken,
+                                    style =
+                                            MaterialTheme.typography.bodySmall.copy(
+                                                    fontFamily = FontFamily.Monospace,
+                                                    fontSize = 11.sp
+                                            ),
+                                    modifier = Modifier.padding(12.dp)
+                            )
+                        }
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("sessionToken", sessionToken))
-                    Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
-                    showTokenDialog = false
-                }) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("复制并关闭")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTokenDialog = false }) {
-                    Text("关闭")
-                }
-            }
+                },
+                confirmButton = {
+                    TextButton(
+                            onClick = {
+                                val clipboard =
+                                        context.getSystemService(Context.CLIPBOARD_SERVICE) as
+                                                ClipboardManager
+                                clipboard.setPrimaryClip(
+                                        ClipData.newPlainText("sessionToken", sessionToken)
+                                )
+                                Toast.makeText(context, "已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                                showTokenDialog = false
+                            }
+                    ) {
+                        Icon(
+                                Icons.Default.ContentCopy,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("复制并关闭")
+                    }
+                },
+                dismissButton = { TextButton(onClick = { showTokenDialog = false }) { Text("关闭") } }
         )
     }
 }

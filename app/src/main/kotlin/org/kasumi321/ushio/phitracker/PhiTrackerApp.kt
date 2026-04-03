@@ -1,7 +1,9 @@
 package org.kasumi321.ushio.phitracker
 
+import android.app.Activity
 import android.app.Application
 import android.app.NotificationManager
+import android.os.Bundle
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import coil.disk.DiskCache
@@ -12,6 +14,7 @@ import org.acra.config.CoreConfigurationBuilder
 import org.acra.config.notificationConfiguration
 import org.acra.data.StringFormat
 import org.kasumi321.ushio.phitracker.utils.ReleaseCrashNotifier
+import org.kasumi321.ushio.phitracker.utils.RuntimeLogCollector
 import timber.log.Timber
 
 @HiltAndroidApp
@@ -50,7 +53,36 @@ class PhiTrackerApp : Application(), ImageLoaderFactory {
 
         // Timber 日志 - 仅 debug 模式
         if (BuildConfig.DEBUG) {
-            Timber.plant(Timber.DebugTree())
+            Timber.plant(RuntimeLogCollector.createTree(this))
+            registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+                override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                    Timber.tag("Lifecycle").d("${activity.javaClass.simpleName} -> onCreate")
+                }
+
+                override fun onActivityStarted(activity: Activity) {
+                    Timber.tag("Lifecycle").d("${activity.javaClass.simpleName} -> onStart")
+                }
+
+                override fun onActivityResumed(activity: Activity) {
+                    Timber.tag("Lifecycle").d("${activity.javaClass.simpleName} -> onResume")
+                }
+
+                override fun onActivityPaused(activity: Activity) {
+                    Timber.tag("Lifecycle").d("${activity.javaClass.simpleName} -> onPause")
+                }
+
+                override fun onActivityStopped(activity: Activity) {
+                    Timber.tag("Lifecycle").d("${activity.javaClass.simpleName} -> onStop")
+                }
+
+                override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {
+                    Timber.tag("Lifecycle").d("${activity.javaClass.simpleName} -> onSaveInstanceState")
+                }
+
+                override fun onActivityDestroyed(activity: Activity) {
+                    Timber.tag("Lifecycle").d("${activity.javaClass.simpleName} -> onDestroy")
+                }
+            })
         }
         Timber.i("PhiTrackerApp initialized")
     }

@@ -43,6 +43,19 @@ fun SettingsScreen(
         onCheckForUpdate = { viewModel.checkForUpdate() },
         onIncludePreReleaseChange = { viewModel.setIncludePreRelease(it) },
         onDismissUpdateResult = { viewModel.dismissUpdateResult() },
+        apiEnabled = state.apiEnabled,
+        useApiData = state.useApiData,
+        apiPlatform = state.apiPlatform,
+        apiPlatformId = state.apiPlatformId,
+        isApiTesting = state.isApiTesting,
+        apiTestMessage = state.apiTestMessage,
+        onApiEnabledChange = { enabled ->
+            if (enabled) viewModel.enableApi() else viewModel.disableApi()
+        },
+        onUseApiDataChange = { viewModel.setUseApiData(it) },
+        onApiPlatformChange = { viewModel.setApiPlatform(it) },
+        onApiPlatformIdChange = { viewModel.setApiPlatformId(it) },
+        onApiTestConnection = { viewModel.testApiConnection() },
         tip = tip,
         onNavigateBack = onNavigateBack
     )

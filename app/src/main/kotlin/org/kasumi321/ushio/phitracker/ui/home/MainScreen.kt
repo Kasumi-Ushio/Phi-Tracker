@@ -208,8 +208,17 @@ fun MainScreen(
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
             3 -> ToolsTab(
-                syncSnapshots = state.syncSnapshots,
+                syncSnapshots = viewModel.getToolSnapshots(),
                 sessionToken = state.sessionToken,
+                apiEnabled = state.apiEnabled,
+                useApiData = state.useApiData,
+                defaultRks = state.displayRks,
+                apiRankByUser = state.apiRankByUser,
+                apiRankByPosition = state.apiRankByPosition,
+                apiRksRankResult = state.apiRksRankResult,
+                onFetchRankByUser = { viewModel.fetchApiRankByUser() },
+                onFetchRankByPosition = { viewModel.fetchApiRankByPosition(it) },
+                onFetchRksRank = { viewModel.fetchApiRksRankForValue(it) },
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )

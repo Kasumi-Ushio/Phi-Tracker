@@ -26,4 +26,20 @@ interface SettingsRepository {
     // 更新频道
     val includePreRelease: Flow<Boolean>
     suspend fun setIncludePreRelease(enabled: Boolean)
+
+    // 统一查分 API
+    val apiEnabled: Flow<Boolean>
+    suspend fun setApiEnabled(enabled: Boolean)
+
+    val useApiData: Flow<Boolean>
+    suspend fun setUseApiData(useApiData: Boolean)
+
+    val apiId: Flow<String>
+    suspend fun setApiId(apiId: String)
+
+    val apiPlatform: Flow<String>
+    suspend fun setApiPlatform(platform: String)
+
+    val apiPlatformId: Flow<String>
+    suspend fun setApiPlatformId(platformId: String)
 }

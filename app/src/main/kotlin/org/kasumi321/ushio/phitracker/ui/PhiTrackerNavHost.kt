@@ -232,6 +232,10 @@ fun PhiTrackerNavHost() {
                     songInfo = songInfo,
                     userRecords = userRecords,
                     syncHistory = syncHistory,
+                    apiEnabled = state.apiEnabled,
+                    useApiData = state.useApiData,
+                    getSongApiDetail = { diff -> viewModel.getSongApiDetail(songId, diff) },
+                    onLoadSongApiDetail = { diff -> viewModel.loadSongApiDetail(songId, diff) },
                     getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
                     getStandardIllustrationUrl = { viewModel.getStandardIllustrationUrl(it) },
                     onBack = { navController.popBackStack() }

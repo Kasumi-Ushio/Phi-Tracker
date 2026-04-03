@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonObject
+import org.kasumi321.ushio.phitracker.data.api.BindRequest
+import org.kasumi321.ushio.phitracker.data.api.PhiPluginApi
 import org.kasumi321.ushio.phitracker.data.api.TapTapApiClient
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.database.UserDao
@@ -30,6 +33,7 @@ import timber.log.Timber
 class PhigrosRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val apiClient: TapTapApiClient,
+    private val phiPluginApi: PhiPluginApi,
     private val saveParser: SaveParser,
     private val recordDao: RecordDao,
     private val userDao: UserDao,
@@ -168,5 +172,112 @@ class PhigrosRepositoryImpl @Inject constructor(
 
     override fun clearTokenSync() {
         tokenManager.clearToken()  // EncryptedSharedPreferences 使用 commit() 同步记录
+    }
+
+    override suspend fun apiTest(): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.test() }
+    }
+
+    override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching {
+            phiPluginApi.bind(
+                BindRequest(
+                    platform = platform.trim(),
+                    platformId = platformId.trim(),
+                    token = token.trim()
+                )
+            )
+        }
+    }
+
+    override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getBindInfo(platform.trim(), platformId.trim()) }
+    }
+
+    override suspend fun apiGetSingleSave(
+        platform: String,
+        platformId: String,
+        songId: String,
+        difficulty: String
+    ): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getSingleSave(platform.trim(), platformId.trim(), songId.trim(), difficulty.trim()) }
+    }
+
+    override suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getSave(platform.trim(), platformId.trim()) }
+    }
+
+    override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getSaveInfo(platform.trim(), platformId.trim()) }
+    }
+
+    override suspend fun apiGetRank(
+        platform: String,
+        platformId: String,
+        songId: String,
+        difficulty: String
+    ): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getRank(platform.trim(), platformId.trim(), songId.trim(), difficulty.trim()) }
+    }
+
+    override suspend fun apiGetAvgAcc(
+        songId: String,
+        difficulty: String,
+        minRks: Float?,
+        maxRks: Float?
+    ): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getAvgAcc(songId.trim(), difficulty.trim(), minRks, maxRks) }
+    }
+
+    override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getAllAvgAcc(songIds.map { it.trim() }) }
+    }
+
+    override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getApFcTotal(songId.trim()) }
+    }
+
+    override suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getFittedDifficulty(songId.trim(), difficulty.trim()) }
+    }
+
+    override suspend fun apiGetRksStats(): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getRksStats() }
+    }
+
+    override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getRksAbove(rks) }
+    }
+
+    override suspend fun apiGetSaveHistory(
+        platform: String,
+        platformId: String,
+        request: List<String>
+    ): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getSaveHistory(platform.trim(), platformId.trim(), request.map { it.trim() }) }
+    }
+
+    override suspend fun apiGetScoreHistory(
+        platform: String,
+        platformId: String,
+        songId: String?,
+        difficulty: String?
+    ): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching {
+            phiPluginApi.getScoreHistory(
+                platform = platform.trim(),
+                platformId = platformId.trim(),
+                songId = songId?.trim(),
+                difficulty = difficulty?.trim()
+            )
+        }
+    }
+
+    override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getRankByUser(platform.trim(), platformId.trim()) }
+    }
+
+    override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = withContext(Dispatchers.IO) {
+        runCatching { phiPluginApi.getRankByPosition(position) }
     }
 }

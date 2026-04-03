@@ -28,6 +28,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +65,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
+import org.kasumi321.ushio.phitracker.ui.home.SongApiDetailState
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
 import org.kasumi321.ushio.phitracker.utils.ImageStorageHelper
@@ -74,6 +76,10 @@ fun SongDetailScreen(
     songInfo: SongInfo,
     userRecords: List<BestRecord> = emptyList(),
     syncHistory: List<SongSyncHistoryEntity> = emptyList(),
+    apiEnabled: Boolean = false,
+    useApiData: Boolean = false,
+    getSongApiDetail: (Difficulty) -> SongApiDetailState = { SongApiDetailState() },
+    onLoadSongApiDetail: (Difficulty) -> Unit = {},
     getIllustrationUrl: (String) -> String?,
     getStandardIllustrationUrl: (String) -> String?,
     onBack: () -> Unit,
@@ -85,7 +91,13 @@ fun SongDetailScreen(
         mutableIntStateOf(availableDifficulties.indexOfFirst { it == Difficulty.IN }.takeIf { it >= 0 } ?: 0) 
     }
     val selectedDifficulty = availableDifficulties.getOrNull(selectedTabIndex) ?: Difficulty.IN
+    val songApiDetail = getSongApiDetail(selectedDifficulty)
     var showImagePreview by remember { mutableStateOf(false) }
+    LaunchedEffect(apiEnabled, useApiData, selectedDifficulty) {
+        if (apiEnabled && useApiData) {
+            onLoadSongApiDetail(selectedDifficulty)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -255,6 +267,52 @@ fun SongDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                if (apiEnabled && useApiData) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "查分 API 统计信息",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (songApiDetail.isLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else if (songApiDetail.error != null) {
+                                Text(
+                                    text = songApiDetail.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Text("单曲排名: ${songApiDetail.userRank ?: "—"} / ${songApiDetail.totalUsers ?: "—"}")
+                                Text(
+                                    text = "平均 ACC: ${
+                                        songApiDetail.avgAcc?.let { String.format("%.4f%%", it) } ?: "—"
+                                    }（由 ${songApiDetail.avgAccCount ?: 0} 个样本取得）"
+                                )
+                                Text(
+                                    text = "拟合定数: ${
+                                        songApiDetail.fittedDifficulty?.let { String.format("%.4f", it) } ?: "—"
+                                    }"
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -277,7 +335,7 @@ fun SongDetailScreen(
                         Spacer(modifier = Modifier.height(12.dp))
                         
                         Text(
-                            text = "谱师: $charter",
+                            text = "制谱: $charter",
                             style = MaterialTheme.typography.bodyLarge
                         )
                         
@@ -285,7 +343,7 @@ fun SongDetailScreen(
                         
                         if (notes != null && notes.total > 0) {
                             Text(
-                                text = "音符分布 (Total: ${notes.total})",
+                                text = "Notes 分布 (Total: ${notes.total})",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -301,7 +359,7 @@ fun SongDetailScreen(
                             }
                         } else {
                             Text(
-                                text = "暂无音符数据",
+                                text = "暂无 Notes 数据",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -312,7 +370,8 @@ fun SongDetailScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // 同步历史记录
-                val filteredHistory = syncHistory
+                val currentHistory = if (apiEnabled && useApiData) songApiDetail.history else syncHistory
+                val filteredHistory = currentHistory
                     .filter { it.difficulty == selectedDifficulty.name }
                     .take(3)
 

@@ -50,6 +50,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.kasumi321.ushio.phitracker.ui.home.UpdateCheckState
 import org.kasumi321.ushio.phitracker.utils.CrashReportExporter
+import org.kasumi321.ushio.phitracker.utils.RuntimeLogExporter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +77,17 @@ fun SettingsTab(
     onCheckForUpdate: () -> Unit = {},
     onIncludePreReleaseChange: (Boolean) -> Unit = {},
     onDismissUpdateResult: () -> Unit = {},
+    apiEnabled: Boolean = false,
+    useApiData: Boolean = false,
+    apiPlatform: String = "",
+    apiPlatformId: String = "",
+    isApiTesting: Boolean = false,
+    apiTestMessage: String? = null,
+    onApiEnabledChange: (Boolean) -> Unit = {},
+    onUseApiDataChange: (Boolean) -> Unit = {},
+    onApiPlatformChange: (String) -> Unit = {},
+    onApiPlatformIdChange: (String) -> Unit = {},
+    onApiTestConnection: () -> Unit = {},
     tip: String = "",
     onNavigateBack: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -84,6 +96,7 @@ fun SettingsTab(
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showRedownloadDialog by remember { mutableStateOf(false) }
     var showUpdateDataDialog by remember { mutableStateOf(false) }
+    var showApiRiskDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -140,6 +153,35 @@ fun SettingsTab(
                         }
                     }
                     Toast.makeText(context, "崩溃日志导出成功", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "导出失败: ${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
+                } finally {
+                    isExporting = false
+                }
+            }
+        }
+    }
+
+    val createRuntimeLogDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        uri?.let {
+            coroutineScope.launch {
+                isExporting = true
+                try {
+                    val exportText = withContext(Dispatchers.IO) {
+                        RuntimeLogExporter.buildExportText(context)
+                    }
+                    if (exportText.isBlank()) {
+                        Toast.makeText(context, "暂无可导出的运行日志", Toast.LENGTH_SHORT).show()
+                        return@launch
+                    }
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(it)?.bufferedWriter()?.use { writer ->
+                            writer.write(exportText)
+                        }
+                    }
+                    Toast.makeText(context, "运行日志导出成功", Toast.LENGTH_SHORT).show()
                 } catch (e: Exception) {
                     Toast.makeText(context, "导出失败: ${e.message ?: "未知错误"}", Toast.LENGTH_LONG).show()
                 } finally {
@@ -268,6 +310,124 @@ fun SettingsTab(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
+            CategoryTitle("查分 API")
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("启用查分 API", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "使用第三方 API 获取额外统计信息",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = apiEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled) {
+                            showApiRiskDialog = true
+                        } else {
+                            onApiEnabledChange(false)
+                        }
+                    }
+                )
+            }
+
+            if (apiEnabled) {
+                Text(
+                    text = "要确定您的平台名称和平台 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令以确定。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = apiPlatform,
+                        onValueChange = onApiPlatformChange,
+                        label = { Text("平台名称") },
+                        placeholder = { Text("platform") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    OutlinedTextField(
+                        value = apiPlatformId,
+                        onValueChange = onApiPlatformIdChange,
+                        label = { Text("平台 ID") },
+                        placeholder = { Text("platform_id") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onApiTestConnection,
+                    enabled = !isApiTesting,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isApiTesting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (isApiTesting) "测试中..." else "测试连接")
+                }
+
+                if (!apiTestMessage.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = apiTestMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("使用查分 API 数据", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            text = "开启后首页和统计优先显示 API 数据",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = useApiData,
+                        onCheckedChange = onUseApiDataChange
+                    )
+                }
+
+                Text(
+                    text = "本地同步和 API 同步记录可能存在差异。切换数据源不影响本地数据，本地数据库始终保持更新。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
             CategoryTitle("程序更新")
 
             Row(
@@ -346,26 +506,39 @@ fun SettingsTab(
                 }
             )
 
-            CenteredListItem(
-                headlineContent = { Text("导出崩溃日志") },
-                supportingContent = {
-                    if (isExporting) Text("正在导出...")
-                    else if (BuildConfig.DEBUG) Text("导出运行日志，当 App 出现崩溃时可用于 issue 反馈")
-                    else Text("Release 版不采集崩溃报告，请使用 Debug 版复现并导出")
-                },
-                leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                modifier = Modifier.clickable(enabled = !isExporting) {
-                    if (!BuildConfig.DEBUG) {
-                        Toast.makeText(context, "Release 版不采集崩溃报告，请安装 Debug 版复现并导出", Toast.LENGTH_SHORT).show()
-                        return@clickable
+            if (BuildConfig.DEBUG) {
+                CenteredListItem(
+                    headlineContent = { Text("导出崩溃日志") },
+                    supportingContent = {
+                        if (isExporting) Text("正在导出...")
+                        else Text("导出 ACRA 崩溃报告，当 App 崩溃时可用于 issue 反馈")
+                    },
+                    leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                    modifier = Modifier.clickable(enabled = !isExporting) {
+                        if (CrashReportExporter.hasReports(context)) {
+                            createDocumentLauncher.launch("phitracker_crash_reports.txt")
+                        } else {
+                            Toast.makeText(context, "暂无可导出的崩溃日志", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                    if (CrashReportExporter.hasReports(context)) {
-                        createDocumentLauncher.launch("phitracker_crash_reports.txt")
-                    } else {
-                        Toast.makeText(context, "暂无可导出的崩溃日志", Toast.LENGTH_SHORT).show()
+                )
+
+                CenteredListItem(
+                    headlineContent = { Text("导出运行日志") },
+                    supportingContent = {
+                        if (isExporting) Text("正在导出...")
+                        else Text("导出 Timber + Logcat 运行日志，用于复现问题时分析")
+                    },
+                    leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
+                    modifier = Modifier.clickable(enabled = !isExporting) {
+                        if (RuntimeLogExporter.hasLogs(context)) {
+                            createRuntimeLogDocumentLauncher.launch("phitracker_runtime_logs.txt")
+                        } else {
+                            Toast.makeText(context, "暂无可导出的运行日志", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                }
-            )
+                )
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
@@ -437,6 +610,32 @@ fun SettingsTab(
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    if (showApiRiskDialog) {
+        AlertDialog(
+            onDismissRequest = { showApiRiskDialog = false },
+            icon = { Icon(Icons.Default.Warning, contentDescription = null) },
+            title = { Text("启用查分 API") },
+            text = {
+                Text(
+                    "启用查分 API 将通过第三方接口获取额外统计数据。您的平台名称和平台 ID 会通过加密通道发送至 API 服务器。请确认您了解并接受该风险。"
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showApiRiskDialog = false
+                    onApiEnabledChange(true)
+                }) {
+                    Text("我已了解并同意")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showApiRiskDialog = false }) {
                     Text("取消")
                 }
             }

@@ -43,8 +43,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import java.net.HttpURLConnection
 import java.net.URL
+import java.time.Instant
 
 /**
  * 应用更新检查状态
@@ -56,6 +64,22 @@ sealed class UpdateCheckState {
     data object NoUpdate : UpdateCheckState()
     data class Error(val message: String) : UpdateCheckState()
 }
+
+data class ApiToolResult(
+    val isLoading: Boolean = false,
+    val message: String? = null
+)
+
+data class SongApiDetailState(
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val userRank: Int? = null,
+    val totalUsers: Int? = null,
+    val avgAcc: Float? = null,
+    val avgAccCount: Int? = null,
+    val fittedDifficulty: Float? = null,
+    val history: List<SongSyncHistoryEntity> = emptyList()
+)
 
 data class HomeUiState(
     val b30: List<BestRecord> = emptyList(),
@@ -107,7 +131,21 @@ data class HomeUiState(
     val sessionToken: String? = null,
     // 应用更新
     val includePreRelease: Boolean = false,
-    val updateCheckState: UpdateCheckState = UpdateCheckState.Idle
+    val updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
+    // 查分 API
+    val apiEnabled: Boolean = false,
+    val useApiData: Boolean = false,
+    val apiPlatform: String = "",
+    val apiPlatformId: String = "",
+    val isApiTesting: Boolean = false,
+    val apiTestMessage: String? = null,
+    val apiRksRank: Int? = null,
+    val apiTotalUsers: Int? = null,
+    val apiHistorySnapshots: List<SyncSnapshotEntity> = emptyList(),
+    val apiRankByUser: ApiToolResult = ApiToolResult(),
+    val apiRankByPosition: ApiToolResult = ApiToolResult(),
+    val apiRksRankResult: ApiToolResult = ApiToolResult(),
+    val songApiDetailMap: Map<String, SongApiDetailState> = emptyMap()
 )
 
 @HiltViewModel
@@ -177,6 +215,31 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.includePreRelease.collect { enabled ->
                 _uiState.update { it.copy(includePreRelease = enabled) }
+            }
+        }
+        // 观察查分 API 设置
+        viewModelScope.launch {
+            settingsRepository.apiEnabled.collect { enabled ->
+                _uiState.update { it.copy(apiEnabled = enabled) }
+                refreshApiToolData()
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.useApiData.collect { useApiData ->
+                _uiState.update { it.copy(useApiData = useApiData) }
+                refreshApiToolData()
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.apiPlatform.collect { platform ->
+                _uiState.update { it.copy(apiPlatform = platform) }
+                refreshApiToolData()
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.apiPlatformId.collect { platformId ->
+                _uiState.update { it.copy(apiPlatformId = platformId) }
+                refreshApiToolData()
             }
         }
         // 加载最近同步快照 + 统计数据
@@ -443,6 +506,9 @@ class HomeViewModel @Inject constructor(
                 }
                 // 刷新统计数据
                 loadStats()
+                if (_uiState.value.apiEnabled && _uiState.value.useApiData) {
+                    refreshApiToolData()
+                }
             } else {
                 _uiState.update {
                     it.copy(
@@ -621,6 +687,383 @@ class HomeViewModel @Inject constructor(
     fun setThemeMode(mode: Int) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     fun setShowB30Overflow(show: Boolean) = viewModelScope.launch { settingsRepository.setShowB30Overflow(show) }
     fun setOverflowCount(count: Int) = viewModelScope.launch { settingsRepository.setOverflowCount(count) }
+    fun enableApi() = viewModelScope.launch { settingsRepository.setApiEnabled(true) }
+    fun disableApi() = viewModelScope.launch { settingsRepository.setApiEnabled(false) }
+    fun setUseApiData(useApiData: Boolean) = viewModelScope.launch { settingsRepository.setUseApiData(useApiData) }
+    fun setApiPlatform(platform: String) = viewModelScope.launch { settingsRepository.setApiPlatform(platform) }
+    fun setApiPlatformId(platformId: String) = viewModelScope.launch { settingsRepository.setApiPlatformId(platformId) }
+
+    fun testApiConnection() {
+        viewModelScope.launch {
+            val platform = _uiState.value.apiPlatform.trim()
+            val platformId = _uiState.value.apiPlatformId.trim()
+            if (platform.isBlank() || platformId.isBlank()) {
+                _uiState.update { it.copy(apiTestMessage = "请先填写平台名称与平台 ID") }
+                return@launch
+            }
+
+            _uiState.update { it.copy(isApiTesting = true, apiTestMessage = null) }
+
+            val statusResult = repository.apiTest()
+            if (statusResult.isFailure) {
+                _uiState.update {
+                    it.copy(
+                        isApiTesting = false,
+                        apiTestMessage = "连接失败：${statusResult.exceptionOrNull()?.message ?: "未知错误"}"
+                    )
+                }
+                return@launch
+            }
+
+            val bindResult = repository.apiGetBindInfo(platform, platformId)
+            _uiState.update {
+                it.copy(
+                    isApiTesting = false,
+                    apiTestMessage = if (bindResult.isSuccess) {
+                        "连接测试成功"
+                    } else {
+                        "连接可用，但绑定查询失败：${bindResult.exceptionOrNull()?.message ?: "未知错误"}"
+                    }
+                )
+            }
+            if (bindResult.isSuccess) {
+                refreshApiToolData()
+            }
+        }
+    }
+
+    fun getToolSnapshots(): List<SyncSnapshotEntity> {
+        val state = _uiState.value
+        return if (state.apiEnabled && state.useApiData) {
+            state.apiHistorySnapshots
+        } else {
+            state.syncSnapshots
+        }
+    }
+
+    fun fetchApiRankByUser() {
+        val state = _uiState.value
+        if (!state.apiEnabled || !state.useApiData) return
+        val platform = state.apiPlatform.trim()
+        val platformId = state.apiPlatformId.trim()
+        if (platform.isBlank() || platformId.isBlank()) {
+            _uiState.update { it.copy(apiRankByUser = ApiToolResult(message = "请先填写平台名称与平台 ID")) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(apiRankByUser = ApiToolResult(isLoading = true)) }
+            val result = repository.apiGetRankByUser(platform, platformId)
+            if (result.isFailure) {
+                _uiState.update {
+                    it.copy(
+                        apiRankByUser = ApiToolResult(
+                            message = "查询失败：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                        )
+                    )
+                }
+                return@launch
+            }
+            val json = result.getOrNull()
+            val data = json?.get("data")?.asObject()
+            val total = data?.get("totDataNum")?.asInt()
+            val users = data?.get("users")?.asArray().orEmpty()
+            val meObj = data?.get("me")?.asObject()
+            val meFromUsers = users.firstOrNull { it.asObject()?.get("me")?.asBoolean() == true }?.asObject()
+
+            val meRank = meObj?.get("rank")?.asInt()
+                ?: meObj?.get("index")?.asInt()
+                ?: meObj?.get("save")?.asObject()?.get("rank")?.asInt()
+                ?: meFromUsers?.get("index")?.asInt()
+
+            val mePlayerId = meObj?.get("save")?.asObject()?.get("saveInfo")?.asObject()?.get("PlayerId")?.asString()
+                ?: meObj?.get("save")?.asObject()?.get("PlayerId")?.asString()
+                ?: meFromUsers?.get("saveInfo")?.asObject()?.get("PlayerId")?.asString()
+
+            val meRks = meObj?.get("save")?.asObject()?.get("saveInfo")?.asObject()?.get("summary")?.asObject()?.get("rankingScore")?.asFloat()
+                ?: meObj?.get("save")?.asObject()?.get("summary")?.asObject()?.get("rankingScore")?.asFloat()
+                ?: meFromUsers?.get("saveInfo")?.asObject()?.get("summary")?.asObject()?.get("rankingScore")?.asFloat()
+
+            val msg = buildString {
+                append("总人数: ${total ?: "—"}")
+                append("  |  我的名次: ${meRank ?: "—"}")
+                if (!mePlayerId.isNullOrBlank()) append("  |  玩家: $mePlayerId")
+                if (meRks != null) append("  |  RKS: ${"%.4f".format(meRks)}")
+            }
+            _uiState.update { it.copy(apiRankByUser = ApiToolResult(message = msg)) }
+        }
+    }
+
+    fun fetchApiRankByPosition(position: Int) {
+        if (position <= 0) {
+            _uiState.update { it.copy(apiRankByPosition = ApiToolResult(message = "请输入大于 0 的名次")) }
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(apiRankByPosition = ApiToolResult(isLoading = true)) }
+            val result = repository.apiGetRankByPosition(position)
+            if (result.isFailure) {
+                _uiState.update {
+                    it.copy(
+                        apiRankByPosition = ApiToolResult(
+                            message = "查询失败：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                        )
+                    )
+                }
+                return@launch
+            }
+            val json = result.getOrNull()
+            val data = json?.get("data")?.asObject()
+            val users = data?.get("users")?.asArray().orEmpty()
+            val userObj = users.firstOrNull { it.asObject()?.get("index")?.asInt() == position }?.asObject()
+                ?: users.minByOrNull { kotlin.math.abs((it.asObject()?.get("index")?.asInt() ?: Int.MAX_VALUE) - position) }?.asObject()
+            val rank = userObj?.get("index")?.asInt()
+            val playerId = userObj?.get("saveInfo")?.asObject()?.get("PlayerId")?.asString()
+                ?: userObj?.get("gameuser")?.asObject()?.get("PlayerId")?.asString()
+            val rks = userObj?.get("saveInfo")?.asObject()?.get("summary")?.asObject()?.get("rankingScore")?.asFloat()
+                ?: userObj?.get("gameuser")?.asObject()?.get("rankingScore")?.asFloat()
+            val exact = rank == position
+            val msg = buildString {
+                append("名次: ${rank ?: position}")
+                if (!exact && rank != null) append("（最接近请求 ${position}）")
+                append("  |  用户: ${playerId ?: "未知"}")
+                if (rks != null) append("  |  RKS: ${"%.4f".format(rks)}")
+            }
+            _uiState.update { it.copy(apiRankByPosition = ApiToolResult(message = msg)) }
+        }
+    }
+
+    fun fetchApiRksRankForValue(rks: Float) {
+        if (rks <= 0f) {
+            _uiState.update { it.copy(apiRksRankResult = ApiToolResult(message = "请输入有效的 RKS")) }
+            return
+        }
+        viewModelScope.launch {
+            _uiState.update { it.copy(apiRksRankResult = ApiToolResult(isLoading = true)) }
+            val result = repository.apiGetRksAbove(rks)
+            if (result.isFailure) {
+                _uiState.update {
+                    it.copy(
+                        apiRksRankResult = ApiToolResult(
+                            message = "查询失败：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                        )
+                    )
+                }
+                return@launch
+            }
+            val dataObj = result.getOrNull()?.get("data")?.asObject()
+            val total = dataObj?.get("totNum")?.asInt()
+            val rank = dataObj?.get("rksRank")?.asInt()
+            _uiState.update {
+                it.copy(
+                    apiTotalUsers = total,
+                    apiRksRank = rank,
+                    apiRksRankResult = ApiToolResult(
+                        message = "大于 ${"%.4f".format(rks)} 的用户数: ${rank ?: "—"} / ${total ?: "—"}"
+                    )
+                )
+            }
+        }
+    }
+
+    fun getSongApiDetail(songId: String, difficulty: Difficulty): SongApiDetailState {
+        return _uiState.value.songApiDetailMap["$songId:${difficulty.name}"] ?: SongApiDetailState()
+    }
+
+    fun loadSongApiDetail(songId: String, difficulty: Difficulty) {
+        val state = _uiState.value
+        if (!state.apiEnabled || !state.useApiData) return
+        val platform = state.apiPlatform.trim()
+        val platformId = state.apiPlatformId.trim()
+        if (platform.isBlank() || platformId.isBlank()) return
+
+        val key = "$songId:${difficulty.name}"
+        viewModelScope.launch {
+            _uiState.update {
+                val updated = it.songApiDetailMap.toMutableMap()
+                updated[key] = (updated[key] ?: SongApiDetailState()).copy(isLoading = true, error = null)
+                it.copy(songApiDetailMap = updated)
+            }
+
+            val currentRks = _uiState.value.displayRks
+            val minRks = (currentRks - 0.015f).coerceAtLeast(0f)
+            val maxRks = currentRks + 0.015f
+
+            val rankResult = repository.apiGetRank(platform, platformId, songId, difficulty.name)
+            val avgResult = repository.apiGetAvgAcc(songId, difficulty.name, minRks, maxRks)
+            val fitResult = repository.apiGetFittedDifficulty(songId, difficulty.name)
+            val historyResult = repository.apiGetScoreHistory(platform, platformId, songId, difficulty.name)
+
+            if (rankResult.isFailure || avgResult.isFailure || fitResult.isFailure || historyResult.isFailure) {
+                val firstError = listOf(rankResult, avgResult, fitResult, historyResult)
+                    .firstOrNull { it.isFailure }?.exceptionOrNull()?.message ?: "未知错误"
+                _uiState.update {
+                    val updated = it.songApiDetailMap.toMutableMap()
+                    updated[key] = (updated[key] ?: SongApiDetailState()).copy(
+                        isLoading = false,
+                        error = "API 拉取失败：$firstError"
+                    )
+                    it.copy(songApiDetailMap = updated)
+                }
+                return@launch
+            }
+
+            val rankData = rankResult.getOrNull()?.get("data")?.asObject()
+            val userRank = rankData?.get("userRank")?.asInt()
+            val totalUsers = rankData?.get("totDataNum")?.asInt()
+            val avgData = avgResult.getOrNull()?.get("data")?.asObject()
+            val avgAcc = avgData?.get("accAvg")?.asFloat()
+            val avgCount = avgData?.get("count")?.asInt()
+            val fitted = parseFittedDifficulty(fitResult.getOrNull(), songId, difficulty.name)
+            val historyData = historyResult.getOrNull()?.get("data")
+            val apiHistory = parseSongHistory(historyData, songId, difficulty.name)
+
+            _uiState.update {
+                val updated = it.songApiDetailMap.toMutableMap()
+                updated[key] = SongApiDetailState(
+                    isLoading = false,
+                    error = null,
+                    userRank = userRank,
+                    totalUsers = totalUsers,
+                    avgAcc = avgAcc,
+                    avgAccCount = avgCount,
+                    fittedDifficulty = fitted,
+                    history = apiHistory
+                )
+                it.copy(songApiDetailMap = updated)
+            }
+        }
+    }
+
+    private fun refreshApiToolData() {
+        val state = _uiState.value
+        if (!state.apiEnabled || !state.useApiData) {
+            _uiState.update {
+                it.copy(
+                    apiHistorySnapshots = emptyList(),
+                    apiRankByUser = ApiToolResult(),
+                    apiRankByPosition = ApiToolResult(),
+                    apiRksRankResult = ApiToolResult()
+                )
+            }
+            return
+        }
+
+        fetchApiHistorySnapshots()
+        fetchApiRankByUser()
+        if (state.displayRks > 0f) {
+            fetchApiRksRankForValue(state.displayRks)
+        }
+    }
+
+    private fun fetchApiHistorySnapshots() {
+        val state = _uiState.value
+        val platform = state.apiPlatform.trim()
+        val platformId = state.apiPlatformId.trim()
+        if (platform.isBlank() || platformId.isBlank()) return
+
+        viewModelScope.launch {
+            val result = repository.apiGetSaveHistory(platform, platformId, listOf("rks"))
+            if (result.isFailure) {
+                _uiState.update {
+                    it.copy(apiTestMessage = "API 历史拉取失败：${result.exceptionOrNull()?.message ?: "未知错误"}")
+                }
+                return@launch
+            }
+
+            val rksArray = result.getOrNull()?.get("data")?.asObject()?.get("rks")?.asArray().orEmpty()
+            val snapshots = rksArray.mapIndexedNotNull { index, item ->
+                val obj = item.asObject() ?: return@mapIndexedNotNull null
+                val date = obj.get("date")?.asString() ?: return@mapIndexedNotNull null
+                val value = obj.get("value")?.asFloat() ?: return@mapIndexedNotNull null
+                SyncSnapshotEntity(
+                    id = index.toLong() + 1L,
+                    timestamp = parseIsoToEpoch(date),
+                    rks = value,
+                    nickname = _uiState.value.nickname,
+                    dataCount = 0,
+                    lastSyncedSongId = null,
+                    lastSyncedDifficulty = null,
+                    lastSyncedScore = null,
+                    lastSyncedAccuracy = null
+                )
+            }.sortedBy { it.timestamp }
+
+            _uiState.update { it.copy(apiHistorySnapshots = snapshots) }
+        }
+    }
+
+    private fun parseSongHistory(dataElement: JsonElement?, songId: String, difficulty: String): List<SongSyncHistoryEntity> {
+        val directArray = dataElement?.asArray()
+        val list = when {
+            directArray != null -> parseRecordArray(directArray, songId, difficulty)
+            dataElement?.asObject()?.get(difficulty)?.asArray() != null ->
+                parseRecordArray(dataElement.asObject()?.get(difficulty)?.asArray().orEmpty(), songId, difficulty)
+            else -> emptyList()
+        }
+        return list.sortedByDescending { it.timestamp }
+    }
+
+    private fun parseRecordArray(records: JsonArray, songId: String, difficulty: String): List<SongSyncHistoryEntity> {
+        return records.mapNotNull { row ->
+            val arr = row.asArray() ?: return@mapNotNull null
+            if (arr.size < 4) return@mapNotNull null
+            val acc = arr.getOrNull(0)?.asFloat() ?: return@mapNotNull null
+            val score = arr.getOrNull(1)?.asInt() ?: return@mapNotNull null
+            val date = arr.getOrNull(2)?.asString() ?: return@mapNotNull null
+            val fc = arr.getOrNull(3)?.asBoolean() ?: false
+            SongSyncHistoryEntity(
+                snapshotId = 0L,
+                songId = songId,
+                difficulty = difficulty,
+                score = score,
+                accuracy = acc,
+                isFullCombo = fc,
+                timestamp = parseIsoToEpoch(date)
+            )
+        }
+    }
+
+    private fun parseFittedDifficulty(json: JsonObject?, songId: String, difficulty: String): Float? {
+        val data = json?.get("data")
+        val songMapped = data?.asObject()?.get(songId)?.asObject()?.get(difficulty)?.asFloat()
+        if (songMapped != null) return songMapped
+        val firstNumber = findFirstNumber(data)
+        return firstNumber
+    }
+
+    private fun findFirstNumber(element: JsonElement?): Float? {
+        when (element) {
+            null -> return null
+            is kotlinx.serialization.json.JsonPrimitive -> return element.contentOrNull?.toFloatOrNull()
+            is kotlinx.serialization.json.JsonObject -> {
+                element.values.forEach { value ->
+                    val parsed = findFirstNumber(value)
+                    if (parsed != null) return parsed
+                }
+            }
+            is kotlinx.serialization.json.JsonArray -> {
+                element.forEach { value ->
+                    val parsed = findFirstNumber(value)
+                    if (parsed != null) return parsed
+                }
+            }
+        }
+        return null
+    }
+
+    private fun parseIsoToEpoch(iso: String): Long {
+        return runCatching { Instant.parse(iso).toEpochMilli() }.getOrElse { System.currentTimeMillis() }
+    }
+
+    private fun JsonObject?.get(key: String): JsonElement? = this?.get(key)
+    private fun JsonElement?.asObject(): JsonObject? = runCatching { this?.jsonObject }.getOrNull()
+    private fun JsonElement?.asArray(): JsonArray? = runCatching { this?.jsonArray }.getOrNull()
+    private fun JsonElement?.asString(): String? = this?.jsonPrimitive?.contentOrNull
+    private fun JsonElement?.asInt(): Int? = this?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+    private fun JsonElement?.asFloat(): Float? = this?.jsonPrimitive?.contentOrNull?.toFloatOrNull()
+    private fun JsonElement?.asBoolean(): Boolean? = this?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()
+    private fun JsonArray?.orEmpty(): JsonArray = this ?: JsonArray(emptyList())
 
     @OptIn(coil.annotation.ExperimentalCoilApi::class)
     fun clearHighResCache() {
@@ -641,7 +1084,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-
+    @OptIn(coil.annotation.ExperimentalCoilApi::class)
     fun resetIllustrationDownloadAndExit() {
         viewModelScope.launch {
             settingsRepository.setPreloadDone(false)
