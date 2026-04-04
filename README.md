@@ -1,4 +1,4 @@
-![Phi-Tracker](https://socialify.git.ci/Kasumi-Ushio/Phi-Tracker/image?custom_description=%E4%B8%80%E6%AC%BE%E5%8F%AF%E4%BB%A5%E7%94%A8%E4%BA%8E%E8%AF%BB%E5%8F%96+Phigros+TapTap+%E4%BA%91%E5%AD%98%E6%A1%A3%E5%B9%B6%E6%9F%A5%E5%88%86%E7%9A%84%E5%B0%8F%E5%B7%A5%E5%85%B7&description=1&logo=https%3A%2F%2Ffiles.seeusercontent.com%2F2026%2F04%2F04%2F0fsN%2Fphi_search.svg&name=1&pattern=Plus&theme=Dark)
+![Phi-Tracker](https://files.seeusercontent.com/2026/04/04/e5Cc/Phi-Tracker.png)
 
 # Phi Tracker
 
@@ -101,7 +101,7 @@ sudo apt install openjdk-21-jdk unzip wget
     # 如果您此时还在 cmdline-tools 目录中，请先返回至本项目的根目录
 
     cd /path/to/Ushio-Prober-Phigros
-    keytool -genkeypair -v -keystore release.keystore -alias phitacker -keyalg RSA -keysize 2048 -validity 10000
+    keytool -genkeypair -v -keystore release.keystore -alias phitracker -keyalg RSA -keysize 2048 -validity 10000
     ```
     命令运行时，会要求您输入 KeyStore 的密码、别名、姓名、组织等信息，请根据提示输入即可，如果您只想构建 Debug 版本，则可以跳过这一步，但请先确认您现在在项目的根目录。
 
