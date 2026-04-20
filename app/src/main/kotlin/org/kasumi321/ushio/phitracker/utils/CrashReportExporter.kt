@@ -35,6 +35,15 @@ object CrashReportExporter {
 
     fun hasReports(context: Context): Boolean = listReportFiles(context).isNotEmpty()
 
+    fun clearReports(context: Context): Int {
+        val files = listReportFiles(context)
+        var deleted = 0
+        files.forEach { file ->
+            if (file.delete()) deleted += 1
+        }
+        return deleted
+    }
+
     private fun listReportFiles(context: Context): List<File> {
         val dirs = runCatching {
             val locator = ReportLocator(context)

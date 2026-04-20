@@ -49,6 +49,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.ceil
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 
@@ -67,7 +68,7 @@ fun ToolsTab(
         onFetchRankByUser: () -> Unit,
         onFetchRankByPosition: (Int) -> Unit,
         onFetchRksRank: (Float) -> Unit,
-        onNavigateToSongDetail: (String) -> Unit,
+        onNavigateToSongDetail: (String, Difficulty?) -> Unit,
         getIllustrationUrl: (String) -> String?,
         tip: String,
         modifier: Modifier = Modifier
@@ -180,7 +181,7 @@ fun ToolsTab(
 @Composable
 private fun SuggestionContent(
     suggestItems: List<SuggestItem>,
-    onNavigateToSongDetail: (String) -> Unit,
+    onNavigateToSongDetail: (String, Difficulty?) -> Unit,
     getIllustrationUrl: (String) -> String?
 ) {
     if (suggestItems.isEmpty()) {

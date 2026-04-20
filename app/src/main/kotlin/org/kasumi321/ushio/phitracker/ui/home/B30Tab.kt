@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -44,7 +45,7 @@ fun B30Tab(
     challengeModeRank: Int,
     onGenerateImage: () -> Unit,
     getIllustrationUrl: (String) -> String?,
-    onSongClick: (String) -> Unit,
+    onSongClick: (String, Difficulty?) -> Unit,
     showB30Overflow: Boolean = false,
     overflowCount: Int = 9,
     tip: String = "",

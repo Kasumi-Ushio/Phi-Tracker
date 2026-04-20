@@ -22,6 +22,9 @@ class SearchSongUseCase @Inject constructor() {
 
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return allSongs.values.toList()
+        if (trimmed.contains(Regex("""\*{2,}"""))) {
+            return allSongs.values.sortedBy { it.name }
+        }
 
         val hasWildcard = trimmed.contains('*') || trimmed.contains('?')
 

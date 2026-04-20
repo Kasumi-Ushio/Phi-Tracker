@@ -50,6 +50,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.kasumi321.ushio.phitracker.ui.home.UpdateCheckState
 import org.kasumi321.ushio.phitracker.utils.CrashReportExporter
+import org.kasumi321.ushio.phitracker.utils.RuntimeLogCollector
 import org.kasumi321.ushio.phitracker.utils.RuntimeLogExporter
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,6 +100,7 @@ fun SettingsTab(
     var showRedownloadDialog by remember { mutableStateOf(false) }
     var showUpdateDataDialog by remember { mutableStateOf(false) }
     var showApiRiskDialog by remember { mutableStateOf(false) }
+    var showClearLogsDialog by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -534,7 +536,7 @@ fun SettingsTab(
                     headlineContent = { Text("导出崩溃日志") },
                     supportingContent = {
                         if (isExporting) Text("正在导出...")
-                        else Text("导出运行时的崩溃报告，当 App 崩溃时可用于 issue 反馈")
+                        else Text("导出崩溃日志，当 App 崩溃时可用于 issue 反馈")
                     },
                     leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
                     modifier = Modifier.clickable(enabled = !isExporting) {
@@ -559,6 +561,15 @@ fun SettingsTab(
                         } else {
                             Toast.makeText(context, "暂无可导出的运行日志", Toast.LENGTH_SHORT).show()
                         }
+                    }
+                )
+
+                CenteredListItem(
+                    headlineContent = { Text("清理运行日志") },
+                    supportingContent = { Text("清空目前为止所有的运行日志与崩溃日志") },
+                    leadingContent = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+                    modifier = Modifier.clickable(enabled = !isExporting) {
+                        showClearLogsDialog = true
                     }
                 )
             }
@@ -762,6 +773,45 @@ fun SettingsTab(
             },
             dismissButton = {
                 TextButton(onClick = { showUpdateDataDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    if (showClearLogsDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearLogsDialog = false },
+            title = { Text("清理运行日志") },
+            text = { Text("将删除当前设备上的全部运行日志与崩溃日志，此操作不可撤销。") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showClearLogsDialog = false
+                        coroutineScope.launch {
+                            isExporting = true
+                            try {
+                                val (runtimeDeleted, crashDeleted) = withContext(Dispatchers.IO) {
+                                    val runtime = RuntimeLogCollector.clearLogs(context)
+                                    val crash = CrashReportExporter.clearReports(context)
+                                    runtime to crash
+                                }
+                                Toast.makeText(
+                                    context,
+                                    "已清空日志：运行日志 $runtimeDeleted 个，崩溃日志 $crashDeleted 个",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } finally {
+                                isExporting = false
+                            }
+                        }
+                    }
+                ) {
+                    Text("确认清空")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearLogsDialog = false }) {
                     Text("取消")
                 }
             }

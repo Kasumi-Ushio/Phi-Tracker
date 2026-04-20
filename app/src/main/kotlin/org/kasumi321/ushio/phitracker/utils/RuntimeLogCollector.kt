@@ -36,6 +36,15 @@ object RuntimeLogCollector {
             .toList()
     }
 
+    fun clearLogs(context: Context): Int {
+        val files = listLogFiles(context)
+        var deleted = 0
+        files.forEach { file ->
+            if (file.delete()) deleted += 1
+        }
+        return deleted
+    }
+
     private fun currentLogFile(context: Context): File = File(logDir(context), CURRENT_LOG_NAME)
 
     private fun logDir(context: Context): File = File(context.filesDir, LOG_DIR)

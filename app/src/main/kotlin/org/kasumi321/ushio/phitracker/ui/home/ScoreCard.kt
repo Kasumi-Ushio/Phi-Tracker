@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,12 +31,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.CachePolicy
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 
@@ -59,7 +63,7 @@ fun ScoreCard(
     rank: Int,
     record: BestRecord,
     illustrationUrl: String?,
-    onSongClick: (String) -> Unit,
+    onSongClick: (String, Difficulty?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -78,7 +82,7 @@ fun ScoreCard(
         record = record,
         rank = rank,
         illustrationModel = imageRequest,
-        onClick = { onSongClick(record.songId) },
+        onClick = { onSongClick(record.songId, record.difficulty) },
         modifier = modifier
     )
 }
@@ -90,6 +94,10 @@ fun ScoreCardContent(
     illustrationBitmap: Bitmap? = null,
     illustrationModel: Any? = null,
     rankLabel: String? = null,
+    contentHorizontalPadding: Dp = 12.dp,
+    contentVerticalPadding: Dp = 12.dp,
+    compactText: Boolean = false,
+    thumbnailScale: Float = 1f,
     onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -104,6 +112,18 @@ fun ScoreCardContent(
     val accText = remember(record.accuracy) { String.format("%.4f%%", record.accuracy) }
     val rksText = remember(record.rks) { String.format("%.4f", record.rks) }
     val rankText = remember(rank, rankLabel) { rankLabel ?: "#$rank" }
+    val rankStyle = if (compactText) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium
+    val songStyle = if (compactText) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge
+    val scoreStyle = if (compactText) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium
+    val accStyle = if (compactText) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall
+    val rksStyle = if (compactText) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
+    val tagFontSize = if (compactText) 9.sp else 10.sp
+    val rankFontSize = if (compactText) 15.sp else 16.sp
+    val songFontSize = if (compactText) 15.sp else 16.sp
+    val scoreFontSize = if (compactText) 12.sp else 14.sp
+    val accFontSize = if (compactText) 10.sp else 12.sp
+    val rksFontSize = if (compactText) 10.sp else 12.sp
+    val scaledThumbnailSize = (56f * thumbnailScale.coerceIn(0.5f, 1.5f)).dp
 
     val clickableModifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
 
@@ -117,8 +137,8 @@ fun ScoreCardContent(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+                .fillMaxSize()
+                .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 排名
@@ -128,8 +148,9 @@ fun ScoreCardContent(
             ) {
                 Text(
                     text = rankText,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = rankStyle,
                     fontWeight = FontWeight.Bold,
+                    fontSize = rankFontSize,
                     color = when (rank) {
                         1 -> MaterialTheme.colorScheme.primary
                         in 2..3 -> MaterialTheme.colorScheme.secondary
@@ -147,7 +168,7 @@ fun ScoreCardContent(
                         bitmap = illustrationBitmap.asImageBitmap(),
                         contentDescription = null,
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(scaledThumbnailSize)
                             .clip(RoundedCornerShape(8.dp)),
                         contentScale = ContentScale.Crop
                     )
@@ -158,7 +179,7 @@ fun ScoreCardContent(
                         model = illustrationModel,
                         contentDescription = null,
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(scaledThumbnailSize)
                             .clip(RoundedCornerShape(8.dp)),
                         contentScale = ContentScale.Crop
                     )
@@ -167,12 +188,14 @@ fun ScoreCardContent(
             }
             // 曲名 + 难度标签
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = record.songName,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = songStyle,
                     fontWeight = FontWeight.Medium,
+                    fontSize = songFontSize,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -195,7 +218,7 @@ fun ScoreCardContent(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.surface,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
+                            fontSize = tagFontSize
                         )
                     }
 
@@ -213,7 +236,7 @@ fun ScoreCardContent(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = ApTextColor,
                                     fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 10.sp
+                                    fontSize = tagFontSize
                                 )
                             }
                         }
@@ -229,7 +252,7 @@ fun ScoreCardContent(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
+                                    fontSize = tagFontSize
                                 )
                             }
                         }
@@ -241,22 +264,33 @@ fun ScoreCardContent(
 
             // 右侧数值
             Column(
-                horizontalAlignment = Alignment.End
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = if (compactText) {
+                    Arrangement.spacedBy(1.dp, Alignment.CenterVertically)
+                } else {
+                    Arrangement.Center
+                }
             ) {
                 Text(
                     text = scoreText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
+                    style = scoreStyle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = scoreFontSize,
+                    lineHeight = if (compactText) (scoreFontSize.value + 1f).sp else TextUnit.Unspecified
                 )
                 Text(
                     text = accText,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = accStyle,
+                    fontSize = accFontSize,
+                    lineHeight = if (compactText) (accFontSize.value + 1f).sp else TextUnit.Unspecified,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = rksText,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = rksStyle,
                     fontWeight = FontWeight.Bold,
+                    fontSize = rksFontSize,
+                    lineHeight = if (compactText) (rksFontSize.value + 1f).sp else TextUnit.Unspecified,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
@@ -268,7 +302,7 @@ fun ScoreCardContent(
 fun SuggestScoreCard(
     item: SuggestItem,
     illustrationUrl: String?,
-    onSongClick: (String) -> Unit,
+    onSongClick: (String, Difficulty?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val diffColor = DifficultyColors.forDifficulty(item.difficulty)
@@ -297,7 +331,7 @@ fun SuggestScoreCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onSongClick(item.songId) },
+            .clickable { onSongClick(item.songId, item.difficulty) },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )

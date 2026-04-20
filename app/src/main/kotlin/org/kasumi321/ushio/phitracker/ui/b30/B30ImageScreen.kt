@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -50,6 +51,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -69,7 +71,14 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.roundToInt
+
+private const val EXPORT_WIDTH_PX = 2400
+private const val EXPORT_DENSITY = 2.6666667f
+private const val EXPORT_FONT_SCALE = 1f
+private const val EXPORT_PAGE_PADDING_DP = 16f
+private const val EXPORT_CARD_GAP_DP = 9.6f
+private const val EXPORT_CARD_ASPECT = 4f
+private const val EXPORT_HEADER_HEIGHT_DP = 100f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,7 +101,7 @@ fun B30ImageScreen(
     val context = LocalContext.current
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isGenerating by remember { mutableStateOf(true) }
-    var scale by remember { mutableFloatStateOf(0.8f) }
+    var zoomFactor by remember { mutableFloatStateOf(1f) }
     var showBackgroundSelector by remember { mutableStateOf(false) }
     var selectedBackgroundSongId by remember { mutableStateOf<String?>(null) }
     var customBackgroundUri by remember { mutableStateOf<String?>(null) }
@@ -117,26 +126,17 @@ fun B30ImageScreen(
         customBackgroundUri
     ) {
         isGenerating = true
+        bitmap = null
         val imageLoader = context.imageLoader
-        val dm = context.resources.displayMetrics
-
-        val cardWidthPx = cmToPx(5.2f, dm.xdpi)
-        val cardHeightPx = cmToPx(1.3f, dm.ydpi)
-        val cardGapPx = cmToPx(0.2f, dm.xdpi)
-        val cardVerticalGapPx = cardGapPx
-        val pagePaddingPx = cmToPx(0.25f, dm.xdpi)
-        val renderWidthPx = pagePaddingPx * 2 + cardWidthPx * 3 + cardGapPx * 2
-
-        val renderDensity = dm.density.coerceAtLeast(1f)
-        val cardWidthDp = cardWidthPx / renderDensity
-        val cardHeightDp = cardHeightPx / renderDensity
-        val cardGapDp = cardGapPx / renderDensity
-        val cardVerticalGapDp = cardVerticalGapPx / renderDensity
-
-        // 顶部卡片尺寸：个人信息 5×1.8cm，统计信息 4×1.8cm
-        val profileCardWidthDp = cmToPx(5.0f, dm.xdpi) / renderDensity
-        val profileCardHeightDp = cmToPx(1.8f, dm.ydpi) / renderDensity
-        val statsCardWidthDp = cmToPx(5.0f, dm.xdpi) / renderDensity
+        val renderWidthPx = EXPORT_WIDTH_PX
+        val renderDensity = EXPORT_DENSITY
+        val cardGapDp = EXPORT_CARD_GAP_DP
+        val cardVerticalGapDp = EXPORT_CARD_GAP_DP
+        val contentWidthDp = renderWidthPx / renderDensity - EXPORT_PAGE_PADDING_DP * 2
+        val cardWidthDp = (contentWidthDp - cardGapDp * 2) / 3f
+        val cardHeightDp = cardWidthDp / EXPORT_CARD_ASPECT
+        val profileCardWidthDp = cardWidthDp
+        val statsCardWidthDp = cardWidthDp
 
         val phiRecords = b30.filter { it.isPhi }.sortedByDescending { it.rks }.take(3)
         val bestRecords = b30.filterNot { it.isPhi }.sortedByDescending { it.rks }.take(27)
@@ -183,8 +183,10 @@ fun B30ImageScreen(
             keepOriginalSize = true
         )
         // 预模糊：Stack Blur 算法，radius 越大越模糊
-        val backgroundBitmap = backgroundBitmapRaw?.let {
-            org.kasumi321.ushio.phitracker.utils.stackBlur(it, radius = 50)
+        val backgroundBitmap = withContext(Dispatchers.Default) {
+            backgroundBitmapRaw?.let {
+                org.kasumi321.ushio.phitracker.utils.stackBlur(it, radius = 50)
+            }
         }
 
         val exportData = B30ExportData(
@@ -210,7 +212,7 @@ fun B30ImageScreen(
             },
             backgroundBitmap = backgroundBitmap,
             profileCardWidthDp = profileCardWidthDp,
-            profileCardHeightDp = profileCardHeightDp,
+            profileCardHeightDp = EXPORT_HEADER_HEIGHT_DP,
             statsCardWidthDp = statsCardWidthDp,
             cardWidthDp = cardWidthDp,
             cardHeightDp = cardHeightDp,
@@ -218,14 +220,16 @@ fun B30ImageScreen(
             cardVerticalGapDp = cardVerticalGapDp
         )
 
-        bitmap = B30ComposeRenderer(context).render(
+        val rendered = B30ComposeRenderer(context).render(
             data = exportData,
             spec = B30ComposeRenderer.RenderSpec(
                 widthPx = renderWidthPx,
                 density = renderDensity,
-                fontScale = 1f
+                fontScale = EXPORT_FONT_SCALE
             )
         )
+        bitmap = rendered
+        zoomFactor = 1f
         isGenerating = false
     }
 
@@ -267,19 +271,72 @@ fun B30ImageScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            bitmap?.let { bmp ->
+                if (!isGenerating) {
+                    Surface(tonalElevation = 4.dp) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .navigationBarsPadding(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    val path = ImageStorageHelper.saveToPictures(
+                                        context,
+                                        bmp,
+                                        buildB30FileName(nickname)
+                                    )
+                                    if (path != null) {
+                                        Toast.makeText(context, "已保存到 Pictures/PhiTracker", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Filled.Save, contentDescription = null)
+                                Text("  保存", style = MaterialTheme.typography.labelLarge)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    val path = ImageStorageHelper.saveToPictures(
+                                        context,
+                                        bmp,
+                                        buildB30FileName(nickname)
+                                    )
+                                    if (path != null) {
+                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "image/png"
+                                            putExtra(Intent.EXTRA_STREAM, Uri.parse(path))
+                                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        }
+                                        context.startActivity(Intent.createChooser(shareIntent, "分享 B30"))
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Filled.Share, contentDescription = null)
+                                Text("  分享", style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
+                }
+            }
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(innerPadding)
         ) {
             if (isGenerating) {
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -290,14 +347,12 @@ fun B30ImageScreen(
                 }
             } else {
                 bitmap?.let { bmp ->
-                    // 可缩放预览
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .pointerInput(Unit) {
+                            .fillMaxSize()
+                            .pointerInput(bmp) {
                                 detectTransformGestures { _, _, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(0.1f, 2f)
+                                    zoomFactor = (zoomFactor * zoom).coerceIn(1f, 2.5f)
                                 }
                             },
                         contentAlignment = Alignment.Center
@@ -306,53 +361,13 @@ fun B30ImageScreen(
                             bitmap = bmp.asImageBitmap(),
                             contentDescription = "B30 成绩图",
                             modifier = Modifier
-                                .fillMaxWidth(0.95f)
+                                .fillMaxSize()
                                 .graphicsLayer(
-                                scaleX = scale,
-                                scaleY = scale
-                            )
+                                    scaleX = zoomFactor,
+                                    scaleY = zoomFactor
+                                ),
+                            contentScale = ContentScale.Fit
                         )
-                    }
-
-                    // 操作按钮
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                val path = ImageStorageHelper.saveToPictures(context, bmp, "B30_${System.currentTimeMillis()}.png")
-                                if (path != null) {
-                                    Toast.makeText(context, "已保存到 Pictures/PhiTracker", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "保存失败", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Filled.Save, contentDescription = null)
-                            Text("  保存", style = MaterialTheme.typography.labelLarge)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                val path = ImageStorageHelper.saveToPictures(context, bmp, "B30_${System.currentTimeMillis()}.png")
-                                if (path != null) {
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "image/png"
-                                        putExtra(Intent.EXTRA_STREAM, Uri.parse(path))
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    }
-                                    context.startActivity(Intent.createChooser(shareIntent, "分享 B30"))
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Filled.Share, contentDescription = null)
-                            Text("  分享", style = MaterialTheme.typography.labelLarge)
-                        }
                     }
                 }
             }
@@ -360,10 +375,16 @@ fun B30ImageScreen(
     }
 }
 
-
-private fun cmToPx(cm: Float, dpi: Float): Int {
-    return (cm * dpi / 2.54f).roundToInt().coerceAtLeast(1)
+private fun buildB30FileName(nickname: String): String {
+    val sanitizedNickname = nickname
+        .ifBlank { "Unknown" }
+        .replace(Regex("""[\\/:*?"<>|]"""), "_")
+        .take(24)
+        .ifBlank { "Unknown" }
+    val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss", Locale.US))
+    return "PhiTracker-B30-$sanitizedNickname-$timestamp.png"
 }
+
 
 private suspend fun loadBitmap(
     context: Context,

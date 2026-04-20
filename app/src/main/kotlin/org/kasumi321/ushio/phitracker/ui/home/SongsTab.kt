@@ -93,7 +93,7 @@ fun SongsTab(
         var count = 0
         if (selectedChapters.isNotEmpty()) count += selectedChapters.size
         if (selectedDifficulty != null) count++
-        if (minLevel > 1 || maxLevel < 16) count++
+        if (minLevel > 1 || maxLevel < 17) count++
         count
     }
     Column(modifier = modifier.fillMaxSize()) {
@@ -275,15 +275,15 @@ private fun FilterBottomSheetContent(
             onValueChangeFinished = { 
                 onLevelRangeSelect(sliderPosition.start.roundToInt(), sliderPosition.endInclusive.roundToInt()) 
             },
-            valueRange = 1f..16f,
-            steps = 14
+            valueRange = 1f..17f,
+            steps = 15
         )
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp), 
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("1", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("16", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("17", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         Spacer(modifier = Modifier.height(16.dp))

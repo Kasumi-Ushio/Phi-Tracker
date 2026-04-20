@@ -22,6 +22,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.b30.B30ImageScreen
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.home.MainScreen
@@ -40,8 +41,11 @@ sealed class Screen(val route: String) {
     data object Licenses : Screen("licenses")
     data object PrivacyPolicy : Screen("privacy_policy")
     data object Settings : Screen("settings")
-    data object SongDetail : Screen("song_detail/{songId}") {
-        fun createRoute(songId: String) = "song_detail/$songId"
+    data object SongDetail : Screen("song_detail/{songId}?difficulty={difficulty}") {
+        fun createRoute(songId: String, difficulty: Difficulty? = null): String {
+            val diff = difficulty?.name ?: "IN"
+            return "song_detail/$songId?difficulty=$diff"
+        }
     }
 }
 
@@ -119,8 +123,8 @@ fun PhiTrackerNavHost() {
                 onNavigateToAbout = {
                     navController.navigate(Screen.About.route)
                 },
-                onNavigateToSongDetail = { songId ->
-                    navController.navigate(Screen.SongDetail.createRoute(songId))
+                onNavigateToSongDetail = { songId, difficulty ->
+                    navController.navigate(Screen.SongDetail.createRoute(songId, difficulty))
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
@@ -215,9 +219,17 @@ fun PhiTrackerNavHost() {
         }
         composable(
             route = Screen.SongDetail.route,
-            arguments = listOf(navArgument("songId") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("songId") { type = NavType.StringType },
+                navArgument("difficulty") {
+                    type = NavType.StringType
+                    defaultValue = "IN"
+                }
+            )
         ) { backStackEntry ->
             val songId = backStackEntry.arguments?.getString("songId") ?: return@composable
+            val difficultyArg = backStackEntry.arguments?.getString("difficulty")
+            val initialDifficulty = runCatching { Difficulty.valueOf(difficultyArg ?: "IN") }.getOrNull()
 
             val parentEntry = remember(navController.currentBackStackEntry) {
                 runCatching { navController.getBackStackEntry(Screen.Home.route) }.getOrNull()
@@ -242,6 +254,7 @@ fun PhiTrackerNavHost() {
                     songInfo = songInfo,
                     userRecords = userRecords,
                     syncHistory = syncHistory,
+                    initialDifficulty = initialDifficulty,
                     apiEnabled = state.apiEnabled,
                     useApiData = state.useApiData,
                     getSongApiDetail = { diff -> viewModel.getSongApiDetail(songId, diff) },

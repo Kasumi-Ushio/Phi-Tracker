@@ -107,7 +107,7 @@ data class HomeUiState(
     val selectedChapters: Set<String> = emptySet(),
     val selectedDifficulty: Difficulty? = null,
     val minLevel: Int = 1,
-    val maxLevel: Int = 16,
+    val maxLevel: Int = 17,
     val showFilterSheet: Boolean = false,
     // 曲绘预加载 — 阻塞式流程
     val illustrationReady: Boolean = false,
@@ -643,7 +643,7 @@ class HomeViewModel @Inject constructor(
                 selectedChapters = emptySet(),
                 selectedDifficulty = null,
                 minLevel = 1,
-                maxLevel = 16
+                maxLevel = 17
             )
         }
         applyFilters()

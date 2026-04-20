@@ -66,6 +66,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.ui.components.SpringTabIndicator
 
 @Composable
 fun LoginScreen(
@@ -163,6 +164,12 @@ fun LoginScreen(
             // Tab 切换: 二维码 | Token
             TabRow(
                 selectedTabIndex = selectedTab,
+                indicator = { tabPositions ->
+                    SpringTabIndicator(
+                        tabPositions = tabPositions,
+                        selectedTabIndex = selectedTab
+                    )
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Tab(

@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 
 data class BottomNavItem(
@@ -60,7 +61,7 @@ fun MainScreen(
     onLogout: () -> Unit,
     onNavigateToB30Image: () -> Unit,
     onNavigateToAbout: () -> Unit,
-    onNavigateToSongDetail: (String) -> Unit,
+    onNavigateToSongDetail: (String, Difficulty?) -> Unit,
     onNavigateToSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -203,7 +204,7 @@ fun MainScreen(
                 onToggleFilterSheet = { viewModel.toggleFilterSheet(it) },
                 onResetFilters = { viewModel.resetFilters() },
                 getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
-                onSongClick = onNavigateToSongDetail,
+                onSongClick = { songId -> onNavigateToSongDetail(songId, null) },
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )

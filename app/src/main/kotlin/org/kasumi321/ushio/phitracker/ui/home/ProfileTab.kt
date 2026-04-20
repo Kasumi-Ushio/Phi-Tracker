@@ -47,11 +47,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import java.io.File
 import java.text.SimpleDateFormat
@@ -105,7 +107,7 @@ fun ProfileTab(
     onRefresh: () -> Unit,
     onAvatarSelected: (Uri) -> Unit,
     onNavigateToSettings: () -> Unit,
-    onSongClick: (String) -> Unit,
+    onSongClick: (String, Difficulty?) -> Unit,
     getIllustrationUrl: (String) -> String,
     tip: String = "",
     modifier: Modifier = Modifier
@@ -256,6 +258,12 @@ fun ProfileHeaderCard(
     avatarUri: String? = null,
     avatarBitmap: Bitmap? = null,
     onAvatarClick: (() -> Unit)? = null,
+    contentHorizontalPadding: Dp = 20.dp,
+    contentVerticalPadding: Dp = 20.dp,
+    textVerticalSpacing: Dp = 4.dp,
+    avatarSize: Dp = 72.dp,
+    avatarTextSpacing: Dp = 16.dp,
+    centerContent: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -268,13 +276,14 @@ fun ProfileHeaderCard(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
+                .fillMaxSize()
+                .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
+            horizontalArrangement = if (centerContent) Arrangement.Center else Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(72.dp)
+                    .size(avatarSize)
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
                     .let { base -> if (onAvatarClick != null) base.clickable { onAvatarClick() } else base },
@@ -286,7 +295,7 @@ fun ProfileHeaderCard(
                             bitmap = avatarBitmap.asImageBitmap(),
                             contentDescription = "头像",
                             modifier = Modifier
-                                .size(72.dp)
+                                .size(avatarSize)
                                 .clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
@@ -299,7 +308,7 @@ fun ProfileHeaderCard(
                                 .build(),
                             contentDescription = "头像",
                             modifier = Modifier
-                                .size(72.dp)
+                                .size(avatarSize)
                                 .clip(CircleShape),
                             contentScale = ContentScale.Crop
                         )
@@ -315,9 +324,11 @@ fun ProfileHeaderCard(
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(avatarTextSpacing))
 
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(textVerticalSpacing, Alignment.CenterVertically)
+            ) {
                 Text(
                     text = nickname.ifBlank { "未登录" },
                     style = MaterialTheme.typography.titleMedium,
@@ -355,6 +366,9 @@ fun StatsTableCard(
     clearCounts: Map<String, Int>,
     fcCount: Int,
     phiCount: Int,
+    contentHorizontalPadding: Dp = 16.dp,
+    contentVerticalPadding: Dp = 16.dp,
+    rowSpacing: Dp = 12.dp,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -366,9 +380,9 @@ fun StatsTableCard(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxSize()
+                .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
+            verticalArrangement = Arrangement.spacedBy(rowSpacing, Alignment.CenterVertically)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

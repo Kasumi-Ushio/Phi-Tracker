@@ -20,8 +20,8 @@ class B30ComposeRenderer(
     private val context: Context
 ) {
     data class RenderSpec(
-        val widthPx: Int = 1536,
-        val density: Float = 2.5f,
+        val widthPx: Int = 1800,
+        val density: Float = 1f,
         val fontScale: Float = 1f
     )
 

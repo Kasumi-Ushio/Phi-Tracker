@@ -1,6 +1,8 @@
 package org.kasumi321.ushio.phitracker.ui.song
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,7 +32,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -66,6 +67,7 @@ import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.ui.home.SongApiDetailState
+import org.kasumi321.ushio.phitracker.ui.components.SpringTabIndicator
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
 import org.kasumi321.ushio.phitracker.utils.ImageStorageHelper
@@ -76,6 +78,7 @@ fun SongDetailScreen(
     songInfo: SongInfo,
     userRecords: List<BestRecord> = emptyList(),
     syncHistory: List<SongSyncHistoryEntity> = emptyList(),
+    initialDifficulty: Difficulty? = null,
     apiEnabled: Boolean = false,
     useApiData: Boolean = false,
     getSongApiDetail: (Difficulty) -> SongApiDetailState = { SongApiDetailState() },
@@ -87,12 +90,17 @@ fun SongDetailScreen(
 ) {
     // Only difficulties that exist for this song
     val availableDifficulties = Difficulty.entries.filter { songInfo.difficulties.containsKey(it) }
-    var selectedTabIndex by remember { 
-        mutableIntStateOf(availableDifficulties.indexOfFirst { it == Difficulty.IN }.takeIf { it >= 0 } ?: 0) 
+    val initialTabIndex = remember(availableDifficulties, initialDifficulty) {
+        val preferred = initialDifficulty ?: Difficulty.IN
+        availableDifficulties.indexOf(preferred).takeIf { it >= 0 } ?: 0
     }
-    val selectedDifficulty = availableDifficulties.getOrNull(selectedTabIndex) ?: Difficulty.IN
-    val songApiDetail = getSongApiDetail(selectedDifficulty)
+    val pagerState = rememberPagerState(
+        initialPage = initialTabIndex,
+        pageCount = { availableDifficulties.size.coerceAtLeast(1) }
+    )
+    val selectedDifficulty = availableDifficulties.getOrNull(pagerState.currentPage) ?: Difficulty.IN
     var showImagePreview by remember { mutableStateOf(false) }
+    val tabScope = rememberCoroutineScope()
     LaunchedEffect(apiEnabled, useApiData, selectedDifficulty) {
         if (apiEnabled && useApiData) {
             onLoadSongApiDetail(selectedDifficulty)
@@ -115,7 +123,6 @@ fun SongDetailScreen(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
         ) {
             // Header: Thumbnail + Meta info
             Row(
@@ -187,14 +194,22 @@ fun SongDetailScreen(
             // Difficulty Tabs
             if (availableDifficulties.isNotEmpty()) {
                 TabRow(
-                    selectedTabIndex = selectedTabIndex,
+                    selectedTabIndex = pagerState.currentPage,
+                    indicator = { tabPositions ->
+                        SpringTabIndicator(
+                            tabPositions = tabPositions,
+                            selectedTabIndex = pagerState.currentPage,
+                            pageOffsetFraction = pagerState.currentPageOffsetFraction
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     availableDifficulties.forEachIndexed { index, diff ->
-                        val diffColor = DifficultyColors.forDifficulty(diff)
                         Tab(
-                            selected = selectedTabIndex == index,
-                            onClick = { selectedTabIndex = index },
+                            selected = pagerState.currentPage == index,
+                            onClick = {
+                                tabScope.launch { pagerState.animateScrollToPage(index) }
+                            },
                             text = { 
                                 Text(
                                     text = "${diff.name} ${songInfo.difficulties[diff] ?: ""}"
@@ -205,204 +220,217 @@ fun SongDetailScreen(
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                
-                // Difficulty Details Card
-                val charter = songInfo.charters[selectedDifficulty] ?: "未知"
-                val notes = songInfo.noteCounts[selectedDifficulty]
-                val record = userRecords.find { it.difficulty == selectedDifficulty }
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                ) { page ->
+                    val pageDifficulty = availableDifficulties.getOrNull(page) ?: return@HorizontalPager
+                    val songApiDetail = getSongApiDetail(pageDifficulty)
+                    val charter = songInfo.charters[pageDifficulty] ?: "未知"
+                    val notes = songInfo.noteCounts[pageDifficulty]
+                    val record = userRecords.find { it.difficulty == pageDifficulty }
 
-                if (record != null) {
-                    Card(
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer
-                        )
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "单曲成绩",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                        if (record != null) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = String.format("%,d", record.score),
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    if (record.accuracy >= 100f) {
-                                        StatusChip("φ", Color(0xFFFFD54F), Color(0xFF5D4037))
-                                    } else if (record.isFullCombo) {
-                                        StatusChip("FC", Color(0xFF4FC3F7), Color.White)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "单曲成绩",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(
+                                                text = String.format("%,d", record.score),
+                                                style = MaterialTheme.typography.headlineSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            if (record.accuracy >= 100f) {
+                                                StatusChip("φ", Color(0xFFFFD54F), Color(0xFF5D4037))
+                                            } else if (record.isFullCombo) {
+                                                StatusChip("FC", Color(0xFF4FC3F7), Color.White)
+                                            }
+                                        }
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = String.format("%.4f%%", record.accuracy),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                        Text(
+                                            text = "RKS: ${String.format("%.4f", record.rks)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                        )
                                     }
                                 }
                             }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = String.format("%.4f%%", record.accuracy),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                                Text(
-                                    text = "RKS: ${String.format("%.4f", record.rks)}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
-                                )
-                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
 
-                if (apiEnabled && useApiData) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
-                        )
-                    ) {
-                        Column(
+                        if (apiEnabled && useApiData) {
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                )
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = "查分 API 统计信息",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    if (songApiDetail.isLoading) {
+                                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                    } else if (songApiDetail.error != null) {
+                                        Text(
+                                            text = songApiDetail.error,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    } else {
+                                        Text("单曲排名: ${songApiDetail.userRank ?: "—"} / ${songApiDetail.totalUsers ?: "—"}")
+                                        Text(
+                                            text = "平均 ACC: ${
+                                                songApiDetail.avgAcc?.let { String.format("%.4f%%", it) } ?: "—"
+                                            }（由 ${songApiDetail.avgAccCount ?: 0} 个样本取得）"
+                                        )
+                                        Text(
+                                            text = "拟合定数: ${
+                                                songApiDetail.fittedDifficulty?.let { String.format("%.4f", it) } ?: "—"
+                                            }"
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "查分 API 统计信息",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                .padding(horizontal = 16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
                             )
-                            if (songApiDetail.isLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                            } else if (songApiDetail.error != null) {
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp)
+                            ) {
                                 Text(
-                                    text = songApiDetail.error,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error
+                                    text = "谱面信息",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                            } else {
-                                Text("单曲排名: ${songApiDetail.userRank ?: "—"} / ${songApiDetail.totalUsers ?: "—"}")
+                                Spacer(modifier = Modifier.height(12.dp))
+
                                 Text(
-                                    text = "平均 ACC: ${
-                                        songApiDetail.avgAcc?.let { String.format("%.4f%%", it) } ?: "—"
-                                    }（由 ${songApiDetail.avgAccCount ?: 0} 个样本取得）"
+                                    text = "制谱: $charter",
+                                    style = MaterialTheme.typography.bodyLarge
                                 )
-                                Text(
-                                    text = "拟合定数: ${
-                                        songApiDetail.fittedDifficulty?.let { String.format("%.4f", it) } ?: "—"
-                                    }"
-                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                if (notes != null && notes.total > 0) {
+                                    Text(
+                                        text = "Notes 分布 (Total: ${notes.total})",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceAround
+                                    ) {
+                                        NoteStatItem("Tap", notes.tap)
+                                        NoteStatItem("Drag", notes.drag)
+                                        NoteStatItem("Hold", notes.hold)
+                                        NoteStatItem("Flick", notes.flick)
+                                    }
+                                } else {
+                                    Text(
+                                        text = "暂无 Notes 数据",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
-                        Text(
-                            text = "谱面信息",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        
-                        Text(
-                            text = "制谱: $charter",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        
                         Spacer(modifier = Modifier.height(16.dp))
-                        
-                        if (notes != null && notes.total > 0) {
+
+                        val currentHistory = if (apiEnabled && useApiData) songApiDetail.history else syncHistory
+                        val filteredHistory = currentHistory
+                            .filter { it.difficulty == pageDifficulty.name }
+                            .take(3)
+
+                        if (filteredHistory.isNotEmpty()) {
                             Text(
-                                text = "Notes 分布 (Total: ${notes.total})",
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "同步历史",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceAround
-                            ) {
-                                NoteStatItem("Tap", notes.tap)
-                                NoteStatItem("Drag", notes.drag)
-                                NoteStatItem("Hold", notes.hold)
-                                NoteStatItem("Flick", notes.flick)
+                            filteredHistory.forEach { entry ->
+                                SyncHistoryCard(entry)
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
                         } else {
-                            Text(
-                                text = "暂无 Notes 数据",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                                )
+                            ) {
+                                Text(
+                                    text = "暂无同步历史\n同步后发生变化的成绩将显示在这里",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
                         }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // 同步历史记录
-                val currentHistory = if (apiEnabled && useApiData) songApiDetail.history else syncHistory
-                val filteredHistory = currentHistory
-                    .filter { it.difficulty == selectedDifficulty.name }
-                    .take(3)
-
-                if (filteredHistory.isNotEmpty()) {
-                    Text(
-                        text = "同步历史",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    filteredHistory.forEach { entry ->
-                        SyncHistoryCard(entry)
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-                } else {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        )
-                    ) {
-                        Text(
-                            text = "暂无同步历史\n同步后发生变化的成绩将显示在这里",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(16.dp)
-                        )
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
             }

@@ -76,6 +76,12 @@ fun B30ExportLayout(data: B30ExportData) {
                     moneyString = data.moneyString,
                     avatarBitmap = data.avatarBitmap,
                     onAvatarClick = null,
+                    contentHorizontalPadding = 9.dp,
+                    contentVerticalPadding = 5.dp,
+                    textVerticalSpacing = 2.dp,
+                    avatarSize = 61.2.dp,
+                    avatarTextSpacing = 18.dp,
+                    centerContent = true,
                     modifier = Modifier
                         .width(data.profileCardWidthDp.dp)
                         .height(headerHeight)
@@ -84,6 +90,9 @@ fun B30ExportLayout(data: B30ExportData) {
                     clearCounts = data.statsTable.clearCounts,
                     fcCount = data.statsTable.fcCount,
                     phiCount = data.statsTable.phiCount,
+                    contentHorizontalPadding = 9.dp,
+                    contentVerticalPadding = 5.dp,
+                    rowSpacing = 7.dp,
                     modifier = Modifier
                         .width(data.statsCardWidthDp.dp)
                         .height(headerHeight)
@@ -172,6 +181,10 @@ private fun ExportCardGrid(
                     rankLabel = rankLabelProvider(rowIndex * 3 + colIndex),
                     illustrationBitmap = card.illustrationBitmap,
                     illustrationModel = null,
+                    contentHorizontalPadding = 9.dp,
+                    contentVerticalPadding = 5.dp,
+                    compactText = true,
+                    thumbnailScale = 0.9f,
                     onClick = null,
                     modifier = Modifier
                         .width(cardWidth)
