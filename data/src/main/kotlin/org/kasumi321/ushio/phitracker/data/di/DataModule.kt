@@ -18,7 +18,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
-import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.Interceptor
 import org.kasumi321.ushio.phitracker.data.BuildConfig
 import org.kasumi321.ushio.phitracker.data.database.AppDatabase
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
@@ -52,10 +52,14 @@ object DataModule {
         engine {
             config {
                 if (BuildConfig.DEBUG) {
-                    val networkLogger = HttpLoggingInterceptor { message ->
-                        Timber.tag("OkHttp").d(message)
-                    }.apply {
-                        level = HttpLoggingInterceptor.Level.BODY
+                    val networkLogger = Interceptor { chain ->
+                        val request = chain.request()
+                        val response = chain.proceed(request)
+                        val urlStr = request.url.toString()
+                        if (!urlStr.startsWith("https://rak3ffdi.tds1.tapfiles.cn")) {
+                            Timber.tag("OkHttp").d("$urlStr - ${response.code}")
+                        }
+                        response
                     }
                     addNetworkInterceptor(networkLogger)
                 }
@@ -70,7 +74,7 @@ object DataModule {
                     Timber.tag("Ktor").d(message)
                 }
             }
-            level = if (BuildConfig.DEBUG) LogLevel.HEADERS else LogLevel.NONE
+            level = LogLevel.NONE
         }
     }
 

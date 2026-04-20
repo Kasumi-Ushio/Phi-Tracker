@@ -64,7 +64,7 @@ object CrashReportExporter {
     }
 
     private fun File.safeReadText(): String {
-        return runCatching { LogSanitizer.sanitize(readText(Charsets.UTF_8)) }
+        return runCatching { readText(Charsets.UTF_8) }
             .getOrElse { "Failed to read crash report file: ${it.message ?: "unknown error"}" }
     }
 }
