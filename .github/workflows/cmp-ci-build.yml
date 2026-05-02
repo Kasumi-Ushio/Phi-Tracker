@@ -1,0 +1,111 @@
+name: CMP CI Build
+
+on:
+  push:
+    branches:
+      - feat/cmp-migration
+      - "cmp/**"
+  pull_request:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Compile Android Kotlin
+        run: ./gradlew :composeApp:compileDebugKotlinAndroid --stacktrace --no-daemon
+
+      - name: Assemble Android debug APK
+        run: ./gradlew :composeApp:assembleDebug --stacktrace --no-daemon
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-debug-apk
+          path: composeApp/build/outputs/apk/debug/*.apk
+
+  ios-kotlin:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml', 'composeApp/build.gradle.kts', 'settings.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Compile iOS Arm64
+        run: ./gradlew :composeApp:compileKotlinIosArm64 --stacktrace --no-daemon
+
+      - name: Compile iOS Simulator Arm64
+        run: ./gradlew :composeApp:compileKotlinIosSimulatorArm64 --stacktrace --no-daemon
+
+  ios-xcode:
+    runs-on: macos-latest
+    needs: ios-kotlin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Cache Kotlin/Native
+        uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: ${{ runner.os }}-konan-${{ hashFiles('gradle/libs.versions.toml', 'composeApp/build.gradle.kts', 'settings.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-konan-
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v4
+        with:
+          path: build/xcode-derived
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('iosApp/**/*.xcodeproj/project.pbxproj', 'composeApp/build.gradle.kts', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-
+
+      - name: Build iOS app
+        run: |
+          xcodebuild build \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/xcode-derived \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-debug-app
+          path: build/xcode-derived/Build/Products/Debug-iphonesimulator/*
