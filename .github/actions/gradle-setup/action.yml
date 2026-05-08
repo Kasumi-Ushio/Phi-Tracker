@@ -1,0 +1,31 @@
+name: 'Gradle Setup'
+description: 'Sets up Java and Gradle with cache for KMP builds'
+
+inputs:
+  java-version:
+    description: 'Java version to use'
+    required: false
+    default: '21'
+  cache-read-only:
+    description: 'Set Gradle cache to read-only for non-main branches'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Java
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5.2.0
+      with:
+        java-version: ${{ inputs.java-version }}
+        distribution: 'temurin'
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+      with:
+        cache-provider: basic
+        cache-read-only: ${{ inputs.cache-read-only == 'true' }}
+        cache-cleanup: on-success
+        gradle-home-cache-excludes: |
+          caches/jars-9
+          caches/transforms-3

@@ -1,0 +1,184 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'internalResources/**'
+      - '.github/workflows/android.yml'
+      - '.github/workflows/cache-cleanup.yml'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'internalResources/**'
+      - '.github/workflows/android.yml'
+      - '.github/workflows/cache-cleanup.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  shared-compile:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Gradle Setup
+        uses: ./.github/actions/gradle-setup
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Restore Kotlin/Native cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'build.gradle.kts', 'composeApp/build.gradle.kts') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      - name: Shared Kotlin/Native compilation
+        run: |
+          ./gradlew \
+            :composeApp:compileKotlinIosArm64 \
+            :composeApp:linkDebugFrameworkIosArm64 \
+            :composeApp:linkReleaseFrameworkIosArm64
+
+      - name: Upload device frameworks
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-device-frameworks
+          path: composeApp/build/bin/iosArm64/**
+          if-no-files-found: error
+
+  ios-debug:
+    needs: shared-compile
+    runs-on: macos-26
+    steps:
+      - name: Checkout (Xcode project only)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download prebuilt device frameworks
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ios-device-frameworks
+          path: composeApp/build/bin/iosArm64
+
+      - name: Xcode cache
+        uses: irgaly/xcode-cache@4141f139f00e335c6e1031fb93e667181f86146f # v1.9.2
+        with:
+          key: xcode-debug-${{ runner.os }}-${{ hashFiles('iosApp/iosApp.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            xcode-debug-${{ runner.os }}-
+            xcode-debug-
+          delete-used-deriveddata-cache: true
+
+      - name: Build iosApp (Debug) - consumes upstream framework, skips Gradle
+        run: |
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -target iosApp \
+            -configuration Debug \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedDataDebug" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="" \
+            OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED=YES \
+            FRAMEWORK_SEARCH_PATHS="$(pwd)/composeApp/build/bin/iosArm64/debugFramework" \
+            OTHER_LDFLAGS="-framework ComposeApp" \
+            build
+
+      - name: Package unsigned Debug IPA
+        run: |
+          APP_PATH="$RUNNER_TEMP/DerivedDataDebug/Build/Products/Debug-iphoneos/Phi Tracker.app"
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry "PhiTracker-Debug.ipa" Payload
+          rm -rf Payload
+
+      - name: Upload Debug IPA
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-debug-ipa
+          path: PhiTracker-Debug.ipa
+          if-no-files-found: error
+
+  ios-release:
+    needs: shared-compile
+    runs-on: macos-26
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout (Xcode project only)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Download prebuilt device frameworks
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ios-device-frameworks
+          path: composeApp/build/bin/iosArm64
+
+      - name: Xcode cache
+        uses: irgaly/xcode-cache@4141f139f00e335c6e1031fb93e667181f86146f # v1.9.2
+        with:
+          key: xcode-release-${{ runner.os }}-${{ hashFiles('iosApp/iosApp.xcodeproj/project.pbxproj') }}
+          restore-keys: |
+            xcode-release-${{ runner.os }}-
+            xcode-release-
+          delete-used-deriveddata-cache: true
+
+      - name: Build iosApp (Release) - consumes upstream framework, skips Gradle
+        run: |
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -target iosApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedDataRelease" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="" \
+            OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED=YES \
+            FRAMEWORK_SEARCH_PATHS="$(pwd)/composeApp/build/bin/iosArm64/releaseFramework" \
+            OTHER_LDFLAGS="-framework ComposeApp" \
+            build
+
+      - name: Package unsigned Release IPA
+        run: |
+          APP_PATH="$RUNNER_TEMP/DerivedDataRelease/Build/Products/Release-iphoneos/Phi Tracker.app"
+          rm -rf Payload
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry "PhiTracker-Release.ipa" Payload
+          rm -rf Payload
+
+      - name: Upload Release IPA
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-release-ipa
+          path: PhiTracker-Release.ipa
+          if-no-files-found: error
