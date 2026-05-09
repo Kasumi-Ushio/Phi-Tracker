@@ -53,6 +53,7 @@ data class BottomNavItem(
 fun MainScreen(
     onLogout: () -> Unit,
     onNavigateToB30Image: (b30: List<org.kasumi321.ushio.phitracker.domain.model.BestRecord>, displayRks: Float, nickname: String) -> Unit,
+    onNavigateToSongDetail: (String) -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -158,13 +159,30 @@ fun MainScreen(
                 onRefresh = { viewModel.refresh() },
                 onGenerateImage = { onNavigateToB30Image(state.b30, state.displayRks, state.nickname) },
                 getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
-                onSongClick = { /* Phase 5: SongDetail navigation */ },
+                onSongClick = onNavigateToSongDetail,
                 showB30Overflow = state.showB30Overflow,
                 overflowCount = state.overflowCount,
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
-            1 -> SongsTabPlaceholder(
+            1 -> SongsTab(
+                songs = state.filteredSongs,
+                searchQuery = state.searchQuery,
+                onSearchChange = { viewModel.searchSongs(it) },
+                availableChapters = state.availableChapters,
+                selectedChapter = state.selectedChapter,
+                onChapterSelect = { viewModel.filterByChapter(it) },
+                selectedDifficulty = state.selectedDifficulty,
+                onDifficultySelect = { viewModel.filterByDifficulty(it) },
+                minLevel = state.minLevel,
+                maxLevel = state.maxLevel,
+                onLevelRangeSelect = { min, max -> viewModel.filterByLevelRange(min, max) },
+                showFilterSheet = state.showFilterSheet,
+                onToggleFilterSheet = { viewModel.toggleFilterSheet(it) },
+                onResetFilters = { viewModel.resetFilters() },
+                getIllustrationUrl = { viewModel.getIllustrationUrl(it) },
+                onSongClick = onNavigateToSongDetail,
+                tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
             2 -> SettingsTabPlaceholder(
@@ -232,30 +250,6 @@ private fun IllustrationPreloadDialog(
             }
         }
     )
-}
-
-@Composable
-private fun SongsTabPlaceholder(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "曲目",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Phase 5: 曲目列表待实现",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
 }
 
 @Composable
