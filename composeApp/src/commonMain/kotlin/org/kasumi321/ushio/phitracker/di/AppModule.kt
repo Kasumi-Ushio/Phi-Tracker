@@ -15,5 +15,16 @@ val appModule = module {
     single { GetSuggestUseCase() }
     single { SearchSongUseCase() }
     viewModel { LoginViewModel(get(), get(), get()) }
-    viewModel { HomeViewModel(get()) }
+    viewModel {
+        HomeViewModel(
+            repository = get(),
+            getB30UseCase = get(),
+            syncSaveUseCase = get(),
+            searchSongUseCase = get(),
+            songDataProvider = get(),
+            illustrationProvider = get(),
+            tipsProvider = get(),
+            settingsRepository = get()
+        )
+    }
 }

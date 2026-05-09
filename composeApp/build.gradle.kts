@@ -60,6 +60,8 @@ kotlin {
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.coil3.compose)
+            implementation(libs.coil3.network.ktor3)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
