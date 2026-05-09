@@ -81,7 +81,8 @@ jobs:
           restore-keys: |
             xcode-debug-${{ runner.os }}-
             xcode-debug-
-          delete-used-deriveddata-cache: true
+          deriveddata-directory: ${{ runner.temp }}/DerivedDataDebug
+          delete-used-deriveddata-cache: false
 
       - name: Build iosApp (Debug) - consumes upstream framework, skips Gradle
         run: |
@@ -143,7 +144,8 @@ jobs:
           restore-keys: |
             xcode-release-${{ runner.os }}-
             xcode-release-
-          delete-used-deriveddata-cache: true
+          deriveddata-directory: ${{ runner.temp }}/DerivedDataRelease
+          delete-used-deriveddata-cache: false
 
       - name: Build iosApp (Release) - consumes upstream framework, skips Gradle
         run: |
