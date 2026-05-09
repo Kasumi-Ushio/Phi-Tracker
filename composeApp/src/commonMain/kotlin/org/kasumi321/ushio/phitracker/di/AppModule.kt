@@ -4,6 +4,9 @@ import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
+import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
@@ -11,4 +14,6 @@ val appModule = module {
     single { GetB30UseCase(get()) }
     single { GetSuggestUseCase() }
     single { SearchSongUseCase() }
+    viewModel { LoginViewModel(get(), get(), get()) }
+    viewModel { HomeViewModel(get()) }
 }
