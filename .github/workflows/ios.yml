@@ -87,7 +87,7 @@ jobs:
         run: |
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \
-            -target iosApp \
+            -scheme iosApp \
             -configuration Debug \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
@@ -149,7 +149,7 @@ jobs:
         run: |
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \
-            -target iosApp \
+            -scheme iosApp \
             -configuration Release \
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
