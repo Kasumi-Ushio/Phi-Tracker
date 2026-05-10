@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import org.kasumi321.ushio.phitracker.data.platform.AndroidPlatformContext
+import org.kasumi321.ushio.phitracker.data.platform.SafTreeManager
 import org.kasumi321.ushio.phitracker.di.initKoin
 
 class MainActivity : ComponentActivity() {
@@ -14,6 +15,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         AndroidPlatformContext.initialize(this)
+        SafTreeManager.initialize(this)
         initKoin()
 
         setContent {

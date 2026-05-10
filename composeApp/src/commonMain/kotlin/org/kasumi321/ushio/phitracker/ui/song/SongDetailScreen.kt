@@ -20,8 +20,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,6 +39,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +55,9 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
+import org.kasumi321.ushio.phitracker.data.platform.saveArtworkToPictures
+import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
@@ -306,6 +312,8 @@ fun SongDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     var scale by remember { mutableFloatStateOf(1f) }
+                    val coroutineScope = rememberCoroutineScope()
+                    var isDownloading by remember { mutableStateOf(false) }
 
                     AsyncImage(
                         model = standardUrl,
@@ -326,6 +334,38 @@ fun SongDetailScreen(
                             .align(Alignment.TopEnd)
                             .padding(16.dp)
                     ) {
+                        IconButton(
+                            onClick = {
+                                val url = standardUrl
+                                if (url.isNullOrBlank()) {
+                                    showPlatformMessage("保存失败")
+                                    return@IconButton
+                                }
+                                isDownloading = true
+                                coroutineScope.launch {
+                                    val fileName = "${songInfo.id.replace(".", "_")}_hq.png"
+                                    val result = saveArtworkToPictures(url, fileName)
+                                    showPlatformMessage(
+                                        if (result.isSuccess) "已保存到相册" else "保存失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                    )
+                                    isDownloading = false
+                                }
+                            },
+                            enabled = !isDownloading
+                        ) {
+                            if (isDownloading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = Color.White
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Filled.Save,
+                                    contentDescription = "Save",
+                                    tint = Color.White
+                                )
+                            }
+                        }
                         IconButton(onClick = { showImagePreview = false }) {
                             Icon(
                                 Icons.Filled.Close,
