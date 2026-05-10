@@ -35,6 +35,10 @@ import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.home.MainScreen
 import org.kasumi321.ushio.phitracker.ui.login.LoginScreen
 import org.kasumi321.ushio.phitracker.ui.navigation.SongDetailRoute
+import org.kasumi321.ushio.phitracker.ui.settings.AboutScreen
+import org.kasumi321.ushio.phitracker.ui.settings.AcknowledgmentsScreen
+import org.kasumi321.ushio.phitracker.ui.settings.DisclaimerScreen
+import org.kasumi321.ushio.phitracker.ui.settings.LicensesScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -42,6 +46,10 @@ sealed class Screen(val route: String) {
     data object Login : Screen("login")
     data object Home : Screen("home")
     data object B30Image : Screen("b30image")
+    data object About : Screen("about")
+    data object Disclaimer : Screen("disclaimer")
+    data object Acknowledgments : Screen("acknowledgments")
+    data object Licenses : Screen("licenses")
 }
 
 /** Simple holder for B30 state passed from Home to B30Image screen. */
@@ -84,6 +92,9 @@ fun PhiTrackerNavHost() {
                 onNavigateToSongDetail = { songId ->
                     navController.navigate(SongDetailRoute(songId = songId))
                 },
+                onNavigateToAbout = {
+                    navController.navigate(Screen.About.route)
+                },
                 viewModel = homeViewModel
             )
         }
@@ -93,6 +104,29 @@ fun PhiTrackerNavHost() {
                 displayRks = b30ImageState.displayRks,
                 nickname = b30ImageState.nickname,
                 onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.About.route) {
+            AboutScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToLicenses = { navController.navigate(Screen.Licenses.route) },
+                onNavigateToDisclaimer = { navController.navigate(Screen.Disclaimer.route) },
+                onNavigateToAcknowledgments = { navController.navigate(Screen.Acknowledgments.route) }
+            )
+        }
+        composable(Screen.Disclaimer.route) {
+            DisclaimerScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Acknowledgments.route) {
+            AcknowledgmentsScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Licenses.route) {
+            LicensesScreen(
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable<SongDetailRoute> { backStackEntry ->

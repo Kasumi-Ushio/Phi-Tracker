@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.kasumi321.ushio.phitracker.ui.settings.SettingsTab
 import org.koin.compose.viewmodel.koinViewModel
 
 data class BottomNavItem(
@@ -54,6 +55,7 @@ fun MainScreen(
     onLogout: () -> Unit,
     onNavigateToB30Image: (b30: List<org.kasumi321.ushio.phitracker.domain.model.BestRecord>, displayRks: Float, nickname: String) -> Unit,
     onNavigateToSongDetail: (String) -> Unit,
+    onNavigateToAbout: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -185,8 +187,18 @@ fun MainScreen(
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
-            2 -> SettingsTabPlaceholder(
+            2 -> SettingsTab(
+                themeMode = state.themeMode,
+                showB30Overflow = state.showB30Overflow,
+                overflowCount = state.overflowCount,
+                onThemeModeChange = { viewModel.setThemeMode(it) },
+                onShowB30OverflowChange = { viewModel.setShowB30Overflow(it) },
+                onOverflowCountChange = { viewModel.setOverflowCount(it) },
+                onClearHighResCache = { viewModel.clearHighResCache() },
+                onRedownloadIllustrations = { viewModel.resetIllustrationDownloadAndExit() },
+                onNavigateToAbout = onNavigateToAbout,
                 onLogout = { viewModel.logout() },
+                tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
         }
@@ -252,32 +264,3 @@ private fun IllustrationPreloadDialog(
     )
 }
 
-@Composable
-private fun SettingsTabPlaceholder(
-    onLogout: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = "设置",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Phase 6: 设置页待实现",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Button(onClick = onLogout) {
-                Text("退出登录")
-            }
-        }
-    }
-}

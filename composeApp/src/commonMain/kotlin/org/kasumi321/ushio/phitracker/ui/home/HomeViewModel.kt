@@ -14,6 +14,9 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
 import org.kasumi321.ushio.phitracker.data.TipsProvider
+import org.kasumi321.ushio.phitracker.data.platform.clearAllImageCache
+import org.kasumi321.ushio.phitracker.data.platform.clearImageCacheUrls
+import org.kasumi321.ushio.phitracker.data.platform.triggerAppRestart
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
@@ -362,7 +365,31 @@ class HomeViewModel(
     }
 
     // --- Settings ---
-    fun setThemeMode(mode: Int) = viewModelScope.launch { settingsRepository.setThemeMode(mode) }
-    fun setShowB30Overflow(show: Boolean) = viewModelScope.launch { settingsRepository.setShowB30Overflow(show) }
-    fun setOverflowCount(count: Int) = viewModelScope.launch { settingsRepository.setOverflowCount(count) }
+    fun setThemeMode(mode: Int) {
+        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
+    }
+
+    fun setShowB30Overflow(show: Boolean) {
+        viewModelScope.launch { settingsRepository.setShowB30Overflow(show) }
+    }
+
+    fun setOverflowCount(count: Int) {
+        viewModelScope.launch { settingsRepository.setOverflowCount(count) }
+    }
+
+    fun clearHighResCache() {
+        viewModelScope.launch {
+            val songs = songDataProvider.getSongs()
+            val urls = songs.keys.map { illustrationProvider.getStandardUrl(it) }
+            clearImageCacheUrls(urls)
+        }
+    }
+
+    fun resetIllustrationDownloadAndExit() {
+        viewModelScope.launch {
+            settingsRepository.setPreloadDone(false)
+            clearAllImageCache()
+            triggerAppRestart()
+        }
+    }
 }

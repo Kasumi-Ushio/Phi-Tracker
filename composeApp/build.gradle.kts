@@ -9,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+    alias(libs.plugins.aboutlibraries)
 }
 
 kotlin {
@@ -62,6 +63,7 @@ kotlin {
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.coil3.compose)
             implementation(libs.coil3.network.ktor3)
+            implementation(libs.aboutlibraries.compose.m3)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

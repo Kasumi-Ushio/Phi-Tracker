@@ -34,6 +34,14 @@ import platform.Photos.PHAuthorizationStatusLimited
 import platform.Photos.PHAuthorizationStatusRestricted
 import platform.Photos.PHPhotoLibrary
 
+import platform.UIKit.UIAlertAction
+import platform.UIKit.UIAlertActionStyleDefault
+import platform.UIKit.UIAlertController
+import platform.UIKit.UIAlertControllerStyleAlert
+import platform.UIKit.UIApplication
+import platform.darwin.dispatch_async
+import platform.darwin.dispatch_get_main_queue
+
 actual suspend fun saveArtworkToPictures(imageUrl: String, fileName: String): Result<Unit> {
     val tempDir = NSTemporaryDirectory()
     val tempPath = tempDir + fileName
@@ -62,7 +70,31 @@ actual suspend fun saveArtworkToPictures(imageUrl: String, fileName: String): Re
     }
 }
 
-actual fun showPlatformMessage(message: String) = Unit
+actual fun showPlatformMessage(message: String) {
+    showNativeAlert(title = null, message = message)
+}
+
+internal fun showNativeAlert(title: String?, message: String) {
+    dispatch_async(dispatch_get_main_queue()) {
+        val alert = UIAlertController.alertControllerWithTitle(
+            title = title,
+            message = message,
+            preferredStyle = UIAlertControllerStyleAlert,
+        )
+        alert.addAction(
+            UIAlertAction.actionWithTitle(
+                title = "确定",
+                style = UIAlertActionStyleDefault,
+                handler = null,
+            ),
+        )
+        UIApplication.sharedApplication.keyWindow?.rootViewController?.presentViewController(
+            alert,
+            animated = true,
+            completion = null,
+        )
+    }
+}
 
 private suspend fun loadArtworkBytes(imageUrl: String): ByteArray = withContext(Dispatchers.Default) {
     val context = PlatformContext.INSTANCE
