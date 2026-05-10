@@ -80,6 +80,20 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+aboutLibraries {
+    export {
+        outputFile = file("src/commonMain/composeResources/files/aboutlibraries.json")
+    }
+}
+
+// Compose resources copy tasks for commonMain consume the export output file.
+// Declare mustRunAfter so combined invocations like
+//   exportLibraryDefinitions + assembleDebug
+// do not trigger "uses this output without declaring an explicit or implicit dependency".
+tasks.matching { it.name.startsWith("copy") && it.name.endsWith("ForCommonMain") }.configureEach {
+    mustRunAfter(tasks.named("exportLibraryDefinitions"))
+}
+
 val keystoreProperties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) load(file.inputStream())

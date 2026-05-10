@@ -50,13 +50,21 @@ jobs:
           ./gradlew \
             :composeApp:compileKotlinIosArm64 \
             :composeApp:linkDebugFrameworkIosArm64 \
-            :composeApp:linkReleaseFrameworkIosArm64
+            :composeApp:linkReleaseFrameworkIosArm64 \
+            :composeApp:iosArm64AggregateResources
 
       - name: Upload device frameworks
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-device-frameworks
           path: composeApp/build/bin/iosArm64/**
+          if-no-files-found: error
+
+      - name: Upload device compose resources
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-device-compose-resources
+          path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64/**
           if-no-files-found: error
 
   ios-debug:
@@ -73,6 +81,12 @@ jobs:
         with:
           name: ios-device-frameworks
           path: composeApp/build/bin/iosArm64
+
+      - name: Download prebuilt device compose resources
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ios-device-compose-resources
+          path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64
 
       - name: Xcode cache
         uses: irgaly/xcode-cache@4141f139f00e335c6e1031fb93e667181f86146f # v1.9.2
@@ -104,6 +118,16 @@ jobs:
             FRAMEWORK_SEARCH_PATHS="$(pwd)/composeApp/build/bin/iosArm64/debugFramework" \
             OTHER_LDFLAGS="-framework ComposeApp" \
             build
+
+      - name: Copy Compose resources into Debug app bundle
+        run: |
+          APP_PATH="$RUNNER_TEMP/DerivedDataDebug/Build/Products/Debug-iphoneos/Phi Tracker.app"
+          RESOURCE_ROOT="$(pwd)/composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64"
+          test -d "$RESOURCE_ROOT/composeResources"
+          mkdir -p "$APP_PATH/compose-resources"
+          rm -rf "$APP_PATH/compose-resources/composeResources"
+          cp -R "$RESOURCE_ROOT/composeResources" "$APP_PATH/compose-resources/"
+          test -f "$APP_PATH/compose-resources/composeResources/phitracker.composeapp.generated.resources/files/aboutlibraries.json"
 
       - name: Package unsigned Debug IPA
         run: |
@@ -137,6 +161,12 @@ jobs:
           name: ios-device-frameworks
           path: composeApp/build/bin/iosArm64
 
+      - name: Download prebuilt device compose resources
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: ios-device-compose-resources
+          path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64
+
       - name: Xcode cache
         uses: irgaly/xcode-cache@4141f139f00e335c6e1031fb93e667181f86146f # v1.9.2
         with:
@@ -167,6 +197,16 @@ jobs:
             FRAMEWORK_SEARCH_PATHS="$(pwd)/composeApp/build/bin/iosArm64/releaseFramework" \
             OTHER_LDFLAGS="-framework ComposeApp" \
             build
+
+      - name: Copy Compose resources into Release app bundle
+        run: |
+          APP_PATH="$RUNNER_TEMP/DerivedDataRelease/Build/Products/Release-iphoneos/Phi Tracker.app"
+          RESOURCE_ROOT="$(pwd)/composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64"
+          test -d "$RESOURCE_ROOT/composeResources"
+          mkdir -p "$APP_PATH/compose-resources"
+          rm -rf "$APP_PATH/compose-resources/composeResources"
+          cp -R "$RESOURCE_ROOT/composeResources" "$APP_PATH/compose-resources/"
+          test -f "$APP_PATH/compose-resources/composeResources/phitracker.composeapp.generated.resources/files/aboutlibraries.json"
 
       - name: Package unsigned Release IPA
         run: |
