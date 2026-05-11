@@ -3,12 +3,15 @@ package org.kasumi321.ushio.phitracker.ui.b30
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Font
+import org.jetbrains.skia.FontMgr
+import org.jetbrains.skia.FontStyle
 import org.jetbrains.skia.GradientStyle
 import org.jetbrains.skia.Paint
 import org.jetbrains.skia.RRect
 import org.jetbrains.skia.Rect
 import org.jetbrains.skia.Shader
 import org.jetbrains.skia.Surface
+import org.jetbrains.skia.Typeface
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 
 actual object B30ImageGenerator {
@@ -63,19 +66,19 @@ actual object B30ImageGenerator {
         val titlePaint = paint(0xFFFFFFFF.toInt())
         val subtitlePaint = paint(0xFFB0BEC5.toInt())
         val rksPaint = paint(0xFF64B5F6.toInt())
-        val titleFont = font(48f, bold = true)
-        val subtitleFont = font(32f)
-        val rksFont = font(72f, bold = true)
+        val titleStyle = textStyle(48f, bold = true)
+        val subtitleStyle = textStyle(32f)
+        val rksStyle = textStyle(72f, bold = true)
         val centerX = B30ImageSpec.IMAGE_WIDTH / 2f
 
         val displayName = B30ImageSpec.displayNickname(nickname)
-        canvas.drawString(displayName, centerX - titleFont.measureTextWidth(displayName, titlePaint) / 2, B30ImageSpec.PADDING + 60f, titleFont, titlePaint)
+        drawText(canvas, displayName, centerX - measureTextWidth(displayName, titleStyle, titlePaint) / 2, B30ImageSpec.PADDING + 60f, titleStyle, titlePaint)
 
         val rksText = B30ImageSpec.formatRks(displayRks)
-        canvas.drawString(rksText, centerX - rksFont.measureTextWidth(rksText, rksPaint) / 2, B30ImageSpec.PADDING + 140f, rksFont, rksPaint)
+        drawText(canvas, rksText, centerX - measureTextWidth(rksText, rksStyle, rksPaint) / 2, B30ImageSpec.PADDING + 140f, rksStyle, rksPaint)
 
         val labelText = "Best 30"
-        canvas.drawString(labelText, centerX - subtitleFont.measureTextWidth(labelText, subtitlePaint) / 2, B30ImageSpec.PADDING + 180f, subtitleFont, subtitlePaint)
+        drawText(canvas, labelText, centerX - measureTextWidth(labelText, subtitleStyle, subtitlePaint) / 2, B30ImageSpec.PADDING + 180f, subtitleStyle, subtitlePaint)
     }
 
     private fun drawCard(canvas: org.jetbrains.skia.Canvas, record: BestRecord, rank: Int, x: Float, y: Float) {
@@ -97,50 +100,52 @@ actual object B30ImageGenerator {
                 else -> 0xFF78909C.toInt()
             }
         )
-        canvas.drawString("#$rank", x + 14f, y + 32f, font(28f, bold = true), rankPaint)
+        drawText(canvas, "#$rank", x + 14f, y + 32f, textStyle(28f, bold = true), rankPaint)
 
         val namePaint = paint(0xFFFFFFFF.toInt())
-        val nameFont = font(24f, bold = true)
-        val songName = truncateText(record.songName, nameFont, namePaint, (B30ImageSpec.CARD_WIDTH - 30).toFloat())
-        canvas.drawString(songName, x + 14f, y + 62f, nameFont, namePaint)
+        val nameStyle = textStyle(24f, bold = true)
+        val songName = truncateText(record.songName, nameStyle, namePaint, (B30ImageSpec.CARD_WIDTH - 30).toFloat())
+        drawText(canvas, songName, x + 14f, y + 62f, nameStyle, namePaint)
 
         val diffPaint = paint(diffColor)
-        val diffFont = font(18f, bold = true)
+        val diffStyle = textStyle(18f, bold = true)
         val diffLabel = "${B30ImageSpec.difficultyLabel(record.difficulty)} ${B30ImageSpec.formatChartConstant(record.chartConstant)}"
-        canvas.drawString(diffLabel, x + 14f, y + 86f, diffFont, diffPaint)
+        drawText(canvas, diffLabel, x + 14f, y + 86f, diffStyle, diffPaint)
 
         if (record.isFullCombo) {
             val fcPaint = paint(0xFF4CAF50.toInt())
-            val fcX = x + 14f + diffFont.measureTextWidth(diffLabel, diffPaint) + 10f
-            canvas.drawString("FC", fcX, y + 86f, font(18f, bold = true), fcPaint)
+            val fcX = x + 14f + measureTextWidth(diffLabel, diffStyle, diffPaint) + 10f
+            drawText(canvas, "FC", fcX, y + 86f, textStyle(18f, bold = true), fcPaint)
         }
 
         val scorePaint = paint(0xFFFFFFFF.toInt())
-        canvas.drawString(B30ImageSpec.formatScore(record.score), x + 14f, y + 116f, font(22f, bold = true), scorePaint)
+        drawText(canvas, B30ImageSpec.formatScore(record.score), x + 14f, y + 116f, textStyle(22f, bold = true), scorePaint)
 
-        canvas.drawString(B30ImageSpec.formatAccuracy(record.accuracy), x + 14f, y + 140f, font(18f), paint(0xFFB0BEC5.toInt()))
+        drawText(canvas, B30ImageSpec.formatAccuracy(record.accuracy), x + 14f, y + 140f, textStyle(18f), paint(0xFFB0BEC5.toInt()))
 
         val rksPaint = paint(0xFF64B5F6.toInt())
-        val rksFont = font(26f, bold = true)
+        val rksStyle = textStyle(26f, bold = true)
         val rksText = B30ImageSpec.formatRks(record.rks)
-        canvas.drawString(
+        drawText(
+            canvas,
             rksText,
-            x + B30ImageSpec.CARD_WIDTH - 14f - rksFont.measureTextWidth(rksText, rksPaint),
+            x + B30ImageSpec.CARD_WIDTH - 14f - measureTextWidth(rksText, rksStyle, rksPaint),
             y + B30ImageSpec.CARD_HEIGHT - 14f,
-            rksFont,
+            rksStyle,
             rksPaint
         )
     }
 
     private fun drawFooter(canvas: org.jetbrains.skia.Canvas) {
         val footerPaint = paint(0xFF546E7A.toInt())
-        val footerFont = font(22f)
+        val footerStyle = textStyle(22f)
         val text = "Generated by Phigros Score Tracker"
-        canvas.drawString(
+        drawText(
+            canvas,
             text,
-            B30ImageSpec.IMAGE_WIDTH / 2f - footerFont.measureTextWidth(text, footerPaint) / 2,
+            B30ImageSpec.IMAGE_WIDTH / 2f - measureTextWidth(text, footerStyle, footerPaint) / 2,
             (B30ImageSpec.IMAGE_HEIGHT - B30ImageSpec.FOOTER_HEIGHT / 2 + 8).toFloat(),
-            footerFont,
+            footerStyle,
             footerPaint
         )
     }
@@ -150,16 +155,120 @@ actual object B30ImageGenerator {
         this.color = color
     }
 
-    private fun font(size: Float, bold: Boolean = false): Font = Font().apply {
-        this.size = size
-        isEmboldened = bold
+    private data class TextStyleSpec(val size: Float, val bold: Boolean)
+
+    private data class TextRun(val text: String, val typeface: Typeface?)
+
+    private fun textStyle(size: Float, bold: Boolean = false): TextStyleSpec = TextStyleSpec(size, bold)
+
+    private fun font(typeface: Typeface?, style: TextStyleSpec): Font = Font(typeface, style.size).apply {
         isSubpixel = true
     }
 
-    private fun truncateText(text: String, font: Font, paint: Paint, maxWidth: Float): String {
-        if (font.measureTextWidth(text, paint) <= maxWidth) return text
+    private fun systemTypeface(bold: Boolean): Typeface? {
+        val style = if (bold) FontStyle.BOLD else FontStyle.NORMAL
+        val families = arrayOf(null, ".SF NS", "SF Pro", "Helvetica Neue", "Helvetica", "PingFang SC", "Hiragino Sans")
+        return FontMgr.default.matchFamiliesStyle(families, style)
+            ?: FontMgr.default.matchFamilyStyleCharacter(null, style, null, 'A'.code)
+    }
+
+    private data class CodePointText(val text: String, val codePoint: Int)
+
+    private val fallbackCache = mutableMapOf<Pair<Boolean, Int>, Typeface?>()
+
+    private fun typefaceFor(codePoint: Int, style: TextStyleSpec): Typeface? {
+        val primary = systemTypeface(style.bold)
+        if (primary?.getUTF32Glyph(codePoint)?.toInt() != 0) return primary
+
+        val key = style.bold to codePoint
+        if (fallbackCache.containsKey(key)) return fallbackCache[key]
+
+        val fontStyle = if (style.bold) FontStyle.BOLD else FontStyle.NORMAL
+        val fallback = FontMgr.default.matchFamilyStyleCharacter(
+            familyName = null,
+            style = fontStyle,
+            bcp47 = arrayOf("en", "ja", "zh-Hans"),
+            character = codePoint
+        )
+        val resolved = if (fallback?.getUTF32Glyph(codePoint)?.toInt() != 0) fallback else primary
+        fallbackCache[key] = resolved
+        return resolved
+    }
+
+    private fun codePointTexts(text: String): List<CodePointText> {
+        val result = mutableListOf<CodePointText>()
+        var index = 0
+        while (index < text.length) {
+            val high = text[index]
+            if (index + 1 < text.length && high.code in 0xD800..0xDBFF) {
+                val low = text[index + 1]
+                if (low.code in 0xDC00..0xDFFF) {
+                    val codePoint = 0x10000 + ((high.code - 0xD800) shl 10) + (low.code - 0xDC00)
+                    result += CodePointText("$high$low", codePoint)
+                    index += 2
+                    continue
+                }
+            }
+            result += CodePointText(high.toString(), high.code)
+            index++
+        }
+        return result
+    }
+
+    private fun textRuns(text: String, style: TextStyleSpec): List<TextRun> {
+        if (text.isEmpty()) return emptyList()
+        val runs = mutableListOf<TextRun>()
+        val current = StringBuilder()
+        var currentTypeface: Typeface? = null
+
+        for (codePointText in codePointTexts(text)) {
+            val typeface = typefaceFor(codePointText.codePoint, style)
+            if (currentTypeface != null && typeface != null && currentTypeface.uniqueId != typeface.uniqueId) {
+                runs += TextRun(current.toString(), currentTypeface)
+                current.clear()
+            } else if ((currentTypeface == null) != (typeface == null) && current.isNotEmpty()) {
+                runs += TextRun(current.toString(), currentTypeface)
+                current.clear()
+            }
+            currentTypeface = typeface
+            current.append(codePointText.text)
+        }
+
+        val lastTypeface = currentTypeface
+        if (current.isNotEmpty() && lastTypeface != null) {
+            runs += TextRun(current.toString(), lastTypeface)
+        }
+        return runs
+    }
+
+    private fun drawText(
+        canvas: org.jetbrains.skia.Canvas,
+        text: String,
+        x: Float,
+        y: Float,
+        style: TextStyleSpec,
+        paint: Paint
+    ) {
+        var currentX = x
+        for (run in textRuns(text, style)) {
+            val runFont = font(run.typeface, style)
+            canvas.drawString(run.text, currentX, y, runFont, paint)
+            currentX += runFont.measureTextWidth(run.text, paint)
+        }
+    }
+
+    private fun measureTextWidth(text: String, style: TextStyleSpec, paint: Paint): Float {
+        var width = 0f
+        for (run in textRuns(text, style)) {
+            width += font(run.typeface, style).measureTextWidth(run.text, paint)
+        }
+        return width
+    }
+
+    private fun truncateText(text: String, style: TextStyleSpec, paint: Paint, maxWidth: Float): String {
+        if (measureTextWidth(text, style, paint) <= maxWidth) return text
         var truncated = text
-        while (truncated.isNotEmpty() && font.measureTextWidth("$truncated…", paint) > maxWidth) {
+        while (truncated.isNotEmpty() && measureTextWidth("$truncated…", style, paint) > maxWidth) {
             truncated = truncated.dropLast(1)
         }
         return "$truncated…"

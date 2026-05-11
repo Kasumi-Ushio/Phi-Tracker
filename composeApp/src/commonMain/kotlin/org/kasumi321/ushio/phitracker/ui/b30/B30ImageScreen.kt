@@ -58,16 +58,22 @@ fun B30ImageScreen(
 ) {
     var export by remember { mutableStateOf<B30ImageExport?>(null) }
     var isGenerating by remember { mutableStateOf(true) }
+    var generationFailed by remember { mutableStateOf(false) }
     var scale by remember { mutableFloatStateOf(0.3f) }
     val coroutineScope = rememberCoroutineScope()
 
     // 异步生成图片
     LaunchedEffect(b30, displayRks, nickname) {
         isGenerating = true
+        generationFailed = false
         export = null
-        export = withContext(Dispatchers.Default) {
-            B30ImageGenerator.generate(b30, displayRks, nickname)
+        val result = runCatching {
+            withContext(Dispatchers.Default) {
+                B30ImageGenerator.generate(b30, displayRks, nickname)
+            }
         }
+        export = result.getOrNull()
+        generationFailed = result.isFailure
         isGenerating = false
     }
 
@@ -101,6 +107,15 @@ fun B30ImageScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("正在生成 B30 图片...")
                     }
+                }
+            } else if (generationFailed) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("B30 图片生成失败")
                 }
             } else {
                 export?.let { exp ->
