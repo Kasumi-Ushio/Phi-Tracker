@@ -2,18 +2,12 @@
 
 package org.kasumi321.ushio.phitracker.data.platform
 
-import coil3.PlatformContext
-import coil3.SingletonImageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCObjectVar
-import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
-import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -24,7 +18,7 @@ import platform.Foundation.NSError
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
-import platform.Foundation.create
+import platform.Foundation.dataWithContentsOfURL
 import platform.Foundation.writeToURL
 import platform.Photos.PHAccessLevelAddOnly
 import platform.Photos.PHAssetChangeRequest
@@ -34,22 +28,16 @@ import platform.Photos.PHAuthorizationStatusLimited
 import platform.Photos.PHAuthorizationStatusRestricted
 import platform.Photos.PHPhotoLibrary
 
-import platform.UIKit.UIAlertAction
-import platform.UIKit.UIAlertActionStyleDefault
-import platform.UIKit.UIAlertController
-import platform.UIKit.UIAlertControllerStyleAlert
-import platform.UIKit.UIApplication
-import platform.darwin.dispatch_async
-import platform.darwin.dispatch_get_main_queue
-
 actual suspend fun saveArtworkToPictures(imageUrl: String, fileName: String): Result<Unit> {
     val tempDir = NSTemporaryDirectory()
     val tempPath = tempDir + fileName
     val tempUrl = NSURL.fileURLWithPath(tempPath)
 
     return try {
-        val bytes = loadArtworkBytes(imageUrl)
-        val nsData = bytes.toNSData()
+        require(imageUrl.contains("/ill/") && !imageUrl.contains("/illLow/")) {
+            "Low-res artwork save is not supported. Expected standard URL containing /ill/."
+        }
+        val nsData = downloadArtworkData(imageUrl)
 
         check(nsData.writeToURL(tempUrl, atomically = true)) {
             "Failed to write artwork to temporary file"
@@ -70,57 +58,12 @@ actual suspend fun saveArtworkToPictures(imageUrl: String, fileName: String): Re
     }
 }
 
-actual fun showPlatformMessage(message: String) {
-    showNativeAlert(title = null, message = message)
-}
+private suspend fun downloadArtworkData(imageUrl: String): NSData = withContext(Dispatchers.Default) {
+    val url = requireNotNull(NSURL.URLWithString(imageUrl)) { "Invalid artwork URL" }
+    val data = requireNotNull(NSData.dataWithContentsOfURL(url)) { "Unable to download artwork" }
+    require(data.length > 0u) { "Downloaded artwork is empty" }
 
-internal fun showNativeAlert(title: String?, message: String) {
-    dispatch_async(dispatch_get_main_queue()) {
-        val alert = UIAlertController.alertControllerWithTitle(
-            title = title,
-            message = message,
-            preferredStyle = UIAlertControllerStyleAlert,
-        )
-        alert.addAction(
-            UIAlertAction.actionWithTitle(
-                title = "确定",
-                style = UIAlertActionStyleDefault,
-                handler = null,
-            ),
-        )
-        UIApplication.sharedApplication.keyWindow?.rootViewController?.presentViewController(
-            alert,
-            animated = true,
-            completion = null,
-        )
-    }
-}
-
-private suspend fun loadArtworkBytes(imageUrl: String): ByteArray = withContext(Dispatchers.Default) {
-    val context = PlatformContext.INSTANCE
-    val imageLoader = SingletonImageLoader.get(context)
-    val request = ImageRequest.Builder(context)
-        .data(imageUrl)
-        .diskCacheKey(imageUrl)
-        .build()
-    val result = imageLoader.execute(request)
-    require(result is SuccessResult) { "Unable to load artwork" }
-
-    val diskCache = requireNotNull(imageLoader.diskCache) { "Coil disk cache is unavailable" }
-    val diskCacheKey = result.diskCacheKey ?: imageUrl
-    val snapshot = requireNotNull(diskCache.openSnapshot(diskCacheKey)) { "Artwork cache entry is unavailable" }
-    snapshot.use {
-        diskCache.fileSystem.read(snapshot.data) {
-            readByteArray()
-        }
-    }
-}
-
-private fun ByteArray.toNSData(): NSData = usePinned { pinned ->
-    NSData.create(
-        bytes = if (isEmpty()) null else pinned.addressOf(0),
-        length = size.toULong()
-    )
+    data
 }
 
 @OptIn(ExperimentalForeignApi::class)

@@ -52,6 +52,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
@@ -288,6 +292,18 @@ fun SongItem(
     onSongClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val platformContext = LocalPlatformContext.current
+    val imageRequest = remember(platformContext, illustrationUrl) {
+        illustrationUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            ImageRequest.Builder(platformContext)
+                .data(url)
+                .size(168)
+                .networkCachePolicy(CachePolicy.READ_ONLY)
+                .crossfade(200)
+                .build()
+        }
+    }
+
     Card(
         modifier = modifier.fillMaxWidth()
             .clickable { onSongClick(song.id) },
@@ -302,9 +318,9 @@ fun SongItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 曲绘缩略图
-            if (!illustrationUrl.isNullOrBlank()) {
+            if (imageRequest != null) {
                 AsyncImage(
-                    model = illustrationUrl,
+                    model = imageRequest,
                     contentDescription = null,
                     modifier = Modifier
                         .size(56.dp)

@@ -30,6 +30,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 
@@ -68,6 +72,17 @@ fun ScoreCard(
     val scoreText = remember(record.score) { record.score.formatScore() }
     val accText = remember(record.accuracy) { "${record.accuracy.formatRks()}%" }
     val rksText = remember(record.rks) { record.rks.formatRks() }
+    val platformContext = LocalPlatformContext.current
+    val imageRequest = remember(platformContext, illustrationUrl) {
+        illustrationUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            ImageRequest.Builder(platformContext)
+                .data(url)
+                .size(168)
+                .networkCachePolicy(CachePolicy.READ_ONLY)
+                .crossfade(200)
+                .build()
+        }
+    }
 
     Card(
         modifier = modifier.fillMaxWidth()
@@ -107,9 +122,9 @@ fun ScoreCard(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                if (!illustrationUrl.isNullOrBlank()) {
+                if (imageRequest != null) {
                     AsyncImage(
-                        model = illustrationUrl,
+                        model = imageRequest,
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxSize()

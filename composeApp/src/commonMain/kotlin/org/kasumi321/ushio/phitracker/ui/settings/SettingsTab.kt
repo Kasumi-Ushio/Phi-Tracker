@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
 
@@ -30,7 +29,7 @@ fun SettingsTab(
     onThemeModeChange: (Int) -> Unit,
     onShowB30OverflowChange: (Boolean) -> Unit,
     onOverflowCountChange: (Int) -> Unit,
-    onClearHighResCache: () -> Unit,
+    onClearHighResCache: ((Result<Unit>) -> Unit) -> Unit,
     onRedownloadIllustrations: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onLogout: () -> Unit,
@@ -40,9 +39,6 @@ fun SettingsTab(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showRedownloadDialog by remember { mutableStateOf(false) }
-
-    val coroutineScope = rememberCoroutineScope()
-
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
             title = {
@@ -227,8 +223,13 @@ fun SettingsTab(
             confirmButton = {
                 TextButton(onClick = {
                     showClearCacheDialog = false
-                    onClearHighResCache()
-                    showPlatformMessage("清理完成")
+                    onClearHighResCache { result ->
+                        if (result.isSuccess) {
+                            showPlatformMessage("清理完成")
+                        } else {
+                            showPlatformMessage("清理失败: ${result.exceptionOrNull()?.message ?: "未知错误"}")
+                        }
+                    }
                 }) {
                     Text("确定")
                 }

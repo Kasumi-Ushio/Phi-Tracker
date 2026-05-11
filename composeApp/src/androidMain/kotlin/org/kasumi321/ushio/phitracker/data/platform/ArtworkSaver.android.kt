@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.widget.Toast
 import coil3.SingletonImageLoader
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
@@ -14,6 +13,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 actual suspend fun saveArtworkToPictures(imageUrl: String, fileName: String): Result<Unit> = runCatching {
+    require(imageUrl.contains("/ill/") && !imageUrl.contains("/illLow/")) {
+        "Low-res artwork save is not supported. Expected standard URL containing /ill/."
+    }
     val context = requireNotNull(AndroidPlatformContext.applicationContext) { "Android context is not initialized" }
     val bitmap = withContext(Dispatchers.IO) {
         val request = ImageRequest.Builder(context)
@@ -52,9 +54,4 @@ actual suspend fun saveArtworkToPictures(imageUrl: String, fileName: String): Re
     } else {
         SafTreeManager.getInstance().saveBitmap(bitmap, fileName).getOrThrow()
     }
-}
-
-actual fun showPlatformMessage(message: String) {
-    val context = AndroidPlatformContext.applicationContext ?: return
-    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
 }

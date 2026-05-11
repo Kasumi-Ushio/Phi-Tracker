@@ -55,6 +55,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import kotlinx.coroutines.launch
 import org.kasumi321.ushio.phitracker.data.platform.saveArtworkToPictures
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
@@ -78,7 +82,7 @@ private fun Int.formatScore(): String {
 fun SongDetailScreen(
     songInfo: SongInfo,
     userRecords: List<BestRecord> = emptyList(),
-    getIllustrationUrl: (String) -> String?,
+    getLowIllustrationUrl: (String) -> String?,
     getStandardIllustrationUrl: (String) -> String?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -114,9 +118,20 @@ fun SongDetailScreen(
                     .padding(16.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                val imageUrl = getIllustrationUrl(songInfo.id)
+                val thumbnailUrl = getLowIllustrationUrl(songInfo.id)
+                val platformContext = LocalPlatformContext.current
+                val thumbnailRequest = remember(platformContext, thumbnailUrl) {
+                    thumbnailUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                        ImageRequest.Builder(platformContext)
+                            .data(url)
+                            .size(168)
+                            .networkCachePolicy(CachePolicy.READ_ONLY)
+                            .crossfade(200)
+                            .build()
+                    }
+                }
                 AsyncImage(
-                    model = imageUrl,
+                    model = thumbnailRequest,
                     contentDescription = "Illustration",
                     modifier = Modifier
                         .size(120.dp)
@@ -315,8 +330,18 @@ fun SongDetailScreen(
                     val coroutineScope = rememberCoroutineScope()
                     var isDownloading by remember { mutableStateOf(false) }
 
+                    val platformContext = LocalPlatformContext.current
+                    val previewRequest = remember(platformContext, standardUrl) {
+                        standardUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                            ImageRequest.Builder(platformContext)
+                                .data(url)
+                                .diskCacheKey(url)
+                                .crossfade(200)
+                                .build()
+                        }
+                    }
                     AsyncImage(
-                        model = standardUrl,
+                        model = previewRequest,
                         contentDescription = "Full Illustration",
                         modifier = Modifier
                             .fillMaxSize()
@@ -336,15 +361,15 @@ fun SongDetailScreen(
                     ) {
                         IconButton(
                             onClick = {
-                                val url = standardUrl
-                                if (url.isNullOrBlank()) {
+                                val standardArtworkUrl = standardUrl.orEmpty()
+                                if (standardArtworkUrl.isBlank()) {
                                     showPlatformMessage("保存失败")
                                     return@IconButton
                                 }
                                 isDownloading = true
                                 coroutineScope.launch {
                                     val fileName = "${songInfo.id.replace(".", "_")}_hq.png"
-                                    val result = saveArtworkToPictures(url, fileName)
+                                    val result = saveArtworkToPictures(standardArtworkUrl, fileName)
                                     showPlatformMessage(
                                         if (result.isSuccess) "已保存到相册" else "保存失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
                                     )

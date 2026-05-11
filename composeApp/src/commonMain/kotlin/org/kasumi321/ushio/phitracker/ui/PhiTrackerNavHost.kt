@@ -140,7 +140,7 @@ fun PhiTrackerNavHost() {
                 SongDetailScreen(
                     songInfo = songInfo,
                     userRecords = records,
-                    getIllustrationUrl = { homeViewModel.getIllustrationUrl(it) },
+                    getLowIllustrationUrl = { homeViewModel.getLowIllustrationUrl(it) },
                     getStandardIllustrationUrl = { homeViewModel.getStandardIllustrationUrl(it) },
                     onBack = { navController.popBackStack() }
                 )

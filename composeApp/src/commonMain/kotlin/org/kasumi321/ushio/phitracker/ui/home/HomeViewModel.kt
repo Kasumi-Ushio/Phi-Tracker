@@ -14,8 +14,11 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.sync.withLock
 import org.kasumi321.ushio.phitracker.data.TipsProvider
+import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPreloader
+import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.clearAllImageCache
 import org.kasumi321.ushio.phitracker.data.platform.clearImageCacheUrls
+import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.data.platform.triggerAppRestart
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
@@ -70,7 +73,10 @@ class HomeViewModel(
     private val songDataProvider: SongDataProvider,
     private val illustrationProvider: IllustrationProvider,
     private val tipsProvider: TipsProvider,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val thumbnailPreloader: IllustrationThumbnailPreloader = CoilIllustrationThumbnailPreloader,
+    private val clearCacheUrlsFn: suspend (List<String>) -> Unit = ::clearImageCacheUrls,
+    private val clearAllCacheFn: suspend () -> Unit = ::clearAllImageCache
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -165,14 +171,7 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * Start preload illustrations (low-res versions).
-     *
-     * Phase 4 difference: In beta.1 (Android), this used Coil's ImageLoader.execute() to
-     * warm the memory/disk cache. In CMP commonMain, we cannot cleanly access platform-specific
-     * Coil ImageLoader. Instead, we track progress through URL enumeration and document this
-     * difference. The actual cache warming will happen on-demand via AsyncImage in ScoreCard.
-     */
+    /** Start preload illustrations (low-res versions) by warming the shared Coil cache. */
     fun startPreloadIllustrations() {
         viewModelScope.launch {
             val songs = songDataProvider.getSongs()
@@ -205,6 +204,7 @@ class HomeViewModel(
                 launch {
                     semaphore.withPermit {
                         val result = runCatching { illustrationProvider.getLowUrl(songId) }
+                            .mapCatching { url -> thumbnailPreloader.preload(url).getOrThrow() }
                         mutex.withLock {
                             if (result.isFailure) hasChildError = true
                             completed++
@@ -221,19 +221,18 @@ class HomeViewModel(
 
             jobs.forEach { it.join() }
 
-            val persistResult = runCatching { settingsRepository.setPreloadDone(true) }
-
-            val errorMessage = when {
-                hasChildError -> "部分预览图加载失败"
-                persistResult.isFailure -> persistResult.exceptionOrNull()?.message ?: "保存状态失败"
-                else -> null
+            val errorMessage = if (hasChildError) {
+                "部分预览图加载失败"
+            } else {
+                val persistResult = runCatching { settingsRepository.setPreloadDone(true) }
+                persistResult.exceptionOrNull()?.message
             }
 
             _uiState.update {
                 it.copy(
                     isPreloading = false,
-                    showPreloadDialog = false,
-                    illustrationReady = true,
+                    showPreloadDialog = hasChildError,
+                    illustrationReady = !hasChildError,
                     error = errorMessage
                 )
             }
@@ -341,7 +340,7 @@ class HomeViewModel(
         _uiState.update { it.copy(filteredSongs = filtered) }
     }
 
-    fun getIllustrationUrl(songId: String): String? {
+    fun getLowIllustrationUrl(songId: String): String? {
         return illustrationProvider.getLowUrl(songId)
     }
 
@@ -377,19 +376,30 @@ class HomeViewModel(
         viewModelScope.launch { settingsRepository.setOverflowCount(count) }
     }
 
-    fun clearHighResCache() {
+    fun clearHighResCache(onComplete: (Result<Unit>) -> Unit = {}) {
         viewModelScope.launch {
-            val songs = songDataProvider.getSongs()
-            val urls = songs.keys.map { illustrationProvider.getStandardUrl(it) }
-            clearImageCacheUrls(urls)
+            val result = runCatching {
+                val songs = songDataProvider.getSongs()
+                val urls = songs.keys.map { illustrationProvider.getStandardUrl(it) }
+                clearCacheUrlsFn(urls)
+            }
+            onComplete(result)
         }
     }
 
     fun resetIllustrationDownloadAndExit() {
         viewModelScope.launch {
-            settingsRepository.setPreloadDone(false)
-            clearAllImageCache()
-            triggerAppRestart()
+            val result = runCatching {
+                settingsRepository.setPreloadDone(false)
+                clearAllCacheFn()
+            }
+            if (result.isSuccess) {
+                triggerAppRestart()
+            } else {
+                val message = result.exceptionOrNull()?.message ?: "未知错误"
+                showPlatformMessage("重新下载曲绘失败: $message")
+                _uiState.update { it.copy(error = "重新下载曲绘失败: $message") }
+            }
         }
     }
 }
