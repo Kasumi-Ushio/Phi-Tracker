@@ -110,23 +110,7 @@ class SafTreeManager private constructor() {
 
         withContext(Dispatchers.IO) {
             val contentResolver = context.contentResolver
-            val parentDocUri = DocumentsContract.buildDocumentUriUsingTree(
-                treeUri,
-                DocumentsContract.getTreeDocumentId(treeUri)
-            )
-
-            deleteExistingDocument(contentResolver, treeUri, fileName)
-
-            val docUri = DocumentsContract.createDocument(
-                contentResolver,
-                parentDocUri,
-                "image/png",
-                fileName
-            )
-            requireNotNull(docUri) {
-                "Failed to create document '$fileName' in the selected directory"
-            }
-
+            val docUri = createDocumentInTree(contentResolver, treeUri, fileName)
             contentResolver.openOutputStream(docUri).use { output ->
                 requireNotNull(output) { "Unable to open SAF document output for '$fileName'" }
                 check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) {
@@ -134,6 +118,50 @@ class SafTreeManager private constructor() {
                 }
             }
         }
+    }
+
+    /**
+     * Saves raw [bytes] as a PNG document under the SAF tree directory and returns the
+     * resulting document [Uri] (suitable for sharing via [Intent.FLAG_GRANT_READ_URI_PERMISSION]).
+     *
+     * @param bytes  Raw PNG image bytes.
+     * @param fileName  The destination filename (e.g. "b30_2025-05-11.png").
+     * @return [Result.success] containing the document [Uri] on success, [Result.failure] otherwise.
+     */
+    suspend fun savePngBytes(bytes: ByteArray, fileName: String): Result<Uri> = runCatching {
+        val context = AndroidPlatformContext.applicationContext
+            ?: throw IllegalStateException("Android context not initialized")
+
+        val treeUri = ensureTreeUri()
+
+        withContext(Dispatchers.IO) {
+            val contentResolver = context.contentResolver
+            val docUri = createDocumentInTree(contentResolver, treeUri, fileName)
+            contentResolver.openOutputStream(docUri).use { output ->
+                requireNotNull(output) { "Unable to open SAF document output for '$fileName'" }
+                output.write(bytes)
+            }
+            docUri
+        }
+    }
+
+    /**
+     * Creates a document named [fileName] under [treeUri], deleting any existing
+     * document with the same name first.
+     */
+    private fun createDocumentInTree(
+        contentResolver: ContentResolver,
+        treeUri: Uri,
+        fileName: String
+    ): Uri {
+        val parentDocUri = DocumentsContract.buildDocumentUriUsingTree(
+            treeUri,
+            DocumentsContract.getTreeDocumentId(treeUri)
+        )
+        deleteExistingDocument(contentResolver, treeUri, fileName)
+        return requireNotNull(
+            DocumentsContract.createDocument(contentResolver, parentDocUri, "image/png", fileName)
+        ) { "Failed to create document '$fileName' in the selected directory" }
     }
 
     private fun prefs(): SharedPreferences {
