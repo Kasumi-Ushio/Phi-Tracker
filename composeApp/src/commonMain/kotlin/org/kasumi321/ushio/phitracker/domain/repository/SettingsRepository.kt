@@ -12,4 +12,28 @@ interface SettingsRepository {
     suspend fun setOverflowCount(count: Int)
     suspend fun getPreloadDone(): Boolean
     suspend fun setPreloadDone(done: Boolean)
+
+    val avatarUri: Flow<String?>
+    suspend fun setAvatarUri(uri: String?)
+
+    val moneyString: Flow<String>
+    suspend fun setMoneyString(money: String)
+
+    val includePreRelease: Flow<Boolean>
+    suspend fun setIncludePreRelease(enabled: Boolean)
+
+    val apiEnabled: Flow<Boolean>
+    suspend fun setApiEnabled(enabled: Boolean)
+
+    val useApiData: Flow<Boolean>
+    suspend fun setUseApiData(useApiData: Boolean)
+
+    val apiId: Flow<String>
+    suspend fun setApiId(apiId: String)
+
+    val apiPlatform: Flow<String>
+    suspend fun setApiPlatform(platform: String)
+
+    val apiPlatformId: Flow<String>
+    suspend fun setApiPlatformId(platformId: String)
 }

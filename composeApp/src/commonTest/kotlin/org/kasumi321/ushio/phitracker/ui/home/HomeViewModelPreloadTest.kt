@@ -10,6 +10,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.data.TipsProvider
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
@@ -178,6 +179,23 @@ class HomeViewModelPreloadTest {
         override suspend fun setPreloadDone(done: Boolean) {
             preloadDone = done
         }
+
+        override val avatarUri: Flow<String?> = flowOf(null)
+        override suspend fun setAvatarUri(uri: String?) = Unit
+        override val moneyString: Flow<String> = flowOf("")
+        override suspend fun setMoneyString(money: String) = Unit
+        override val includePreRelease: Flow<Boolean> = flowOf(false)
+        override suspend fun setIncludePreRelease(enabled: Boolean) = Unit
+        override val apiEnabled: Flow<Boolean> = flowOf(false)
+        override suspend fun setApiEnabled(enabled: Boolean) = Unit
+        override val useApiData: Flow<Boolean> = flowOf(false)
+        override suspend fun setUseApiData(useApiData: Boolean) = Unit
+        override val apiId: Flow<String> = flowOf("")
+        override suspend fun setApiId(apiId: String) = Unit
+        override val apiPlatform: Flow<String> = flowOf("")
+        override suspend fun setApiPlatform(platform: String) = Unit
+        override val apiPlatformId: Flow<String> = flowOf("")
+        override suspend fun setApiPlatformId(platformId: String) = Unit
     }
 
     private class FakePhigrosRepository : PhigrosRepository {
@@ -194,6 +212,42 @@ class HomeViewModelPreloadTest {
         override suspend fun saveSessionToken(token: String, server: Server) = Unit
         override suspend fun getSessionToken(): Pair<String, Server>? = null
         override suspend fun clearData() = Unit
+        override fun clearTokenSync() = Unit
+
+        override suspend fun apiTest(): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetSingleSave(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetRksStats(): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
     }
 
     private object FakeTextAssetReader : TextAssetReader {

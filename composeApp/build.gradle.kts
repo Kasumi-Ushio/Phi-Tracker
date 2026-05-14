@@ -36,6 +36,10 @@ kotlin {
             implementation(libs.androidx.security.crypto)
             implementation(libs.ktor.client.okhttp)
         }
+        androidUnitTest.dependencies {
+            implementation("androidx.test:core:1.5.0")
+            implementation("org.robolectric:robolectric:4.14.1")
+        }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

@@ -25,4 +25,16 @@ interface RecordDao {
 
     @Query("SELECT COUNT(*) FROM records")
     suspend fun getRecordCount(): Int
+
+    @Query("SELECT COUNT(DISTINCT songId) FROM records")
+    suspend fun getDistinctSongCount(): Int
+
+    @Query("SELECT COUNT(*) FROM records WHERE difficulty = :difficulty AND score > 0")
+    suspend fun getClearCountByDifficulty(difficulty: String): Int
+
+    @Query("SELECT COUNT(*) FROM records WHERE isFullCombo = 1")
+    suspend fun getTotalFcCount(): Int
+
+    @Query("SELECT COUNT(*) FROM records WHERE accuracy >= 100.0")
+    suspend fun getTotalPhiCount(): Int
 }

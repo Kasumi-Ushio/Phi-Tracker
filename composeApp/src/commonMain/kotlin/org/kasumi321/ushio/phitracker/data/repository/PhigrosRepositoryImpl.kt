@@ -3,6 +3,7 @@ package org.kasumi321.ushio.phitracker.data.repository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.data.api.TapTapApiClient
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.database.UserDao
@@ -114,4 +115,59 @@ class PhigrosRepositoryImpl(
         recordDao.deleteAll()
         userDao.deleteAll()
     }
+
+    override fun clearTokenSync() {
+        tokenManager.clearToken()
+    }
+
+    override suspend fun apiTest(): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetSingleSave(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetRksStats(): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+
+    override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
+        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
 }

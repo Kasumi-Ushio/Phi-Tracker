@@ -47,6 +47,10 @@ class SongDataProvider(
         return loaded
     }
 
+    fun invalidateCache() {
+        songs = null
+    }
+
     fun getDifficultyMap(): Map<String, Map<Difficulty, Float>> = getSongs().mapValues { it.value.difficulties }
     fun getSongNameMap(): Map<String, String> = getSongs().mapValues { it.value.name }
 

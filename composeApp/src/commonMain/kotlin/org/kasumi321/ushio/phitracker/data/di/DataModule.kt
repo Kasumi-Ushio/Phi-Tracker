@@ -44,6 +44,8 @@ val dataModule = module {
     single<AppDatabase> { createAppDatabase() }
     single { get<AppDatabase>().recordDao() }
     single { get<AppDatabase>().userDao() }
+    single { get<AppDatabase>().syncSnapshotDao() }
+    single { get<AppDatabase>().songSyncHistoryDao() }
     single { TokenManager(createSecureKeyValueStorage("phi_tracker_secure_prefs")) }
     single<SettingsRepository> {
         SettingsRepositoryImpl(

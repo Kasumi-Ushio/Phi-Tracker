@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.LevelRecord
@@ -74,6 +75,57 @@ class DomainUseCaseTest {
     }
 
     @Test
+    fun searchWildcardAsteriskMatchesNonSpaceChars() {
+        val songs = mapOf(
+            "alpha.0" to SongInfo("alpha.0", "Alpha-Beta", "C", "", emptyMap()),
+            "beta.0" to SongInfo("beta.0", "Beta", "C", "", emptyMap()),
+            "gamma.0" to SongInfo("gamma.0", "Alpha Gamma Delta", "C", "", emptyMap()),
+            "delta.0" to SongInfo("delta.0", "AlphaBeta", "C", "", emptyMap())
+        )
+
+        // Alpha* -> regex Alpha\S+ (Alpha followed by >=1 non-whitespace)
+        // "Alpha Gamma Delta" fails because space after Alpha is whitespace, \S+ requires non-whitespace
+        val result = SearchSongUseCase()("Alpha*", songs)
+        assertEquals(listOf("Alpha-Beta", "AlphaBeta"), result.map { it.name })
+    }
+
+    @Test
+    fun searchWildcardQuestionMatchesSingleNonSpace() {
+        val songs = mapOf(
+            "a.0" to SongInfo("a.0", "AB", "C", "", emptyMap()),
+            "b.0" to SongInfo("b.0", "AXB", "C", "", emptyMap()),
+            "c.0" to SongInfo("c.0", "A B", "C", "", emptyMap())
+        )
+
+        val result = SearchSongUseCase()("A?B", songs)
+        assertEquals(listOf("AXB"), result.map { it.name })
+    }
+
+    @Test
+    fun searchWildcardSpaceMatchesWhitespace() {
+        val songs = mapOf(
+            "a.0" to SongInfo("a.0", "Alpha Beta", "C", "", emptyMap()),
+            "b.0" to SongInfo("b.0", "AlphaBeta", "C", "", emptyMap()),
+            "c.0" to SongInfo("c.0", "Alpha  Beta", "C", "", emptyMap())
+        )
+
+        // "Alpha Beta" has no wildcards (*/?), so it's a contains match.
+        // Lowercase contains "alpha beta" matches "Alpha Beta" but not "Alpha  Beta" (double space).
+        val result = SearchSongUseCase()("Alpha Beta", songs)
+        assertEquals(listOf("Alpha Beta"), result.map { it.name })
+    }
+
+    @Test
+    fun searchBlankQueryReturnsAllSongs() {
+        val songs = mapOf(
+            "a.0" to SongInfo("a.0", "A", "", "", emptyMap()),
+            "b.0" to SongInfo("b.0", "B", "", "", emptyMap())
+        )
+        assertEquals(2, SearchSongUseCase()("", songs).size)
+        assertEquals(2, SearchSongUseCase()("   ", songs).size)
+    }
+
+    @Test
     fun useCasesDelegateToRepository(): Unit = runTest {
         val save = emptySave()
         val repository = FakePhigrosRepository(save)
@@ -135,5 +187,58 @@ class DomainUseCaseTest {
         override suspend fun getSessionToken(): Pair<String, Server>? = null
 
         override suspend fun clearData() = Unit
+
+        override fun clearTokenSync() = Unit
+
+        override suspend fun apiTest(): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetSingleSave(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetRksStats(): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
+            Result.failure(IllegalStateException("Not implemented in Phase B"))
     }
 }
