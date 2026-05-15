@@ -67,6 +67,7 @@ kotlin {
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.coil3.compose)
             implementation(libs.coil3.network.ktor3)
+            implementation(libs.okio)
             implementation(libs.aboutlibraries.compose.m3)
         }
         iosMain.dependencies {
@@ -76,6 +77,7 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.koin.test)
+            implementation(libs.ktor.client.mock)
         }
     }
 }

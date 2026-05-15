@@ -4,6 +4,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonObject
+import org.kasumi321.ushio.phitracker.data.api.BindRequest
+import org.kasumi321.ushio.phitracker.data.api.PhiPluginApi
 import org.kasumi321.ushio.phitracker.data.api.TapTapApiClient
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.database.UserDao
@@ -23,6 +25,7 @@ import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 
 class PhigrosRepositoryImpl(
     private val apiClient: TapTapApiClient,
+    private val phiPluginApi: PhiPluginApi,
     private val saveParser: SaveParser,
     private val recordDao: RecordDao,
     private val userDao: UserDao,
@@ -121,53 +124,92 @@ class PhigrosRepositoryImpl(
     }
 
     override suspend fun apiTest(): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.test() }
 
     override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching {
+            phiPluginApi.bind(
+                BindRequest(
+                    platform = platform.trim(),
+                    platformId = platformId.trim(),
+                    token = token.trim()
+                )
+            )
+        }
 
     override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getBindInfo(platform.trim(), platformId.trim()) }
 
-    override suspend fun apiGetSingleSave(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+    override suspend fun apiGetSingleSave(
+        platform: String,
+        platformId: String,
+        songId: String,
+        difficulty: String
+    ): Result<JsonObject> =
+        runCatching { phiPluginApi.getSingleSave(platform.trim(), platformId.trim(), songId.trim(), difficulty.trim()) }
 
     override suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getSave(platform.trim(), platformId.trim()) }
 
     override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getSaveInfo(platform.trim(), platformId.trim()) }
 
-    override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+    override suspend fun apiGetRank(
+        platform: String,
+        platformId: String,
+        songId: String,
+        difficulty: String
+    ): Result<JsonObject> =
+        runCatching { phiPluginApi.getRank(platform.trim(), platformId.trim(), songId.trim(), difficulty.trim()) }
 
-    override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+    override suspend fun apiGetAvgAcc(
+        songId: String,
+        difficulty: String,
+        minRks: Float?,
+        maxRks: Float?
+    ): Result<JsonObject> =
+        runCatching { phiPluginApi.getAvgAcc(songId.trim(), difficulty.trim(), minRks, maxRks) }
 
     override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getAllAvgAcc(songIds.map { it.trim() }) }
 
     override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getApFcTotal(songId.trim()) }
 
     override suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getFittedDifficulty(songId.trim(), difficulty.trim()) }
 
     override suspend fun apiGetRksStats(): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getRksStats() }
 
     override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getRksAbove(rks) }
 
-    override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+    override suspend fun apiGetSaveHistory(
+        platform: String,
+        platformId: String,
+        request: List<String>
+    ): Result<JsonObject> =
+        runCatching { phiPluginApi.getSaveHistory(platform.trim(), platformId.trim(), request.map { it.trim() }) }
 
-    override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+    override suspend fun apiGetScoreHistory(
+        platform: String,
+        platformId: String,
+        songId: String?,
+        difficulty: String?
+    ): Result<JsonObject> =
+        runCatching {
+            phiPluginApi.getScoreHistory(
+                platform = platform.trim(),
+                platformId = platformId.trim(),
+                songId = songId?.trim(),
+                difficulty = difficulty?.trim()
+            )
+        }
 
     override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getRankByUser(platform.trim(), platformId.trim()) }
 
     override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
-        Result.failure(IllegalStateException("PhiPlugin API is not implemented in Phase B"))
+        runCatching { phiPluginApi.getRankByPosition(position) }
 }

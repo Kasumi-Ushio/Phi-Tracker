@@ -24,7 +24,11 @@ val appModule = module {
             songDataProvider = get(),
             illustrationProvider = get(),
             tipsProvider = get(),
-            settingsRepository = get()
+            settingsRepository = get(),
+            syncSnapshotDao = get(),
+            recordDao = get(),
+            songSyncHistoryDao = get(),
+            songDataUpdater = get()
         )
     }
 }

@@ -2,7 +2,9 @@ package org.kasumi321.ushio.phitracker.data.song
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
+import org.kasumi321.ushio.phitracker.data.platform.createFileThenAssetReader
 import org.kasumi321.ushio.phitracker.data.platform.createTextAssetReader
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.NoteCount
@@ -10,9 +12,12 @@ import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 
 class SongDataProvider(
     private val assetReader: TextAssetReader = createTextAssetReader(),
+    private val paths: PlatformPaths? = null,
     private val json: Json = Json { ignoreUnknownKeys = true }
 ) {
     private var songs: Map<String, SongInfo>? = null
+
+    private val reader: TextAssetReader = paths?.let { createFileThenAssetReader(assetReader, it) } ?: assetReader
 
     fun getSongs(): Map<String, SongInfo> {
         songs?.let { return it }
@@ -56,7 +61,7 @@ class SongDataProvider(
 
     private fun loadDifficulties(): Map<String, Map<Difficulty, Float>> {
         val result = mutableMapOf<String, Map<Difficulty, Float>>()
-        assetReader.readText("difficulty.csv").lineSequence().forEachIndexed { index, line ->
+        reader.readText("difficulty.csv").lineSequence().forEachIndexed { index, line ->
             if (index == 0 || line.isBlank()) return@forEachIndexed
             val parts = parseCsvLine(line)
             if (parts.size < 4) return@forEachIndexed
@@ -73,7 +78,7 @@ class SongDataProvider(
 
     private fun loadInfos(): Map<String, InfoCsvModel> {
         val result = mutableMapOf<String, InfoCsvModel>()
-        assetReader.readText("info.csv").lineSequence().forEachIndexed { index, line ->
+        reader.readText("info.csv").lineSequence().forEachIndexed { index, line ->
             if (index == 0 || line.isBlank()) return@forEachIndexed
             val parts = parseCsvLine(line)
             if (parts.size < 4) return@forEachIndexed
@@ -87,8 +92,8 @@ class SongDataProvider(
         return result
     }
 
-    private fun loadAdditionalInfo(): Map<String, InfoListEntry> = json.decodeFromString(assetReader.readText("infolist.json"))
-    private fun loadNotesInfo(): Map<String, Map<String, NotesInfoDifficulty>> = json.decodeFromString(assetReader.readText("notesInfo.json"))
+    private fun loadAdditionalInfo(): Map<String, InfoListEntry> = json.decodeFromString(reader.readText("infolist.json"))
+    private fun loadNotesInfo(): Map<String, Map<String, NotesInfoDifficulty>> = json.decodeFromString(reader.readText("notesInfo.json"))
 
     private fun parseCsvLine(line: String): List<String> {
         val fields = mutableListOf<String>()
