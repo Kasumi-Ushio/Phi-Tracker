@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -25,9 +29,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.tween
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.toRoute
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.ui.b30.B30ImageScreen
@@ -39,7 +46,10 @@ import org.kasumi321.ushio.phitracker.ui.settings.AboutScreen
 import org.kasumi321.ushio.phitracker.ui.settings.AcknowledgmentsScreen
 import org.kasumi321.ushio.phitracker.ui.settings.DisclaimerScreen
 import org.kasumi321.ushio.phitracker.ui.settings.LicensesScreen
+import org.kasumi321.ushio.phitracker.ui.settings.PrivacyPolicyScreen
+import org.kasumi321.ushio.phitracker.ui.settings.SettingsScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
+import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
 
 sealed class Screen(val route: String) {
@@ -50,6 +60,8 @@ sealed class Screen(val route: String) {
     data object Disclaimer : Screen("disclaimer")
     data object Acknowledgments : Screen("acknowledgments")
     data object Licenses : Screen("licenses")
+    data object PrivacyPolicy : Screen("privacy_policy")
+    data object Settings : Screen("settings")
 }
 
 /** Simple holder for B30 state passed from Home to B30Image screen. */
@@ -59,16 +71,65 @@ private data class B30ImageState(
     val nickname: String = ""
 )
 
+private const val NavTransitionDurationMillis = 250
+
+private fun forwardEnterTransition(reducedMotionEnabled: Boolean): EnterTransition =
+    if (reducedMotionEnabled) {
+        EnterTransition.None
+    } else {
+        slideInHorizontally(
+            animationSpec = tween(durationMillis = NavTransitionDurationMillis),
+            initialOffsetX = { fullWidth -> fullWidth / 10 }
+        ) + fadeIn(animationSpec = tween(durationMillis = NavTransitionDurationMillis))
+    }
+
+private fun forwardExitTransition(reducedMotionEnabled: Boolean): ExitTransition =
+    if (reducedMotionEnabled) {
+        ExitTransition.None
+    } else {
+        slideOutHorizontally(
+            animationSpec = tween(durationMillis = NavTransitionDurationMillis),
+            targetOffsetX = { fullWidth -> -fullWidth / 10 }
+        ) + fadeOut(animationSpec = tween(durationMillis = NavTransitionDurationMillis))
+    }
+
+private fun popEnterTransition(reducedMotionEnabled: Boolean): EnterTransition =
+    if (reducedMotionEnabled) {
+        EnterTransition.None
+    } else {
+        slideInHorizontally(
+            animationSpec = tween(durationMillis = NavTransitionDurationMillis),
+            initialOffsetX = { fullWidth -> -fullWidth / 10 }
+        ) + fadeIn(animationSpec = tween(durationMillis = NavTransitionDurationMillis))
+    }
+
+private fun popExitTransition(reducedMotionEnabled: Boolean): ExitTransition =
+    if (reducedMotionEnabled) {
+        ExitTransition.None
+    } else {
+        slideOutHorizontally(
+            animationSpec = tween(durationMillis = NavTransitionDurationMillis),
+            targetOffsetX = { fullWidth -> fullWidth / 10 }
+        ) + fadeOut(animationSpec = tween(durationMillis = NavTransitionDurationMillis))
+    }
+
 @Composable
 fun PhiTrackerNavHost() {
     val navController = rememberNavController()
     var b30ImageState by remember { mutableStateOf(B30ImageState()) }
+    val reducedMotionEnabled = rememberReducedMotionEnabled()
 
     NavHost(
         navController = navController,
         startDestination = Screen.Login.route
     ) {
-        composable(Screen.Login.route) {
+        composable(
+            route = Screen.Login.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
             LoginScreen(
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
@@ -77,7 +138,13 @@ fun PhiTrackerNavHost() {
                 }
             )
         }
-        composable(Screen.Home.route) {
+        composable(
+            route = Screen.Home.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
             val homeViewModel: HomeViewModel = koinViewModel()
             MainScreen(
                 onLogout = {
@@ -95,10 +162,19 @@ fun PhiTrackerNavHost() {
                 onNavigateToAbout = {
                     navController.navigate(Screen.About.route)
                 },
+                onNavigateToSettings = {
+                    navController.navigate(Screen.Settings.route)
+                },
                 viewModel = homeViewModel
             )
         }
-        composable(Screen.B30Image.route) {
+        composable(
+            route = Screen.B30Image.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
             B30ImageScreen(
                 b30 = b30ImageState.b30,
                 displayRks = b30ImageState.displayRks,
@@ -106,30 +182,91 @@ fun PhiTrackerNavHost() {
                 onBack = { navController.popBackStack() }
             )
         }
-        composable(Screen.About.route) {
+        composable(
+            route = Screen.About.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
             AboutScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToLicenses = { navController.navigate(Screen.Licenses.route) },
                 onNavigateToDisclaimer = { navController.navigate(Screen.Disclaimer.route) },
-                onNavigateToAcknowledgments = { navController.navigate(Screen.Acknowledgments.route) }
+                onNavigateToAcknowledgments = { navController.navigate(Screen.Acknowledgments.route) },
+                onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) }
             )
         }
-        composable(Screen.Disclaimer.route) {
+        composable(
+            route = Screen.Disclaimer.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
             DisclaimerScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        composable(Screen.Acknowledgments.route) {
+        composable(
+            route = Screen.Acknowledgments.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
             AcknowledgmentsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        composable(Screen.Licenses.route) {
+        composable(
+            route = Screen.Licenses.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
             LicensesScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        composable<SongDetailRoute> { backStackEntry ->
+        composable(
+            route = Screen.Settings.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
+            val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
+            val viewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
+            SettingsScreen(
+                viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAbout = { navController.navigate(Screen.About.route) },
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(
+            route = Screen.PrivacyPolicy.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
+            PrivacyPolicyScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable<SongDetailRoute>(
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) { backStackEntry ->
             val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
             val homeViewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
             val state by homeViewModel.uiState.collectAsState()

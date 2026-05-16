@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,7 +26,8 @@ fun AboutScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLicenses: () -> Unit,
     onNavigateToDisclaimer: () -> Unit,
-    onNavigateToAcknowledgments: () -> Unit
+    onNavigateToAcknowledgments: () -> Unit,
+    onNavigateToPrivacyPolicy: () -> Unit
 ) {
     val metadata = remember { getAppMetadata() }
     val buildType = if (metadata.buildType == "Debug") "Debug 构建" else "Release 构建"
@@ -98,6 +100,14 @@ fun AboutScreen(
                 leadingContent = { Icon(Icons.Default.Favorite, contentDescription = null) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable { onNavigateToAcknowledgments() }
+            )
+
+            CenteredListItem(
+                headlineContent = { Text("隐私政策") },
+                supportingContent = { Text("了解本应用如何收集、使用和保护您的数据") },
+                leadingContent = { Icon(Icons.Default.Shield, contentDescription = null) },
+                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
+                modifier = Modifier.clickable { onNavigateToPrivacyPolicy() }
             )
 
             CenteredListItem(

@@ -24,7 +24,7 @@ private class FileThenAssetReader(
     private val paths: PlatformPaths
 ) : TextAssetReader {
 
-    private val fs: FileSystem = FileSystem.SYSTEM
+    private val fs: FileSystem = platformFileSystem()
     private val songDataDir by lazy { paths.filesDir.toPath() / "song_data" }
 
     override fun readText(name: String): String {

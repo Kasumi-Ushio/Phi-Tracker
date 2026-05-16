@@ -6,7 +6,9 @@ import io.ktor.client.request.get
 import io.ktor.http.isSuccess
 import okio.FileSystem
 import okio.Path.Companion.toPath
+import okio.buffer
 import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
+import org.kasumi321.ushio.phitracker.data.platform.platformFileSystem
 
 open class SongDataUpdater(
     private val httpClient: HttpClient,
@@ -27,7 +29,7 @@ open class SongDataUpdater(
     open suspend fun updateAll(
         onProgress: (Int, Int, String) -> Unit = { _, _, _ -> }
     ): Result<Unit> {
-        val fs = FileSystem.SYSTEM
+        val fs = platformFileSystem()
         val songDataDir = paths.filesDir.toPath() / "song_data"
         val cacheDir = paths.cacheDir.toPath()
         val stagingDir = cacheDir / "song_data_staging"
@@ -51,7 +53,12 @@ open class SongDataUpdater(
                 }
                 val bytes: ByteArray = response.body()
                 val stagedFile = stagingDir / fileName
-                fs.write(stagedFile) { write(bytes) }
+                val sink = fs.sink(stagedFile).buffer()
+                try {
+                    sink.write(bytes)
+                } finally {
+                    sink.close()
+                }
             }
 
             // Phase 2a: back up existing persistent files

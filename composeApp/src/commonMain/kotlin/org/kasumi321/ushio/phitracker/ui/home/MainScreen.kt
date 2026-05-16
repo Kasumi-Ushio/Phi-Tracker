@@ -3,17 +3,20 @@ package org.kasumi321.ushio.phitracker.ui.home
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MusicNote
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -26,6 +29,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,7 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import org.kasumi321.ushio.phitracker.ui.settings.SettingsTab
+import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
 
 data class BottomNavItem(
@@ -51,22 +55,76 @@ data class BottomNavItem(
 )
 
 @Composable
+private fun MainBottomBar(
+    navItems: List<BottomNavItem>,
+    selectedTab: Int,
+    reducedMotionEnabled: Boolean,
+    onTabSelected: (Int) -> Unit
+) {
+    if (!reducedMotionEnabled) {
+        NavigationBar {
+            navItems.forEachIndexed { index, item ->
+                NavigationBarItem(
+                    selected = selectedTab == index,
+                    onClick = { onTabSelected(index) },
+                    icon = {
+                        Icon(
+                            imageVector = if (selectedTab == index) item.selectedIcon else item.unselectedIcon,
+                            contentDescription = item.label
+                        )
+                    },
+                    label = { Text(item.label) }
+                )
+            }
+        }
+        return
+    }
+
+    Surface(
+        tonalElevation = 3.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            navItems.forEachIndexed { index, item ->
+                TextButton(onClick = { onTabSelected(index) }) {
+                    Text(
+                        text = item.label,
+                        color = if (selectedTab == index) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun MainScreen(
     onLogout: () -> Unit,
     onNavigateToB30Image: (b30: List<org.kasumi321.ushio.phitracker.domain.model.BestRecord>, displayRks: Float, nickname: String) -> Unit,
     onNavigateToSongDetail: (String) -> Unit,
     onNavigateToAbout: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val tip = remember(selectedTab) { viewModel.getRandomTip() }
+    val reducedMotionEnabled = rememberReducedMotionEnabled()
 
     val navItems = listOf(
+        BottomNavItem("首页", Icons.Filled.Home, Icons.Outlined.Home),
         BottomNavItem("B30", Icons.Filled.Star, Icons.Outlined.StarBorder),
         BottomNavItem("曲目", Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
-        BottomNavItem("设置", Icons.Filled.Settings, Icons.Outlined.Settings)
+        BottomNavItem("工具", Icons.Filled.Build, Icons.Outlined.Build)
     )
 
     LaunchedEffect(state.isLoggedOut) {
@@ -93,21 +151,12 @@ fun MainScreen(
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             bottomBar = {
-                NavigationBar {
-                    navItems.forEachIndexed { index, item ->
-                        NavigationBarItem(
-                            selected = selectedTab == index,
-                            onClick = { selectedTab = index },
-                            icon = {
-                                Icon(
-                                    imageVector = if (selectedTab == index) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label
-                                )
-                            },
-                            label = { Text(item.label) }
-                        )
-                    }
-                }
+                MainBottomBar(
+                    navItems = navItems,
+                    selectedTab = selectedTab,
+                    reducedMotionEnabled = reducedMotionEnabled,
+                    onTabSelected = { selectedTab = it }
+                )
             }
         ) { innerPadding ->
             Box(
@@ -134,25 +183,36 @@ fun MainScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            NavigationBar {
-                navItems.forEachIndexed { index, item ->
-                    NavigationBarItem(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        icon = {
-                            Icon(
-                                imageVector = if (selectedTab == index) item.selectedIcon else item.unselectedIcon,
-                                contentDescription = item.label
-                            )
-                        },
-                        label = { Text(item.label) }
-                    )
-                }
-            }
+            MainBottomBar(
+                navItems = navItems,
+                selectedTab = selectedTab,
+                reducedMotionEnabled = reducedMotionEnabled,
+                onTabSelected = { selectedTab = it }
+            )
         }
     ) { innerPadding ->
         when (selectedTab) {
-            0 -> B30Tab(
+            0 -> ProfileTab(
+                nickname = state.nickname,
+                displayRks = state.displayRks,
+                challengeModeRank = state.challengeModeRank,
+                moneyString = state.moneyString,
+                clearCounts = state.clearCounts,
+                fcCount = state.fcCount,
+                phiCount = state.phiCount,
+                avatarUri = state.avatarUri,
+                lastSyncTime = state.lastSyncTime,
+                recentSyncedRecords = state.recentSyncedRecords,
+                isSyncing = state.isSyncing,
+                onRefresh = { viewModel.refresh() },
+                onAvatarSelected = { viewModel.setAvatarUri(it) },
+                onNavigateToSettings = onNavigateToSettings,
+                onSongClick = onNavigateToSongDetail,
+                getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
+                tip = tip,
+                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+            )
+            1 -> B30Tab(
                 b30 = state.b30,
                 displayRks = state.displayRks,
                 nickname = state.nickname,
@@ -167,7 +227,7 @@ fun MainScreen(
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
-            1 -> SongsTab(
+            2 -> SongsTab(
                 songs = state.filteredSongs,
                 searchQuery = state.searchQuery,
                 onSearchChange = { viewModel.searchSongs(it) },
@@ -187,17 +247,18 @@ fun MainScreen(
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
-            2 -> SettingsTab(
-                themeMode = state.themeMode,
-                showB30Overflow = state.showB30Overflow,
-                overflowCount = state.overflowCount,
-                onThemeModeChange = { viewModel.setThemeMode(it) },
-                onShowB30OverflowChange = { viewModel.setShowB30Overflow(it) },
-                onOverflowCountChange = { viewModel.setOverflowCount(it) },
-                onClearHighResCache = { callback -> viewModel.clearHighResCache(onComplete = callback) },
-                onRedownloadIllustrations = { viewModel.resetIllustrationDownloadAndExit() },
-                onNavigateToAbout = onNavigateToAbout,
-                onLogout = { viewModel.logout() },
+            3 -> ToolsTab(
+                syncSnapshots = viewModel.getToolSnapshots(),
+                sessionToken = state.sessionToken,
+                apiEnabled = state.apiEnabled,
+                useApiData = state.useApiData,
+                defaultRks = state.displayRks,
+                apiRankByUser = state.apiRankByUser,
+                apiRankByPosition = state.apiRankByPosition,
+                apiRksRankResult = state.apiRksRankResult,
+                onFetchRankByUser = { viewModel.fetchApiRankByUser() },
+                onFetchRankByPosition = { viewModel.fetchApiRankByPosition(it) },
+                onFetchRksRank = { viewModel.fetchApiRksRankForValue(it) },
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )

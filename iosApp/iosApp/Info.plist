@@ -6,5 +6,7 @@
 	<true/>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Save artwork images to your photo library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select a profile avatar from your photo library.</string>
 </dict>
 </plist>
