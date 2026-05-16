@@ -15,12 +15,16 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.data.TipsProvider
+import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.database.RecordEntity
 import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryDao
 import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotDao
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
+import org.kasumi321.ushio.phitracker.data.logging.CrashReportExporter
+import org.kasumi321.ushio.phitracker.data.logging.LogFileStore
+import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
 import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
@@ -41,6 +45,8 @@ import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -249,6 +255,7 @@ class HomeViewModelPreloadTest {
             syncResult = Result.success(saveWithRks(15.5f)),
             recordDao = recordDao
         )
+        val logFileStore = createTestLogFileStore()
 
         val viewModel = HomeViewModel(
             repository = repository,
@@ -264,7 +271,9 @@ class HomeViewModelPreloadTest {
             syncSnapshotDao = snapshotDao,
             recordDao = recordDao,
             songSyncHistoryDao = historyDao,
-            songDataUpdater = FakeSongDataUpdater()
+            songDataUpdater = FakeSongDataUpdater(),
+            runtimeLogExporter = RuntimeLogExporter(logFileStore),
+            crashReportExporter = CrashReportExporter(logFileStore)
         )
         advanceUntilIdle()
 
@@ -305,6 +314,7 @@ class HomeViewModelPreloadTest {
             recordDao = recordDao,
             cachedSave = cachedSave
         )
+        val logFileStore = createTestLogFileStore()
 
         val viewModel = HomeViewModel(
             repository = repository,
@@ -320,7 +330,9 @@ class HomeViewModelPreloadTest {
             syncSnapshotDao = snapshotDao,
             recordDao = recordDao,
             songSyncHistoryDao = historyDao,
-            songDataUpdater = FakeSongDataUpdater()
+            songDataUpdater = FakeSongDataUpdater(),
+            runtimeLogExporter = RuntimeLogExporter(logFileStore),
+            crashReportExporter = CrashReportExporter(logFileStore)
         )
         advanceUntilIdle()
 
@@ -361,6 +373,7 @@ class HomeViewModelPreloadTest {
     ): HomeViewModel {
         val repository = FakePhigrosRepository()
         val illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") }
+        val logFileStore = createTestLogFileStore()
         return HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
@@ -375,7 +388,9 @@ class HomeViewModelPreloadTest {
             syncSnapshotDao = FakeSyncSnapshotDao(),
             recordDao = FakeRecordDao(),
             songSyncHistoryDao = FakeSongSyncHistoryDao(),
-            songDataUpdater = songDataUpdater
+            songDataUpdater = songDataUpdater,
+            runtimeLogExporter = RuntimeLogExporter(logFileStore),
+            crashReportExporter = CrashReportExporter(logFileStore)
         )
     }
 
@@ -422,6 +437,8 @@ class HomeViewModelPreloadTest {
         override suspend fun setApiPlatform(platform: String) = Unit
         override val apiPlatformId: Flow<String> = flowOf("")
         override suspend fun setApiPlatformId(platformId: String) = Unit
+        override val crashNotificationGuideShown: Flow<Boolean> = flowOf(false)
+        override suspend fun setCrashNotificationGuideShown(shown: Boolean) = Unit
     }
 
     private open class FakePhigrosRepository : PhigrosRepository {
@@ -474,6 +491,9 @@ class HomeViewModelPreloadTest {
             Result.failure(IllegalStateException("Not implemented in Phase B"))
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
+
+        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease> =
+            Result.failure(IllegalStateException("Not implemented in Phase E"))
     }
 
     private class FakeSyncSnapshotDao : SyncSnapshotDao {
@@ -608,6 +628,15 @@ class HomeViewModelPreloadTest {
     }
 
     private companion object {
+        fun createTestLogFileStore(): LogFileStore {
+            val testDir = "/tmp/phi_tracker_test_${kotlin.random.Random.nextInt()}"
+            return LogFileStore(
+                fileSystem = FileSystem.SYSTEM,
+                runtimeLogDir = "$testDir/runtime_logs".toPath(),
+                crashLogDir = "$testDir/crash_logs".toPath()
+            )
+        }
+
         fun emptySave(): Save = Save(
             gameRecord = emptyMap(),
             gameProgress = GameProgress(

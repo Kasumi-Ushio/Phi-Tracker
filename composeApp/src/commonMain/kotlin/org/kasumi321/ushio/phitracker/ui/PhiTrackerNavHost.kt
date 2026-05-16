@@ -20,6 +20,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +37,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.toRoute
+import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.ui.b30.B30ImageScreen
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
@@ -130,6 +132,7 @@ fun PhiTrackerNavHost() {
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
+            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_login") }
             LoginScreen(
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
@@ -145,6 +148,7 @@ fun PhiTrackerNavHost() {
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
+            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_home") }
             val homeViewModel: HomeViewModel = koinViewModel()
             MainScreen(
                 onLogout = {
@@ -175,6 +179,7 @@ fun PhiTrackerNavHost() {
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
+            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_b30image") }
             B30ImageScreen(
                 b30 = b30ImageState.b30,
                 displayRks = b30ImageState.displayRks,
@@ -189,6 +194,7 @@ fun PhiTrackerNavHost() {
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
+            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_about") }
             AboutScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToLicenses = { navController.navigate(Screen.Licenses.route) },
@@ -237,6 +243,7 @@ fun PhiTrackerNavHost() {
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
+            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_settings") }
             val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
             val viewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
             SettingsScreen(
@@ -267,6 +274,7 @@ fun PhiTrackerNavHost() {
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) { backStackEntry ->
+            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_songdetail") }
             val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
             val homeViewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
             val state by homeViewModel.uiState.collectAsState()

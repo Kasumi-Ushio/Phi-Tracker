@@ -112,6 +112,14 @@ class SettingsRepositoryImpl(
         apiPlatformIdState.value = trimmed
     }
 
+    private val crashNotificationGuideShownState = MutableStateFlow(storage.getString(KEY_CRASH_NOTIFICATION_GUIDE_SHOWN)?.toBooleanStrictOrNull() ?: false)
+    override val crashNotificationGuideShown: Flow<Boolean> = crashNotificationGuideShownState.asStateFlow()
+
+    override suspend fun setCrashNotificationGuideShown(shown: Boolean) {
+        storage.putString(KEY_CRASH_NOTIFICATION_GUIDE_SHOWN, shown.toString())
+        crashNotificationGuideShownState.value = shown
+    }
+
     private companion object {
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_SHOW_B30_OVERFLOW = "show_b30_overflow"
@@ -125,5 +133,6 @@ class SettingsRepositoryImpl(
         const val KEY_API_ID = "api_id"
         const val KEY_API_PLATFORM = "api_platform"
         const val KEY_API_PLATFORM_ID = "api_platform_id"
+        const val KEY_CRASH_NOTIFICATION_GUIDE_SHOWN = "crash_notification_guide_shown"
     }
 }

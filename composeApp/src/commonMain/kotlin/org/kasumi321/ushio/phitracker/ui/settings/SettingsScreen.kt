@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 
 @Composable
@@ -16,6 +17,8 @@ fun SettingsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val tip = remember { viewModel.getRandomTip() }
+    val metadata = remember { getAppMetadata() }
+    val isDebugBuild = metadata.buildType == "Debug"
 
     LaunchedEffect(state.isLoggedOut) {
         if (state.isLoggedOut) {
@@ -47,6 +50,27 @@ fun SettingsScreen(
         onApiPlatformChange = { viewModel.setApiPlatform(it) },
         onApiPlatformIdChange = { viewModel.setApiPlatformId(it) },
         onApiTestConnection = { viewModel.testApiConnection() },
+        isUpdatingData = state.isUpdatingData,
+        updateDataProgress = state.updateDataProgress,
+        updateDataTotal = state.updateDataTotal,
+        updateDataFileName = state.updateDataFileName,
+        updateDataError = state.updateDataError,
+        onUpdateSongData = { viewModel.updateSongData() },
+        onDismissUpdateError = { viewModel.dismissUpdateDataError() },
+        includePreRelease = state.includePreRelease,
+        updateCheckState = state.updateCheckState,
+        onCheckForUpdate = { viewModel.checkForUpdate(metadata.versionName) },
+        onIncludePreReleaseChange = { viewModel.setIncludePreRelease(it) },
+        onDismissUpdateResult = { viewModel.dismissUpdateResult() },
+        isDebugBuild = isDebugBuild,
+        hasRuntimeLogs = viewModel.hasRuntimeLogs(),
+        hasCrashLogs = viewModel.hasCrashLogs(),
+        onExportRuntimeLog = { viewModel.exportRuntimeLogText() },
+        onExportCrashLog = { viewModel.exportCrashLogText() },
+        onClearRuntimeLogs = { viewModel.clearRuntimeLogs() },
+        onClearCrashLogs = { viewModel.clearCrashLogs() },
+        crashNotificationGuideShown = state.crashNotificationGuideShown,
+        onCrashNotificationGuideShown = { viewModel.setCrashNotificationGuideShown() },
         modifier = androidx.compose.ui.Modifier
     )
 }

@@ -28,10 +28,13 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.kasumi321.ushio.phitracker.data.TipsProvider
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
+import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryDao
 import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotDao
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
+import org.kasumi321.ushio.phitracker.data.logging.CrashReportExporter
+import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
 import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.clearAllImageCache
@@ -50,6 +53,14 @@ import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+
+sealed class UpdateCheckState {
+    data object Idle : UpdateCheckState()
+    data object Checking : UpdateCheckState()
+    data class Available(val version: String, val htmlUrl: String, val body: String) : UpdateCheckState()
+    data object NoUpdate : UpdateCheckState()
+    data class Error(val message: String) : UpdateCheckState()
+}
 
 data class ApiToolResult(
     val isLoading: Boolean = false,
@@ -120,8 +131,9 @@ data class HomeUiState(
     val syncSnapshots: List<SyncSnapshotEntity> = emptyList(),
     val sessionToken: String? = null,
 
-    // Pre-release channel (observed, no update-check implementation yet)
+    // Pre-release channel and update check
     val includePreRelease: Boolean = false,
+    val updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
 
     // PhiPlugin API
     val apiEnabled: Boolean = false,
@@ -136,7 +148,9 @@ data class HomeUiState(
     val apiRankByUser: ApiToolResult = ApiToolResult(),
     val apiRankByPosition: ApiToolResult = ApiToolResult(),
     val apiRksRankResult: ApiToolResult = ApiToolResult(),
-    val songApiDetailMap: Map<String, SongApiDetailState> = emptyMap()
+    val songApiDetailMap: Map<String, SongApiDetailState> = emptyMap(),
+
+    val crashNotificationGuideShown: Boolean = false
 )
 
 class HomeViewModel(
@@ -154,7 +168,9 @@ class HomeViewModel(
     private val syncSnapshotDao: SyncSnapshotDao,
     private val recordDao: RecordDao,
     private val songSyncHistoryDao: SongSyncHistoryDao,
-    private val songDataUpdater: SongDataUpdater
+    private val songDataUpdater: SongDataUpdater,
+    private val runtimeLogExporter: RuntimeLogExporter,
+    private val crashReportExporter: CrashReportExporter,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -236,6 +252,11 @@ class HomeViewModel(
                 refreshApiToolData()
             }
         }
+        viewModelScope.launch {
+            settingsRepository.crashNotificationGuideShown.collect { shown ->
+                _uiState.update { it.copy(crashNotificationGuideShown = shown) }
+            }
+        }
         // Load latest sync snapshot + stats
         viewModelScope.launch {
             val latest = syncSnapshotDao.getLatest()
@@ -273,12 +294,17 @@ class HomeViewModel(
 
     private fun loadSongs() {
         viewModelScope.launch {
-            val songs = songDataProvider.getSongs().values.toList().sortedBy { it.name }
-            val chapters = songs.map { it.chapter }.filter { it.isNotBlank() }.distinct().sorted()
-            _uiState.update {
-                it.copy(allSongs = songs, filteredSongs = songs, availableChapters = chapters)
+            try {
+                val songs = songDataProvider.getSongs().values.toList().sortedBy { it.name }
+                val chapters = songs.map { it.chapter }.filter { it.isNotBlank() }.distinct().sorted()
+                _uiState.update {
+                    it.copy(allSongs = songs, filteredSongs = songs, availableChapters = chapters)
+                }
+                applyFilters()
+                AppLogger.event("data", "song_data_loaded", mapOf("count" to songs.size.toString()))
+            } catch (e: Exception) {
+                AppLogger.event("data", "song_data_load_failed", mapOf("error" to (e.message ?: "unknown")))
             }
-            applyFilters()
         }
     }
 
@@ -419,6 +445,7 @@ class HomeViewModel(
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isSyncing = true, error = null) }
+            AppLogger.event("sync", "refresh_started")
             try {
                 val tokenPair = repository.getSessionToken()
                 if (tokenPair == null) {
@@ -492,6 +519,7 @@ class HomeViewModel(
                             )
                         }
                         loadSyncRecordsForSnapshot(snapshotId)
+                        AppLogger.event("sync", "refresh_success", mapOf("changedEntries" to changedEntries.size.toString(), "displayRks" to state.displayRks.toString()))
                     } else {
                         _uiState.update {
                             it.copy(
@@ -501,6 +529,7 @@ class HomeViewModel(
                                 lastSyncedRecord = null
                             )
                         }
+                        AppLogger.event("sync", "refresh_success", mapOf("changedEntries" to "0"))
                     }
                     // Refresh stats
                     loadStats()
@@ -514,11 +543,13 @@ class HomeViewModel(
                             error = result.exceptionOrNull()?.message
                         )
                     }
+                    AppLogger.event("sync", "refresh_failed", mapOf("error" to (result.exceptionOrNull()?.message ?: "unknown")))
                 }
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(isSyncing = false, error = e.message)
                 }
+                AppLogger.event("sync", "refresh_failed", mapOf("error" to (e.message ?: "unknown")))
             }
         }
     }
@@ -570,6 +601,7 @@ class HomeViewModel(
                     updateDataError = null
                 )
             }
+            AppLogger.event("data", "update_song_data_started", mapOf("totalFiles" to totalFiles.toString()))
             val result = songDataUpdater.updateAll { current, total, fileName ->
                 _uiState.update {
                     it.copy(
@@ -587,6 +619,7 @@ class HomeViewModel(
                         updateDataFileName = ""
                     )
                 }
+                AppLogger.event("data", "update_song_data_success")
                 // Reload songs and B30
                 loadSongs()
                 observeB30()
@@ -597,6 +630,7 @@ class HomeViewModel(
                         updateDataError = result.exceptionOrNull()?.message
                     )
                 }
+                AppLogger.event("data", "update_song_data_failed", mapOf("error" to (result.exceptionOrNull()?.message ?: "unknown")))
             }
         }
     }
@@ -729,6 +763,10 @@ class HomeViewModel(
         viewModelScope.launch { settingsRepository.setApiPlatformId(platformId) }
     }
 
+    fun setCrashNotificationGuideShown() {
+        viewModelScope.launch { settingsRepository.setCrashNotificationGuideShown(true) }
+    }
+
     fun clearHighResCache(onComplete: (Result<Unit>) -> Unit = {}) {
         viewModelScope.launch {
             val result = runCatching {
@@ -768,6 +806,7 @@ class HomeViewModel(
             }
 
             _uiState.update { it.copy(isApiTesting = true, apiTestMessage = null) }
+            AppLogger.event("api", "test_started")
 
             val statusResult = repository.apiTest()
             if (statusResult.isFailure) {
@@ -777,6 +816,7 @@ class HomeViewModel(
                         apiTestMessage = "连接失败：${statusResult.exceptionOrNull()?.message ?: "未知错误"}"
                     )
                 }
+                AppLogger.event("api", "test_failed", mapOf("error" to (statusResult.exceptionOrNull()?.message ?: "unknown")))
                 return@launch
             }
 
@@ -791,7 +831,9 @@ class HomeViewModel(
                     }
                 )
             }
-            if (bindResult.isSuccess) {
+            val success = bindResult.isSuccess
+            AppLogger.event("api", if (success) "test_success" else "test_partial", mapOf("bindSuccess" to success.toString()))
+            if (success) {
                 refreshApiToolData()
             }
         }
@@ -1146,4 +1188,103 @@ class HomeViewModel(
 
     // --- KMP-compatible current time millis ---
     private fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
+
+    // --- Application update check ---
+
+    fun checkForUpdate(currentVersionName: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(updateCheckState = UpdateCheckState.Checking) }
+            AppLogger.event("update", "check_started")
+            try {
+                val includePre = _uiState.value.includePreRelease
+                val release = repository.fetchLatestRelease(includePre).getOrThrow()
+
+                val latestVersion = release.tagName.removePrefix("v")
+
+                if (isNewerVersion(latestVersion, currentVersionName)) {
+                    _uiState.update {
+                        it.copy(
+                            updateCheckState = UpdateCheckState.Available(
+                                version = release.tagName,
+                                htmlUrl = release.htmlUrl,
+                                body = release.body ?: "",
+                            )
+                        )
+                    }
+                    AppLogger.event("update", "check_update_available", mapOf("version" to release.tagName))
+                } else {
+                    _uiState.update { it.copy(updateCheckState = UpdateCheckState.NoUpdate) }
+                    AppLogger.event("update", "check_no_update")
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        updateCheckState = UpdateCheckState.Error(
+                            e.message ?: "未知错误"
+                        )
+                    )
+                }
+                AppLogger.event("update", "check_failed", mapOf("error" to (e.message ?: "unknown")))
+            }
+        }
+    }
+
+    fun dismissUpdateResult() {
+        _uiState.update { it.copy(updateCheckState = UpdateCheckState.Idle) }
+    }
+
+    private fun isNewerVersion(newer: String, current: String): Boolean {
+        val newerParts = newer.split("-")[0].split(".").map { it.toIntOrNull() ?: 0 }
+        val currentParts = current.split("-")[0].split(".").map { it.toIntOrNull() ?: 0 }
+        val maxLen = maxOf(newerParts.size, currentParts.size)
+        for (i in 0 until maxLen) {
+            val n = newerParts.getOrElse(i) { 0 }
+            val c = currentParts.getOrElse(i) { 0 }
+            if (n > c) return true
+            if (n < c) return false
+        }
+        return false
+    }
+
+    // --- Log export & clear ---
+
+    fun exportRuntimeLogText(): String {
+        AppLogger.event("log", "runtime_export")
+        return runtimeLogExporter.buildExportText()
+    }
+
+    fun hasRuntimeLogs(): Boolean {
+        return runtimeLogExporter.hasLogs()
+    }
+
+    fun clearRuntimeLogs(): Boolean {
+        return try {
+            runtimeLogExporter.clearLogs()
+            AppLogger.event("log", "runtime_clear", mapOf("status" to "success"))
+            true
+        } catch (e: Exception) {
+            AppLogger.event("log", "runtime_clear", mapOf("status" to "failed", "error" to (e.message ?: "unknown")))
+            false
+        }
+    }
+
+    fun exportCrashLogText(): String {
+        AppLogger.event("log", "crash_export")
+        return crashReportExporter.buildExportText()
+    }
+
+    fun hasCrashLogs(): Boolean {
+        return crashReportExporter.hasReports()
+    }
+
+    fun clearCrashLogs(): Boolean {
+        return try {
+            crashReportExporter.clearReports()
+            AppLogger.event("log", "crash_clear", mapOf("status" to "success"))
+            true
+        } catch (e: Exception) {
+            AppLogger.event("log", "crash_clear", mapOf("status" to "failed", "error" to (e.message ?: "unknown")))
+            false
+        }
+    }
 }

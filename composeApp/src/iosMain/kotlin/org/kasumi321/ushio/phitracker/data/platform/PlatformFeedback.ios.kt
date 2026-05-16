@@ -20,6 +20,10 @@ actual fun showPlatformMessage(message: String) {
     showNativeAlert(title = null, message = message)
 }
 
+actual fun showPlatformAlert(title: String, message: String) {
+    showNativeAlert(title = title, message = message)
+}
+
 internal fun showNativeAlert(title: String?, message: String) {
     dispatch_async(dispatch_get_main_queue()) {
         val windowScene = findActiveWindowScene()
@@ -43,7 +47,7 @@ internal fun showNativeAlert(title: String?, message: String) {
         )
         alert.addAction(
             UIAlertAction.actionWithTitle(
-                title = "确定",
+                title = "好",
                 style = UIAlertActionStyleDefault,
                 handler = {
                     nativeAlertWindow?.hidden = true

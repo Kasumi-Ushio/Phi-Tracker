@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -129,6 +130,17 @@ fun MainScreen(
 
     LaunchedEffect(state.isLoggedOut) {
         if (state.isLoggedOut) onLogout()
+    }
+
+    LaunchedEffect(selectedTab) {
+        val tabName = when (selectedTab) {
+            0 -> "profile"
+            1 -> "b30"
+            2 -> "songs"
+            3 -> "tools"
+            else -> "unknown"
+        }
+        AppLogger.event("navigation", "tab_switched", mapOf("tab" to tabName))
     }
 
     LaunchedEffect(state.error) {

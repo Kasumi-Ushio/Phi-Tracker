@@ -178,4 +178,29 @@ class SettingsRepositoryImplTest {
         assertEquals(null, storage.map["preload_done"])
         assertEquals("true", preloadStorage.map["preload_done"])
     }
+
+    @Test
+    fun defaultsCrashNotificationGuideShownFalse(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals(false, repo.crashNotificationGuideShown.first())
+    }
+
+    @Test
+    fun setAndReadCrashNotificationGuideShown(): Unit = runTest {
+        val repo = createRepo()
+        repo.setCrashNotificationGuideShown(true)
+        assertEquals(true, repo.crashNotificationGuideShown.first())
+    }
+
+    @Test
+    fun crashNotificationGuideShownPersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setCrashNotificationGuideShown(true)
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(true, repo2.crashNotificationGuideShown.first())
+    }
 }

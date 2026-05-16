@@ -55,7 +55,7 @@ val dataModule = module {
         )
     }
     single { createPlatformPaths() }
-    single<PhigrosRepository> { PhigrosRepositoryImpl(get(), get(), get(), get(), get(), get()) }
+    single<PhigrosRepository> { PhigrosRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get()) }
     single { SongDataProvider(paths = get()) }
     single { IllustrationProvider() }
     single { TipsProvider() }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import org.kasumi321.ushio.phitracker.data.api.TapTapQrLoginApi
+import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
@@ -60,6 +61,7 @@ class LoginViewModel(
             val saved = repository.getSessionToken()
             if (saved == null) {
                 _uiState.update { it.copy(isCheckingToken = false) }
+                AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "false", "loggedIn" to "false"))
                 return@launch
             }
 
@@ -76,6 +78,7 @@ class LoginViewModel(
                         error = "Token 验证失败: ${validateResult.exceptionOrNull()?.message}"
                     )
                 }
+                AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "false"))
                 return@launch
             }
 
@@ -90,6 +93,7 @@ class LoginViewModel(
                         error = "存档同步失败: ${syncResult.exceptionOrNull()?.message}"
                     )
                 }
+                AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "false"))
                 return@launch
             }
 
@@ -101,6 +105,7 @@ class LoginViewModel(
                     isLoggedIn = true
                 )
             }
+            AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "true"))
         }
     }
 

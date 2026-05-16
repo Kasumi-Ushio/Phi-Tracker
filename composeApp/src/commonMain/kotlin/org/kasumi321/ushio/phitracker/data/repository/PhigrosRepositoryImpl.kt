@@ -1,10 +1,16 @@
 package org.kasumi321.ushio.phitracker.data.repository
 
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.data.api.BindRequest
+import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.data.api.PhiPluginApi
 import org.kasumi321.ushio.phitracker.data.api.TapTapApiClient
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
@@ -22,14 +28,17 @@ import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
+import kotlinx.serialization.json.Json
 
 class PhigrosRepositoryImpl(
     private val apiClient: TapTapApiClient,
     private val phiPluginApi: PhiPluginApi,
+    private val httpClient: HttpClient,
     private val saveParser: SaveParser,
     private val recordDao: RecordDao,
     private val userDao: UserDao,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val json: Json,
 ) : PhigrosRepository {
     override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> = runCatching {
         val userInfo = apiClient.getUserInfo(sessionToken, server)
@@ -212,4 +221,30 @@ class PhigrosRepositoryImpl(
 
     override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
         runCatching { phiPluginApi.getRankByPosition(position) }
+
+    override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease> =
+        runCatching {
+            val response = httpClient.get("https://api.github.com/repos/Kasumi-Ushio/Ushio-Prober-Phigros/releases") {
+                headers.append("Accept", "application/vnd.github+json")
+            }
+
+            val statusCode = response.status
+            val responseText = response.bodyAsText()
+
+            if (statusCode == HttpStatusCode.Forbidden && responseText.contains("\"API rate limit\"")) {
+                error("GitHub API 请求频率超限，请稍后再试")
+            }
+            if (!statusCode.value.toString().startsWith("2")) {
+                error("GitHub 服务异常（${statusCode.value}），请稍后再试")
+            }
+
+            val releases = try {
+                json.decodeFromString<List<GitHubRelease>>(responseText)
+            } catch (e: SerializationException) {
+                error("GitHub 返回数据格式异常，请稍后再试")
+            }
+
+            val candidates = if (includePreRelease) releases else releases.filter { !it.prerelease }
+            candidates.firstOrNull() ?: error("未找到任何发布版本")
+        }
 }

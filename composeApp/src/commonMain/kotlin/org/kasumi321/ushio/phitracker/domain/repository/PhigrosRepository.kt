@@ -2,6 +2,7 @@ package org.kasumi321.ushio.phitracker.domain.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonObject
+import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
@@ -33,4 +34,6 @@ interface PhigrosRepository {
     suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String? = null, difficulty: String? = null): Result<JsonObject>
     suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject>
     suspend fun apiGetRankByPosition(position: Int): Result<JsonObject>
+
+    suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease>
 }
