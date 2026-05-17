@@ -92,7 +92,7 @@ data class HomeUiState(
     val allSongs: List<SongInfo> = emptyList(),
     val allRecords: List<BestRecord> = emptyList(),
     val availableChapters: List<String> = emptyList(),
-    val selectedChapter: String? = null,
+    val selectedChapters: Set<String> = emptySet(),
     val selectedDifficulty: Difficulty? = null,
     val minLevel: Int = 1,
     val maxLevel: Int = 16,
@@ -644,8 +644,20 @@ class HomeViewModel(
         applyFilters()
     }
 
-    fun filterByChapter(chapter: String?) {
-        _uiState.update { it.copy(selectedChapter = chapter) }
+    fun toggleChapter(chapter: String) {
+        _uiState.update { state ->
+            val newChapters = state.selectedChapters.toMutableSet().apply {
+                if (contains(chapter)) remove(chapter) else add(chapter)
+            }
+            state.copy(selectedChapters = newChapters)
+        }
+        applyFilters()
+    }
+
+    fun clearChapters() {
+        _uiState.update {
+            it.copy(selectedChapters = emptySet())
+        }
         applyFilters()
     }
 
@@ -666,7 +678,7 @@ class HomeViewModel(
     fun resetFilters() {
         _uiState.update {
             it.copy(
-                selectedChapter = null,
+                selectedChapters = emptySet(),
                 selectedDifficulty = null,
                 minLevel = 1,
                 maxLevel = 16
@@ -684,13 +696,13 @@ class HomeViewModel(
             state.allSongs
         }
 
-        val chapter = state.selectedChapter
+        val chapters = state.selectedChapters
         val diff = state.selectedDifficulty
         val minLvl = state.minLevel.toFloat()
         val maxLvl = state.maxLevel.toFloat() + 0.99f
 
         val filtered = searchResults.filter { song ->
-            val matchesChapter = chapter == null || song.chapter == chapter
+            val matchesChapter = chapters.isEmpty() || song.chapter in chapters
             val matchesLevelAndDiff = if (diff != null) {
                 val cc = song.difficulties[diff]
                 cc != null && cc >= minLvl && cc <= maxLvl

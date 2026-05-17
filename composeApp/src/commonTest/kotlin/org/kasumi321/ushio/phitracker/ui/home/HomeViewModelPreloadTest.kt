@@ -564,7 +564,7 @@ class HomeViewModelPreloadTest {
     }
 
     private class TrackingSongSyncHistoryDao : SongSyncHistoryDao {
-        val insertedEntries = mutableListOf<SongSyncHistoryEntity>()
+        val insertedEntries: MutableList<SongSyncHistoryEntity> = mutableListOf()
 
         override suspend fun insertAll(entries: List<SongSyncHistoryEntity>) {
             insertedEntries.addAll(entries)
@@ -622,6 +622,185 @@ class HomeViewModelPreloadTest {
             "difficulty.csv" -> "songId,EZ,HD,IN,AT\nsong-a,1.0,2.0,3.0,4.0\nsong-b,1.0,2.0,3.0,4.0"
             "info.csv" -> "songId,name,composer,illustrator,EZCharter,HDCharter,INCharter,ATCharter\nsong-a,Song A,Composer,Illustrator,,,,\nsong-b,Song B,Composer,Illustrator,,,,"
             "infolist.json" -> "{}"
+            "notesInfo.json" -> "{}"
+            else -> error("Test asset not found: $name")
+        }
+    }
+
+    // --- Multi-chapter filter tests (Phase F) ---
+
+    @Test
+    fun multiChapterFilterStacking(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createChapterFilterViewModel(settings)
+        advanceUntilIdle()
+
+        // Initially no chapter filter — all 3 songs visible
+        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+            "All songs should be visible with no chapter filter")
+
+        // Toggle "Single" — songs in "Single" chapter: song-a.0 and song-c.0
+        viewModel.toggleChapter("Single")
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.filteredSongs.size,
+            "2 songs in Single chapter")
+        assertTrue(viewModel.uiState.value.filteredSongs.all { it.chapter == "Single" })
+
+        // Toggle also "Collection" — now both chapters active
+        viewModel.toggleChapter("Collection")
+        advanceUntilIdle()
+        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+            "Stacking both chapters shows all 3 songs")
+        assertEquals(setOf("Single", "Collection"), viewModel.uiState.value.selectedChapters)
+    }
+
+    @Test
+    fun toggleChapterOff(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createChapterFilterViewModel(settings)
+        advanceUntilIdle()
+
+        // Toggle both chapters
+        viewModel.toggleChapter("Single")
+        viewModel.toggleChapter("Collection")
+        advanceUntilIdle()
+        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+            "Both chapters active")
+        assertEquals(setOf("Single", "Collection"), viewModel.uiState.value.selectedChapters)
+
+        // Toggle off "Single" — only "Collection" remains
+        viewModel.toggleChapter("Single")
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.filteredSongs.size,
+            "Only Collection chapter songs after toggling Single off")
+        assertTrue(viewModel.uiState.value.filteredSongs.all { it.chapter == "Collection" })
+        assertEquals(setOf("Collection"), viewModel.uiState.value.selectedChapters)
+    }
+
+    @Test
+    fun clearChaptersRestoresAllSongs(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createChapterFilterViewModel(settings)
+        advanceUntilIdle()
+
+        // Apply chapter filter
+        viewModel.toggleChapter("Single")
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.filteredSongs.size,
+            "Filtered to Single chapter")
+        assertTrue(viewModel.uiState.value.selectedChapters.isNotEmpty())
+
+        // Clear chapters
+        viewModel.clearChapters()
+        advanceUntilIdle()
+        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+            "All songs restored after clearing chapters")
+        assertTrue(viewModel.uiState.value.selectedChapters.isEmpty(),
+            "selectedChapters should be empty after clear")
+    }
+
+    @Test
+    fun resetFiltersRestoresAllSongs(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createChapterFilterViewModel(settings)
+        advanceUntilIdle()
+
+        // Apply multiple filters: chapter, difficulty, level range
+        viewModel.toggleChapter("Single")
+        viewModel.filterByDifficulty(Difficulty.HD)
+        viewModel.filterByLevelRange(3, 10)
+        advanceUntilIdle()
+
+        // Verify filtering is active
+        assertTrue(viewModel.uiState.value.selectedChapters.isNotEmpty())
+        assertNotNull(viewModel.uiState.value.selectedDifficulty)
+
+        // Reset
+        viewModel.resetFilters()
+        advanceUntilIdle()
+
+        // All filters cleared
+        assertTrue(viewModel.uiState.value.selectedChapters.isEmpty())
+        assertEquals(null, viewModel.uiState.value.selectedDifficulty)
+        assertEquals(1, viewModel.uiState.value.minLevel)
+        assertEquals(16, viewModel.uiState.value.maxLevel)
+        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+            "Reset should restore all songs")
+    }
+
+    @Test
+    fun emptyChaptersMatchesAllSongs(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createChapterFilterViewModel(settings)
+        advanceUntilIdle()
+
+        // selectedChapters starts empty — all songs match
+        assertTrue(viewModel.uiState.value.selectedChapters.isEmpty())
+        assertEquals(3, viewModel.uiState.value.filteredSongs.size)
+
+        // Filter by difficulty only — chapters still empty, difficulty narrows
+        viewModel.filterByDifficulty(Difficulty.IN)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.selectedChapters.isEmpty())
+        // All 3 songs have IN=3.0, min=1 max=16 → all should match
+        assertEquals(3, viewModel.uiState.value.filteredSongs.size)
+    }
+
+    @Test
+    fun chapterFilterStacksWithSearch(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createChapterFilterViewModel(settings)
+        advanceUntilIdle()
+
+        // Apply chapter filter first
+        viewModel.toggleChapter("Single")
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.filteredSongs.size)
+
+        // Add search query that narrows further
+        viewModel.searchSongs("Song A")
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.filteredSongs.size,
+            "Search + chapter filter should stack")
+        assertEquals("song-a.0", viewModel.uiState.value.filteredSongs.first().id)
+    }
+
+    private fun createChapterFilterViewModel(
+        settingsRepository: FakeSettingsRepository
+    ): HomeViewModel {
+        val songDataProvider = SongDataProvider(ChapterTestAssetReader, testPlatformPaths)
+        val repository = FakePhigrosRepository()
+        val illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") }
+        val logFileStore = createTestLogFileStore()
+        return HomeViewModel(
+            repository = repository,
+            getB30UseCase = GetB30UseCase(repository),
+            syncSaveUseCase = SyncSaveUseCase(repository),
+            searchSongUseCase = SearchSongUseCase(),
+            songDataProvider = songDataProvider,
+            illustrationProvider = illustrationProvider,
+            tipsProvider = TipsProvider(FakeTextAssetReader),
+            settingsRepository = settingsRepository,
+            thumbnailPreloader = RecordingPreloader(),
+            clearCacheUrlsFn = {},
+            syncSnapshotDao = FakeSyncSnapshotDao(),
+            recordDao = FakeRecordDao(),
+            songSyncHistoryDao = FakeSongSyncHistoryDao(),
+            songDataUpdater = FakeSongDataUpdater(
+                paths = testPlatformPaths,
+                songDataProvider = songDataProvider
+            ),
+            runtimeLogExporter = RuntimeLogExporter(logFileStore),
+            crashReportExporter = CrashReportExporter(logFileStore)
+        )
+    }
+
+    private object ChapterTestAssetReader : TextAssetReader {
+        override fun readText(name: String): String = when (name) {
+            "tips.txt" -> "Tip: test"
+            "difficulty.csv" -> "songId,EZ,HD,IN,AT\nsong-a,1.0,2.0,3.0,4.0\nsong-b,1.0,2.0,3.0,4.0\nsong-c,1.0,2.0,3.0,4.0"
+            "info.csv" -> "songId,name,composer,illustrator,EZCharter,HDCharter,INCharter,ATCharter\nsong-a,Song A,Composer,Illus,,,,\nsong-b,Song B,Composer,Illus,,,,\nsong-c,Song C,Composer,Illus,,,,"
+            "infolist.json" -> """{"song-a":{"chapter":"Single"},"song-b":{"chapter":"Collection"},"song-c":{"chapter":"Single"}}"""
             "notesInfo.json" -> "{}"
             else -> error("Test asset not found: $name")
         }

@@ -9,6 +9,7 @@ import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.data.platform.ConfigureCoilImageLoader
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.ui.PhiTrackerNavHost
+import org.kasumi321.ushio.phitracker.ui.components.PlatformAlertHost
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerTheme
 import org.koin.compose.koinInject
 
@@ -29,6 +30,7 @@ fun App() {
 
     PhiTrackerTheme(darkTheme = darkTheme, isAmoled = isAmoled) {
         PhiTrackerNavHost()
+        PlatformAlertHost()
     }
 }
 

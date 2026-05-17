@@ -349,7 +349,7 @@ fun SettingsTab(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("接收预发布版本更新", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "启用后您将收到预发布版本的更新，预发布版本可能包含错误或不稳定功能。",
+                        text = "启用后您将收到预发布版本的更新",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -359,6 +359,12 @@ fun SettingsTab(
                     onCheckedChange = { onIncludePreReleaseChange(it) }
                 )
             }
+
+            Text(
+                text = "预发布版本可能包含错误或不稳定功能，在绝大多数情况下，请优先考虑正式版。如果您希望参与我们的功能测试，则可以选择启用此选项。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 

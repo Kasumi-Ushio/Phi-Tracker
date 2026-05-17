@@ -1,6 +1,5 @@
 package org.kasumi321.ushio.phitracker.data.platform
 
-import android.app.AlertDialog
 import android.widget.Toast
 
 actual fun showPlatformMessage(message: String) {
@@ -16,10 +15,6 @@ actual fun showPlatformAlert(title: String, message: String) {
     }
 
     activity.runOnUiThread {
-        AlertDialog.Builder(activity)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton("确定", null)
-            .show()
+        PlatformAlertController.show(title, message)
     }
 }

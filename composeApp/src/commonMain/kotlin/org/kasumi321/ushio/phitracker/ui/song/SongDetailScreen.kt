@@ -34,6 +34,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -59,14 +60,19 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.launch
+import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
 import org.kasumi321.ushio.phitracker.data.platform.saveArtworkToPictures
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
+import org.kasumi321.ushio.phitracker.ui.home.SongApiDetailState
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import kotlin.math.roundToInt
+import kotlin.time.Instant
 
 private fun Float.formatFourDecimals(): String {
     val v = (this * 10000).roundToInt()
@@ -77,11 +83,22 @@ private fun Int.formatScore(): String {
     return this.toString().reversed().chunked(3).joinToString(",").reversed()
 }
 
+private fun Long.formatSyncTime(): String {
+    val dateTime = Instant.fromEpochMilliseconds(this).toLocalDateTime(TimeZone.currentSystemDefault())
+    val month = dateTime.month.ordinal + 1
+    return "${month.toString().padStart(2, '0')}-${dateTime.day.toString().padStart(2, '0')} ${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')}"
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongDetailScreen(
     songInfo: SongInfo,
     userRecords: List<BestRecord> = emptyList(),
+    syncHistory: List<SongSyncHistoryEntity> = emptyList(),
+    apiEnabled: Boolean = false,
+    useApiData: Boolean = false,
+    getSongApiDetail: (Difficulty) -> SongApiDetailState = { SongApiDetailState() },
+    onLoadSongApiDetail: (Difficulty) -> Unit = {},
     getLowIllustrationUrl: (String) -> String?,
     getStandardIllustrationUrl: (String) -> String?,
     onBack: () -> Unit,
@@ -92,7 +109,14 @@ fun SongDetailScreen(
         mutableIntStateOf(availableDifficulties.indexOfFirst { it == Difficulty.IN }.takeIf { it >= 0 } ?: 0)
     }
     val selectedDifficulty = availableDifficulties.getOrNull(selectedTabIndex) ?: Difficulty.IN
+    val songApiDetail = getSongApiDetail(selectedDifficulty)
     var showImagePreview by remember { mutableStateOf(false) }
+
+    LaunchedEffect(apiEnabled, useApiData, selectedDifficulty) {
+        if (apiEnabled && useApiData) {
+            onLoadSongApiDetail(selectedDifficulty)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -186,6 +210,7 @@ fun SongDetailScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     availableDifficulties.forEachIndexed { index, diff ->
+                        val diffColor = DifficultyColors.forDifficulty(diff)
                         Tab(
                             selected = selectedTabIndex == index,
                             onClick = { selectedTabIndex = index },
@@ -258,6 +283,52 @@ fun SongDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
+                if (apiEnabled && useApiData) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "查分 API 统计信息",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (songApiDetail.isLoading) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            } else if (songApiDetail.error != null) {
+                                Text(
+                                    text = songApiDetail.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Text("单曲排名: ${songApiDetail.userRank ?: "—"} / ${songApiDetail.totalUsers ?: "—"}")
+                                Text(
+                                    text = "平均 ACC: ${
+                                        songApiDetail.avgAcc?.let { "${it.formatFourDecimals()}%" } ?: "—"
+                                    }（由 ${songApiDetail.avgAccCount ?: 0} 个样本取得）"
+                                )
+                                Text(
+                                    text = "拟合定数: ${
+                                        songApiDetail.fittedDifficulty?.let { it.formatFourDecimals() } ?: "—"
+                                    }"
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -280,7 +351,7 @@ fun SongDetailScreen(
                         Spacer(modifier = Modifier.height(12.dp))
 
                         Text(
-                            text = "谱师: $charter",
+                            text = "制谱: $charter",
                             style = MaterialTheme.typography.bodyLarge
                         )
 
@@ -288,7 +359,7 @@ fun SongDetailScreen(
 
                         if (notes != null && notes.total > 0) {
                             Text(
-                                text = "音符分布 (Total: ${notes.total})",
+                                text = "Notes 分布 (Total: ${notes.total})",
                                 style = MaterialTheme.typography.labelLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -304,11 +375,50 @@ fun SongDetailScreen(
                             }
                         } else {
                             Text(
-                                text = "暂无音符数据",
+                                text = "暂无 Notes 数据",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 同步历史记录
+                val currentHistory = if (apiEnabled && useApiData) songApiDetail.history else syncHistory
+                val filteredHistory = currentHistory
+                    .filter { it.difficulty == selectedDifficulty.name }
+                    .take(3)
+
+                if (filteredHistory.isNotEmpty()) {
+                    Text(
+                        text = "同步历史",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    filteredHistory.forEach { entry ->
+                        SyncHistoryCard(entry)
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        )
+                    ) {
+                        Text(
+                            text = "暂无同步历史\n同步后发生变化的成绩将显示在这里",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp)
+                        )
                     }
                 }
             }
@@ -452,5 +562,60 @@ private fun StatusChip(text: String, bgColor: Color, contentColor: Color) {
             fontWeight = FontWeight.Bold,
             fontSize = 10.sp
         )
+    }
+}
+
+/**
+ * 同步历史卡片
+ */
+@Composable
+private fun SyncHistoryCard(entry: SongSyncHistoryEntity) {
+    val formattedTime = remember(entry.timestamp) {
+        entry.timestamp.formatSyncTime()
+    }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = formattedTime,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = entry.score.formatScore(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    if (entry.accuracy >= 100f) {
+                        StatusChip("\u03C6", Color(0xFFFFD54F), Color(0xFF5D4037))
+                    } else if (entry.isFullCombo) {
+                        StatusChip("FC", Color(0xFF4FC3F7), Color.White)
+                    }
+                }
+            }
+            Text(
+                text = "${entry.accuracy.formatFourDecimals()}%",
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }

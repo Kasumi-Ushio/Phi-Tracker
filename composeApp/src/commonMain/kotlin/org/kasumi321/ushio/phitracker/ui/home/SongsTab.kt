@@ -1,6 +1,8 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +26,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,15 +71,16 @@ private fun Float.formatLevel(): String {
     return "${v / 10}.${kotlin.math.abs(v % 10)}"
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SongsTab(
     songs: List<SongInfo>,
     searchQuery: String,
     onSearchChange: (String) -> Unit,
     availableChapters: List<String>,
-    selectedChapter: String?,
-    onChapterSelect: (String?) -> Unit,
+    selectedChapters: Set<String>,
+    onToggleChapter: (String) -> Unit,
+    onClearChapters: () -> Unit,
     selectedDifficulty: Difficulty?,
     onDifficultySelect: (Difficulty?) -> Unit,
     minLevel: Int,
@@ -88,6 +94,15 @@ fun SongsTab(
     tip: String = "",
     modifier: Modifier = Modifier
 ) {
+    // 计算已激活的筛选数
+    val activeFilterCount = remember(selectedChapters, selectedDifficulty, minLevel, maxLevel) {
+        var count = 0
+        if (selectedChapters.isNotEmpty()) count += selectedChapters.size
+        if (selectedDifficulty != null) count++
+        if (minLevel > 1 || maxLevel < 16) count++
+        count
+    }
+
     Column(modifier = modifier.fillMaxSize()) {
         TopAppBar(
             title = {
@@ -98,7 +113,10 @@ fun SongsTab(
                             text = tip,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth(0.75f)
+                            maxLines = 1,
+                            modifier = Modifier
+                                .fillMaxWidth(0.75f)
+                                .basicMarquee()
                         )
                     }
                 }
@@ -127,18 +145,30 @@ fun SongsTab(
                     .size(56.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(
-                        if (selectedChapter != null || selectedDifficulty != null || minLevel > 1 || maxLevel < 16)
+                        if (activeFilterCount > 0)
                             MaterialTheme.colorScheme.primaryContainer
                         else MaterialTheme.colorScheme.surfaceVariant
                     )
             ) {
-                Icon(
-                    Icons.Filled.FilterList,
-                    contentDescription = "Filter",
-                    tint = if (selectedChapter != null || selectedDifficulty != null || minLevel > 1 || maxLevel < 16)
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (activeFilterCount > 0) {
+                    BadgedBox(
+                        badge = {
+                            Badge { Text(activeFilterCount.toString()) }
+                        }
+                    ) {
+                        Icon(
+                            Icons.Filled.FilterList,
+                            contentDescription = "Filter",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                } else {
+                    Icon(
+                        Icons.Filled.FilterList,
+                        contentDescription = "Filter",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -169,8 +199,9 @@ fun SongsTab(
         ) {
             FilterBottomSheetContent(
                 availableChapters = availableChapters,
-                selectedChapter = selectedChapter,
-                onChapterSelect = onChapterSelect,
+                selectedChapters = selectedChapters,
+                onToggleChapter = onToggleChapter,
+                onClearChapters = onClearChapters,
                 selectedDifficulty = selectedDifficulty,
                 onDifficultySelect = onDifficultySelect,
                 minLevel = minLevel,
@@ -186,8 +217,9 @@ fun SongsTab(
 @Composable
 private fun FilterBottomSheetContent(
     availableChapters: List<String>,
-    selectedChapter: String?,
-    onChapterSelect: (String?) -> Unit,
+    selectedChapters: Set<String>,
+    onToggleChapter: (String) -> Unit,
+    onClearChapters: () -> Unit,
     selectedDifficulty: Difficulty?,
     onDifficultySelect: (Difficulty?) -> Unit,
     minLevel: Int,
@@ -250,7 +282,7 @@ private fun FilterBottomSheetContent(
                 onLevelRangeSelect(sliderPosition.start.roundToInt(), sliderPosition.endInclusive.roundToInt())
             },
             valueRange = 1f..16f,
-            steps = 14 // 16 - 1 = 15 => points minus 1 => 14 steps between them
+            steps = 14
         )
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
@@ -262,24 +294,38 @@ private fun FilterBottomSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("章节", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
-        androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            FilterChip(
-                selected = selectedChapter == null,
-                onClick = { onChapterSelect(null) },
-                label = { Text("全部") }
-            )
-            availableChapters.forEach { chapter ->
-                FilterChip(
-                    selected = selectedChapter == chapter,
-                    onClick = { onChapterSelect(chapter) },
-                    label = { Text(chapter) }
-                )
+            Text("章节", style = MaterialTheme.typography.titleMedium)
+            if (selectedChapters.isNotEmpty()) {
+                TextButton(onClick = onClearChapters) {
+                    Text("全部清除 (${selectedChapters.size})")
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        // 章节区域限高 200dp，可滚动
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 200.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                availableChapters.forEach { chapter ->
+                    FilterChip(
+                        selected = chapter in selectedChapters,
+                        onClick = { onToggleChapter(chapter) },
+                        label = { Text(chapter) }
+                    )
+                }
             }
         }
     }
