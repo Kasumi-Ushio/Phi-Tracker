@@ -10,6 +10,7 @@ data class SuggestItem(
     val difficulty: Difficulty,
     val chartConstant: Float,
     val currentAcc: Float?,
+    val isFullCombo: Boolean,
     val targetAcc: Float,
     val currentRks: Float,
     val potentialRks: Float
@@ -50,6 +51,7 @@ class GetSuggestUseCase {
                         difficulty = difficulty,
                         chartConstant = chartConstant,
                         currentAcc = currentAcc,
+                        isFullCombo = currentLevel?.isFullCombo == true,
                         targetAcc = targetAcc,
                         currentRks = currentRks,
                         potentialRks = potentialRks

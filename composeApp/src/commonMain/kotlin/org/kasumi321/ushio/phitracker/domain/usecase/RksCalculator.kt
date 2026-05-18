@@ -71,11 +71,11 @@ object RksCalculator {
             .take(3)
             .map { it.copy(isPhi = true) }
 
-        val b42 = allRecords
+        val b57 = allRecords
             .sortedByDescending { it.rks }
-            .take(42)
+            .take(57)
 
-        val b30List = phi3 + b42
+        val b30List = phi3 + b57
         return Pair(b30List, allRecords)
     }
 

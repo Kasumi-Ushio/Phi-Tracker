@@ -16,7 +16,9 @@ class SettingsRepositoryImpl(
     private val showB30OverflowState = MutableStateFlow(storage.getString(KEY_SHOW_B30_OVERFLOW)?.toBooleanStrictOrNull() ?: false)
     override val showB30Overflow: Flow<Boolean> = showB30OverflowState.asStateFlow()
 
-    private val overflowCountState = MutableStateFlow(storage.getString(KEY_OVERFLOW_COUNT)?.toIntOrNull() ?: 9)
+    private val overflowCountState = MutableStateFlow(
+        storage.getString(KEY_OVERFLOW_COUNT)?.toIntOrNull()?.coerceIn(1, 30) ?: 9
+    )
     override val overflowCount: Flow<Int> = overflowCountState.asStateFlow()
 
     override suspend fun setThemeMode(mode: Int) {
@@ -30,8 +32,9 @@ class SettingsRepositoryImpl(
     }
 
     override suspend fun setOverflowCount(count: Int) {
-        storage.putString(KEY_OVERFLOW_COUNT, count.toString())
-        overflowCountState.value = count
+        val normalized = count.coerceIn(1, 30)
+        storage.putString(KEY_OVERFLOW_COUNT, normalized.toString())
+        overflowCountState.value = normalized
     }
 
     override suspend fun getPreloadDone(): Boolean = preloadStorage.getString(KEY_PRELOAD_DONE)?.toBooleanStrictOrNull() ?: false
@@ -67,6 +70,14 @@ class SettingsRepositoryImpl(
     override suspend fun setIncludePreRelease(enabled: Boolean) {
         storage.putString(KEY_INCLUDE_PRE_RELEASE, enabled.toString())
         includePreReleaseState.value = enabled
+    }
+
+    private val autoCheckUpdateState = MutableStateFlow(storage.getString(KEY_AUTO_CHECK_UPDATE)?.toBooleanStrictOrNull() ?: true)
+    override val autoCheckUpdate: Flow<Boolean> = autoCheckUpdateState.asStateFlow()
+
+    override suspend fun setAutoCheckUpdate(enabled: Boolean) {
+        storage.putString(KEY_AUTO_CHECK_UPDATE, enabled.toString())
+        autoCheckUpdateState.value = enabled
     }
 
     private val apiEnabledState = MutableStateFlow(storage.getString(KEY_API_ENABLED)?.toBooleanStrictOrNull() ?: false)
@@ -128,6 +139,7 @@ class SettingsRepositoryImpl(
         const val KEY_AVATAR_URI = "avatar_uri"
         const val KEY_MONEY_STRING = "money_string"
         const val KEY_INCLUDE_PRE_RELEASE = "include_pre_release"
+        const val KEY_AUTO_CHECK_UPDATE = "auto_check_update"
         const val KEY_API_ENABLED = "api_enabled"
         const val KEY_USE_API_DATA = "use_api_data"
         const val KEY_API_ID = "api_id"

@@ -20,7 +20,9 @@ interface SettingsRepository {
     suspend fun setMoneyString(money: String)
 
     val includePreRelease: Flow<Boolean>
+    val autoCheckUpdate: Flow<Boolean>
     suspend fun setIncludePreRelease(enabled: Boolean)
+    suspend fun setAutoCheckUpdate(enabled: Boolean)
 
     val apiEnabled: Flow<Boolean>
     suspend fun setApiEnabled(enabled: Boolean)

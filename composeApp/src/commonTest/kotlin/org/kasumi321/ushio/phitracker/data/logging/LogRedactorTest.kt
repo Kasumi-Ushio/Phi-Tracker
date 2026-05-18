@@ -206,6 +206,22 @@ class LogRedactorTest {
     }
 
     @Test
+    fun `redacts JSON request body containing sessionToken`() {
+        val input = """{"body":{"sessionToken":"r_abc123","platform":"TapTap"},"url":"https://api.example.com/sync"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"sessionToken":"<redacted>"""")
+        assertFalse(result.contains("r_abc123"))
+    }
+
+    @Test
+    fun `redacts TapTap resource URL parameters with access tokens`() {
+        val input = "GET https://api.taptap.com/resource?access_token=ya29.abcdef"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "access_token=<redacted>")
+        assertFalse(result.contains("ya29.abcdef"))
+    }
+
+    @Test
     fun `case insensitive key matching`() {
         val input = "SESSIONTOKEN=UPPERCASE sessiontoken=lowercase SessionToken=MixedCase"
         val result = LogRedactor.redact(input)

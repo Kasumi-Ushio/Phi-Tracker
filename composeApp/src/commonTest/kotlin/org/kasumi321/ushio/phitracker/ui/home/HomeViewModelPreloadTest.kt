@@ -287,6 +287,7 @@ class HomeViewModelPreloadTest {
         assertTrue(viewModel.uiState.value.lastSyncTime != null, "lastSyncTime should be updated")
         assertEquals(emptyList(), viewModel.uiState.value.recentSyncedRecords)
         assertNull(viewModel.uiState.value.lastSyncedRecord)
+        assertTrue(snapshotDao.getAllOnceCallCount > 0, "getAllOnce should be called for preload/recent sync history")
     }
 
     @Test
@@ -360,6 +361,7 @@ class HomeViewModelPreloadTest {
         assertEquals(expectedB30Top.score, snapshotDao.lastInserted!!.lastSyncedScore)
         assertEquals(expectedB30Top.accuracy, snapshotDao.lastInserted!!.lastSyncedAccuracy)
         assertEquals(1, snapshotDao.lastInserted!!.dataCount)
+        assertTrue(snapshotDao.getAllOnceCallCount > 0, "getAllOnce should be called for preload/recent sync history")
     }
 
     private fun createViewModel(
@@ -426,7 +428,9 @@ class HomeViewModelPreloadTest {
         override val moneyString: Flow<String> = flowOf("")
         override suspend fun setMoneyString(money: String) = Unit
         override val includePreRelease: Flow<Boolean> = flowOf(false)
+        override val autoCheckUpdate: Flow<Boolean> = flowOf(true)
         override suspend fun setIncludePreRelease(enabled: Boolean) = Unit
+        override suspend fun setAutoCheckUpdate(enabled: Boolean) = Unit
         override val apiEnabled: Flow<Boolean> = flowOf(false)
         override suspend fun setApiEnabled(enabled: Boolean) = Unit
         override val useApiData: Flow<Boolean> = flowOf(false)
@@ -500,6 +504,7 @@ class HomeViewModelPreloadTest {
         override suspend fun insert(snapshot: SyncSnapshotEntity) = Unit
         override suspend fun insertAndGetId(snapshot: SyncSnapshotEntity): Long = 1L
         override fun getAll(): Flow<List<SyncSnapshotEntity>> = flowOf(emptyList())
+        override suspend fun getAllOnce(): List<SyncSnapshotEntity> = emptyList()
         override suspend fun getLatest(): SyncSnapshotEntity? = null
     }
 
@@ -549,6 +554,8 @@ class HomeViewModelPreloadTest {
     private class TrackingSyncSnapshotDao : SyncSnapshotDao {
         var lastInserted: SyncSnapshotEntity? = null
             private set
+        var getAllOnceCallCount: Int = 0
+            private set
 
         override suspend fun insert(snapshot: SyncSnapshotEntity) {
             lastInserted = snapshot
@@ -560,6 +567,10 @@ class HomeViewModelPreloadTest {
         }
 
         override fun getAll(): Flow<List<SyncSnapshotEntity>> = flowOf(emptyList())
+        override suspend fun getAllOnce(): List<SyncSnapshotEntity> {
+            getAllOnceCallCount++
+            return emptyList()
+        }
         override suspend fun getLatest(): SyncSnapshotEntity? = null
     }
 
@@ -723,7 +734,7 @@ class HomeViewModelPreloadTest {
         assertTrue(viewModel.uiState.value.selectedChapters.isEmpty())
         assertEquals(null, viewModel.uiState.value.selectedDifficulty)
         assertEquals(1, viewModel.uiState.value.minLevel)
-        assertEquals(16, viewModel.uiState.value.maxLevel)
+        assertEquals(17, viewModel.uiState.value.maxLevel)
         assertEquals(3, viewModel.uiState.value.filteredSongs.size,
             "Reset should restore all songs")
     }
@@ -763,6 +774,19 @@ class HomeViewModelPreloadTest {
         assertEquals(1, viewModel.uiState.value.filteredSongs.size,
             "Search + chapter filter should stack")
         assertEquals("song-a.0", viewModel.uiState.value.filteredSongs.first().id)
+    }
+
+    @Test
+    fun apiToolResultPreservesRows() {
+        val rows = listOf(
+            ApiToolRow("标签 A", "值 A"),
+            ApiToolRow("标签 B", "值 B")
+        )
+        val result = ApiToolResult(message = "ok", rows = rows)
+        assertEquals(2, result.rows.size)
+        assertEquals("标签 A", result.rows[0].label)
+        assertEquals("值 A", result.rows[0].value)
+        assertEquals("ok", result.message)
     }
 
     private fun createChapterFilterViewModel(

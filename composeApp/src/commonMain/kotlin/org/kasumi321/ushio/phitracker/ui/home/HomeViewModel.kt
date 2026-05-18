@@ -64,7 +64,13 @@ sealed class UpdateCheckState {
 
 data class ApiToolResult(
     val isLoading: Boolean = false,
-    val message: String? = null
+    val message: String? = null,
+    val rows: List<ApiToolRow> = emptyList()
+)
+
+data class ApiToolRow(
+    val label: String,
+    val value: String
 )
 
 data class SongApiDetailState(
@@ -95,7 +101,7 @@ data class HomeUiState(
     val selectedChapters: Set<String> = emptySet(),
     val selectedDifficulty: Difficulty? = null,
     val minLevel: Int = 1,
-    val maxLevel: Int = 16,
+    val maxLevel: Int = 17,
     val showFilterSheet: Boolean = false,
     // Illustration preload — blocking flow
     val illustrationReady: Boolean = false,
@@ -257,19 +263,8 @@ class HomeViewModel(
                 _uiState.update { it.copy(crashNotificationGuideShown = shown) }
             }
         }
-        // Load latest sync snapshot + stats
         viewModelScope.launch {
-            val latest = syncSnapshotDao.getLatest()
-            if (latest != null) {
-                _uiState.update {
-                    it.copy(lastSyncTime = latest.timestamp)
-                }
-                loadSyncRecordsForSnapshot(latest.id)
-            } else {
-                _uiState.update {
-                    it.copy(recentSyncedRecords = emptyList(), lastSyncedRecord = null)
-                }
-            }
+            loadRecentEffectiveSyncHistory()
             loadStats()
         }
     }
@@ -518,7 +513,7 @@ class HomeViewModel(
                                 lastSyncTime = snapshot.timestamp
                             )
                         }
-                        loadSyncRecordsForSnapshot(snapshotId)
+                        loadRecentEffectiveSyncHistory()
                         AppLogger.event("sync", "refresh_success", mapOf("changedEntries" to changedEntries.size.toString(), "displayRks" to state.displayRks.toString()))
                     } else {
                         _uiState.update {
@@ -582,6 +577,47 @@ class HomeViewModel(
 
         _uiState.update {
             it.copy(
+                recentSyncedRecords = recentRecords,
+                lastSyncedRecord = recentRecords.firstOrNull()
+            )
+        }
+    }
+
+    private suspend fun loadRecentEffectiveSyncHistory(limit: Int = 3) {
+        val songs = songDataProvider.getSongs()
+        val snapshots = syncSnapshotDao.getAllOnce()
+        val effectiveEntries = mutableListOf<Pair<SyncSnapshotEntity, SongSyncHistoryEntity>>()
+
+        for (snapshot in snapshots) {
+            val entries = songSyncHistoryDao.getBySnapshotId(snapshot.id)
+            if (entries.isNotEmpty()) {
+                effectiveEntries.add(snapshot to entries.first())
+            }
+            if (effectiveEntries.size >= limit) break
+        }
+
+        val recentRecords = effectiveEntries.mapNotNull { (_, entry) ->
+            val difficulty = runCatching { Difficulty.valueOf(entry.difficulty) }.getOrNull()
+                ?: return@mapNotNull null
+            val song = songs[entry.songId]
+            val chartConstant = song?.difficulties?.get(difficulty) ?: 0f
+            val rks = RksCalculator.calculateSingleRks(entry.accuracy, chartConstant)
+            BestRecord(
+                songId = entry.songId,
+                songName = song?.name ?: entry.songId,
+                difficulty = difficulty,
+                score = entry.score,
+                accuracy = entry.accuracy,
+                isFullCombo = entry.isFullCombo,
+                chartConstant = chartConstant,
+                rks = rks,
+                isPhi = entry.accuracy >= 100f
+            )
+        }
+
+        _uiState.update {
+            it.copy(
+                lastSyncTime = effectiveEntries.firstOrNull()?.first?.timestamp,
                 recentSyncedRecords = recentRecords,
                 lastSyncedRecord = recentRecords.firstOrNull()
             )
@@ -681,7 +717,7 @@ class HomeViewModel(
                 selectedChapters = emptySet(),
                 selectedDifficulty = null,
                 minLevel = 1,
-                maxLevel = 16
+                maxLevel = 17
             )
         }
         applyFilters()
@@ -909,7 +945,13 @@ class HomeViewModel(
                 if (!mePlayerId.isNullOrBlank()) append("  |  玩家: $mePlayerId")
                 if (meRks != null) append("  |  RKS: ${formatFourDecimals(meRks)}")
             }
-            _uiState.update { it.copy(apiRankByUser = ApiToolResult(message = msg)) }
+            val rows = buildList {
+                if (!mePlayerId.isNullOrBlank()) add(ApiToolRow("玩家昵称", mePlayerId))
+                if (meRks != null) add(ApiToolRow("RKS", formatFourDecimals(meRks)))
+                if (meRank != null) add(ApiToolRow("我的名次", meRank.toString()))
+                add(ApiToolRow("总人数", total?.toString() ?: "—"))
+            }
+            _uiState.update { it.copy(apiRankByUser = ApiToolResult(message = msg, rows = rows)) }
         }
     }
 
@@ -950,7 +992,14 @@ class HomeViewModel(
                 append("  |  用户: ${playerId ?: "未知"}")
                 if (rks != null) append("  |  RKS: ${formatFourDecimals(rks)}")
             }
-            _uiState.update { it.copy(apiRankByPosition = ApiToolResult(message = msg)) }
+            val rows = buildList {
+                add(ApiToolRow("请求名次", position.toString()))
+                add(ApiToolRow("返回名次", rank?.toString() ?: "—"))
+                add(ApiToolRow("玩家昵称", playerId ?: "未知"))
+                if (rks != null) add(ApiToolRow("RKS", formatFourDecimals(rks)))
+                add(ApiToolRow("匹配状态", if (exact) "精确匹配" else "最接近匹配"))
+            }
+            _uiState.update { it.copy(apiRankByPosition = ApiToolResult(message = msg, rows = rows)) }
         }
     }
 
@@ -980,7 +1029,12 @@ class HomeViewModel(
                     apiTotalUsers = total,
                     apiRksRank = rank,
                     apiRksRankResult = ApiToolResult(
-                        message = "大于 ${formatFourDecimals(rks)} 的用户数: ${rank ?: "—"} / ${total ?: "—"}"
+                        message = "大于 ${formatFourDecimals(rks)} 的用户数: ${rank ?: "—"} / ${total ?: "—"}",
+                        rows = listOf(
+                            ApiToolRow("目标 RKS", formatFourDecimals(rks)),
+                            ApiToolRow("大于该 RKS 用户数", rank?.toString() ?: "—"),
+                            ApiToolRow("总人数", total?.toString() ?: "—")
+                        )
                     )
                 )
             }

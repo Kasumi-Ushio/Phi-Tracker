@@ -15,6 +15,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SongRecord
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
+import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import kotlin.math.abs
 import kotlin.test.Test
@@ -127,6 +128,80 @@ class DomainUseCaseTest {
     }
 
     @Test
+    fun searchConsecutiveAsterisksReturnsAllSongsImmediately() {
+        val songs = mapOf(
+            "alpha.0" to SongInfo("alpha.0", "Alpha", "C", "", emptyMap()),
+            "beta.0" to SongInfo("beta.0", "Beta", "C", "", emptyMap()),
+            "gamma.0" to SongInfo("gamma.0", "Gamma", "C", "", emptyMap())
+        )
+        assertEquals(3, SearchSongUseCase()("**", songs).size)
+        assertEquals(3, SearchSongUseCase()("***", songs).size)
+    }
+
+    @Test
+    fun searchConsecutiveAsterisksWithSpacesStillUsesRegex() {
+        val songs = mapOf(
+            "alpha.0" to SongInfo("alpha.0", "Alpha Beta", "C", "", emptyMap()),
+            "beta.0" to SongInfo("beta.0", "Beta", "C", "", emptyMap())
+        )
+        val result = SearchSongUseCase()("* *", songs)
+        assertEquals(listOf("Alpha Beta"), result.map { it.name })
+    }
+
+    @Test
+    fun b57ReturnsUpTo57Records() {
+        val records = (0 until 60).associate { i ->
+            val songId = "song-$i"
+            songId to SongRecord(
+                songId = songId,
+                levels = mapOf(Difficulty.IN to LevelRecord(1_000_000 - i, (99.9f - i * 0.1f).coerceAtLeast(70f), false))
+            )
+        }
+        val difficulties = (0 until 60).associate { i ->
+            "song-$i" to mapOf(Difficulty.IN to (15f - i * 0.1f).coerceAtLeast(1f))
+        }
+        val names = (0 until 60).associate { i -> "song-$i" to "Song $i" }
+
+        val (b30, allRecords) = RksCalculator.getB30AndAllRecords(records, difficulties, names)
+        assertEquals(60, allRecords.size)
+        assertEquals(57, b30.size)
+    }
+
+    @Test
+    fun suggestItemPopulatesIsFullCombo() {
+        val b30 = mutableListOf(
+            createBestRecord("best.0", Difficulty.IN, 15f, 100f, 15f),
+            createBestRecord("best.1", Difficulty.HD, 14f, 99.5f, 14f)
+        )
+        repeat(18) { i ->
+            b30.add(createBestRecord("pad-$i", Difficulty.IN, 10f, 92f, 12f))
+        }
+
+        val records = mapOf(
+            "song.0" to SongRecord(
+                songId = "song.0",
+                levels = mapOf(Difficulty.IN to LevelRecord(950_000, 95f, true))
+            ),
+            "song.1" to SongRecord(
+                songId = "song.1",
+                levels = mapOf(Difficulty.IN to LevelRecord(900_000, 90f, false))
+            )
+        )
+        val difficulties = mapOf(
+            "song.0" to mapOf(Difficulty.IN to 15f),
+            "song.1" to mapOf(Difficulty.IN to 15f)
+        )
+        val names = mapOf("song.0" to "Song 0", "song.1" to "Song 1")
+
+        val useCase = GetSuggestUseCase()
+        val results = useCase(b30, records, difficulties, names)
+
+        assertEquals(2, results.size)
+        assertEquals(true, results.first { it.songId == "song.0" }.isFullCombo)
+        assertEquals(false, results.first { it.songId == "song.1" }.isFullCombo)
+    }
+
+    @Test
     fun useCasesDelegateToRepository(): Unit = runTest {
         val save = emptySave()
         val repository = FakePhigrosRepository(save)
@@ -164,6 +239,23 @@ class DomainUseCaseTest {
     private fun assertClose(expected: Float, actual: Float) {
         assertTrue(abs(expected - actual) < 0.0001f, "Expected $expected but was $actual")
     }
+
+    private fun createBestRecord(
+        songId: String,
+        difficulty: Difficulty,
+        chartConstant: Float,
+        accuracy: Float,
+        rks: Float
+    ): BestRecord = BestRecord(
+        songId = songId,
+        songName = songId,
+        difficulty = difficulty,
+        score = 1_000_000,
+        accuracy = accuracy,
+        isFullCombo = false,
+        chartConstant = chartConstant,
+        rks = rks
+    )
 
     private class FakePhigrosRepository(
         private val save: Save

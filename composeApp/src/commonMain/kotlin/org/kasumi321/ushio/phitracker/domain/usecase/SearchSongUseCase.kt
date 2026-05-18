@@ -20,6 +20,13 @@ class SearchSongUseCase {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return allSongs.values.toList()
 
+        // Beta5 guard: queries containing consecutive 2+ '*' (e.g. "**", "***")
+        // return all songs immediately to avoid pathological regex expansion
+        // from \S+\S+ patterns.
+        if (trimmed.contains(Regex("""\*{2,}"""))) {
+            return allSongs.values.sortedBy { it.name }
+        }
+
         val hasWildcard = trimmed.contains('*') || trimmed.contains('?')
 
         return if (hasWildcard) {

@@ -18,6 +18,9 @@ interface SyncSnapshotDao {
     @Query("SELECT * FROM sync_snapshots ORDER BY timestamp DESC")
     fun getAll(): Flow<List<SyncSnapshotEntity>>
 
+    @Query("SELECT * FROM sync_snapshots ORDER BY timestamp DESC")
+    suspend fun getAllOnce(): List<SyncSnapshotEntity>
+
     @Query("SELECT * FROM sync_snapshots ORDER BY timestamp DESC LIMIT 1")
     suspend fun getLatest(): SyncSnapshotEntity?
 }

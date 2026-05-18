@@ -203,4 +203,62 @@ class SettingsRepositoryImplTest {
         val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
         assertEquals(true, repo2.crashNotificationGuideShown.first())
     }
+
+    @Test
+    fun defaultsAutoCheckUpdateTrue(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals(true, repo.autoCheckUpdate.first())
+    }
+
+    @Test
+    fun setAndReadAutoCheckUpdate(): Unit = runTest {
+        val repo = createRepo()
+        repo.setAutoCheckUpdate(false)
+        assertEquals(false, repo.autoCheckUpdate.first())
+        repo.setAutoCheckUpdate(true)
+        assertEquals(true, repo.autoCheckUpdate.first())
+    }
+
+    @Test
+    fun autoCheckUpdatePersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setAutoCheckUpdate(false)
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(false, repo2.autoCheckUpdate.first())
+    }
+
+    @Test
+    fun overflowCountClampedOnReadFromStorage(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+        storage.putString("overflow_count", "35")
+
+        val repo = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(30, repo.overflowCount.first())
+    }
+
+    @Test
+    fun overflowCountClampedOnReadFromStorageBelowOne(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+        storage.putString("overflow_count", "0")
+
+        val repo = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(1, repo.overflowCount.first())
+    }
+
+    @Test
+    fun setOverflowCountClampsValue(): Unit = runTest {
+        val repo = createRepo()
+        repo.setOverflowCount(35)
+        assertEquals(30, repo.overflowCount.first())
+        repo.setOverflowCount(0)
+        assertEquals(1, repo.overflowCount.first())
+        repo.setOverflowCount(15)
+        assertEquals(15, repo.overflowCount.first())
+    }
 }
