@@ -50,6 +50,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.data.platform.rememberAvatarPicker
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 
 private val ChallengeTierColors = listOf(
@@ -94,7 +95,7 @@ fun ProfileTab(
     onRefresh: () -> Unit,
     onAvatarSelected: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
-    onSongClick: (String) -> Unit,
+    onSongClick: (String, Difficulty?) -> Unit,
     getIllustrationUrl: (String) -> String?,
     tip: String = "",
     modifier: Modifier = Modifier

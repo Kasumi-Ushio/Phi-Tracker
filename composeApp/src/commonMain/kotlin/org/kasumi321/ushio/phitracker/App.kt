@@ -18,7 +18,9 @@ import org.koin.compose.koinInject
 fun App() {
     ConfigureCoilImageLoader()
 
+    AppLogger.event("startup", "App.beforeSettingsInject")
     val settingsRepository: SettingsRepository = koinInject()
+    AppLogger.event("startup", "App.afterSettingsInject")
     val themeMode by settingsRepository.themeMode.collectAsState(initial = 0)
 
     val darkTheme = when (themeMode) {

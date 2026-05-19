@@ -35,6 +35,7 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 
 private val FcColor = Color(0xFF4FC3F7)
@@ -60,7 +61,7 @@ fun ScoreCard(
     rank: Int,
     record: BestRecord,
     illustrationUrl: String?,
-    onSongClick: (String) -> Unit,
+    onSongClick: (String, Difficulty?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val diffColor = DifficultyColors.forDifficulty(record.difficulty)
@@ -86,7 +87,7 @@ fun ScoreCard(
 
     Card(
         modifier = modifier.fillMaxWidth()
-            .clickable { onSongClick(record.songId) },
+            .clickable { onSongClick(record.songId, record.difficulty) },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )

@@ -110,27 +110,36 @@ class SongDetailRouteTest {
 
     @Test
     fun routeWithNullDifficultySerializes() {
-        val route = SongDetailRoute("song-a", difficulty = null)
+        val route = SongDetailRoute.from("song-a", difficulty = null)
         val encoded = json.encodeToString(route)
         val decoded = json.decodeFromString<SongDetailRoute>(encoded)
         assertEquals(route, decoded)
-        assertNull(decoded.difficulty)
+        assertNull(decoded.difficultyName)
+        assertNull(decoded.difficulty())
     }
 
     @Test
     fun routeWithDifficultySerializes() {
         for (diff in Difficulty.values()) {
-            val route = SongDetailRoute("song-a", difficulty = diff)
+            val route = SongDetailRoute.from("song-a", difficulty = diff)
             val encoded = json.encodeToString(route)
             val decoded = json.decodeFromString<SongDetailRoute>(encoded)
             assertEquals(route, decoded, "Failed for difficulty $diff")
-            assertEquals(diff, decoded.difficulty)
+            assertEquals(diff.name, decoded.difficultyName)
+            assertEquals(diff, decoded.difficulty())
         }
+    }
+
+    @Test
+    fun invalidDifficultyNameReturnsNull() {
+        val route = SongDetailRoute("song-a", difficultyName = "BAD")
+        assertNull(route.difficulty())
     }
 
     @Test
     fun defaultDifficultyIsNull() {
         val route = SongDetailRoute("song-a")
-        assertNull(route.difficulty)
+        assertNull(route.difficultyName)
+        assertNull(route.difficulty())
     }
 }

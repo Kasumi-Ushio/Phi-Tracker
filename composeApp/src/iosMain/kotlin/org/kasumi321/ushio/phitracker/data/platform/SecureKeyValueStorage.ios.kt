@@ -16,6 +16,7 @@ import kotlinx.cinterop.readBytes
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
+import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import platform.CoreFoundation.CFDictionaryCreate
 import platform.CoreFoundation.CFDictionaryRef
 import platform.CoreFoundation.CFStringRef
@@ -26,6 +27,7 @@ import platform.CoreFoundation.kCFBooleanTrue
 import platform.Foundation.CFBridgingRelease
 import platform.Foundation.CFBridgingRetain
 import platform.Foundation.NSData
+import platform.Foundation.NSUserDefaults
 import platform.Foundation.create
 import platform.Security.SecItemAdd
 import platform.Security.SecItemCopyMatching
@@ -41,9 +43,41 @@ import platform.Security.kSecMatchLimitOne
 import platform.Security.kSecReturnData
 import platform.Security.kSecValueData
 
-actual fun createSecureKeyValueStorage(name: String): SecureKeyValueStorage =
-    KeychainStorage(service = name)
+private const val SECURE_PREFS_SERVICE = "phi_tracker_secure_prefs"
 
+actual fun createSecureKeyValueStorage(name: String): SecureKeyValueStorage =
+    if (name == SECURE_PREFS_SERVICE) {
+        KeychainStorage(service = name)
+    } else {
+        UserDefaultsStorage(name = name, defaults = NSUserDefaults.standardUserDefaults)
+    }
+
+/**
+ * NSUserDefaults-backed key-value storage for non-sensitive settings.
+ */
+private class UserDefaultsStorage(
+    private val name: String,
+    private val defaults: NSUserDefaults
+) : SecureKeyValueStorage {
+    override fun getString(key: String): String? =
+        defaults.stringForKey(scopedKey(key))
+
+    override fun putString(key: String, value: String) {
+        defaults.setObject(value, forKey = scopedKey(key))
+    }
+
+    override fun remove(key: String) {
+        defaults.removeObjectForKey(scopedKey(key))
+    }
+
+    private fun scopedKey(key: String): String = "$name.$key"
+}
+
+/**
+ * Keychain-backed storage for the session token / secure prefs.
+ * Failures are non-fatal: reads return null, writes/removes are no-ops,
+ * and a non-sensitive status is logged.
+ */
 @OptIn(ExperimentalForeignApi::class)
 private class KeychainStorage(
     service: String
@@ -66,7 +100,10 @@ private class KeychainStorage(
             CFBridgingRelease(query)
         }
         if (status == errSecItemNotFound) return@cfRetain null
-        check(status == errSecSuccess) { "Unable to read Keychain item: $status" }
+        if (status != errSecSuccess) {
+            AppLogger.w("Keychain", "get $key failed status=$status")
+            return@cfRetain null
+        }
 
         val data = CFBridgingRelease(cfValue.value) as? NSData ?: return@cfRetain null
         val bytes = data.bytes?.reinterpret<ByteVar>()?.readBytes(data.length.toInt()) ?: return@cfRetain null
@@ -93,7 +130,9 @@ private class KeychainStorage(
                 } finally {
                     CFBridgingRelease(query)
                 }
-                check(status == errSecSuccess) { "Unable to save Keychain item: $status" }
+                if (status != errSecSuccess) {
+                    AppLogger.w("Keychain", "put $key failed status=$status")
+                }
             }
         }
     }
@@ -109,8 +148,8 @@ private class KeychainStorage(
         } finally {
             CFBridgingRelease(query)
         }
-        check(status == errSecSuccess || status == errSecItemNotFound) {
-            "Unable to delete Keychain item: $status"
+        if (status != errSecSuccess && status != errSecItemNotFound) {
+            AppLogger.w("Keychain", "remove $key failed status=$status")
         }
     }
 }

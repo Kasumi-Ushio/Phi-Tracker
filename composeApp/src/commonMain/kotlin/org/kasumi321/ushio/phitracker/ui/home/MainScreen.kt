@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -220,7 +221,13 @@ fun MainScreen(
                 onRefresh = { viewModel.refresh() },
                 onAvatarSelected = { viewModel.setAvatarUri(it) },
                 onNavigateToSettings = onNavigateToSettings,
-                onSongClick = onNavigateToSongDetail,
+                onSongClick = { songId, difficulty ->
+                    if (difficulty != null) {
+                        onNavigateToSongDetailWithDifficulty(songId, difficulty)
+                    } else {
+                        onNavigateToSongDetail(songId)
+                    }
+                },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
@@ -234,7 +241,13 @@ fun MainScreen(
                 onRefresh = { viewModel.refresh() },
                 onGenerateImage = { onNavigateToB30Image(state.b30, state.displayRks, state.nickname) },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
-                onSongClick = onNavigateToSongDetail,
+                onSongClick = { songId, difficulty ->
+                    if (difficulty != null) {
+                        onNavigateToSongDetailWithDifficulty(songId, difficulty)
+                    } else {
+                        onNavigateToSongDetail(songId)
+                    }
+                },
                 showB30Overflow = state.showB30Overflow,
                 overflowCount = state.overflowCount,
                 tip = tip,
@@ -257,7 +270,7 @@ fun MainScreen(
                 onToggleFilterSheet = { viewModel.toggleFilterSheet(it) },
                 onResetFilters = { viewModel.resetFilters() },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
-                onSongClick = onNavigateToSongDetail,
+                onSongClick = { songId, _ -> onNavigateToSongDetail(songId) },
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )

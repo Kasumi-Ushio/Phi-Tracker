@@ -43,6 +43,7 @@ import org.kasumi321.ushio.phitracker.ui.b30.B30ImageScreen
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.home.MainScreen
 import org.kasumi321.ushio.phitracker.ui.login.LoginScreen
+import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
 import org.kasumi321.ushio.phitracker.ui.navigation.SongDetailRoute
 import org.kasumi321.ushio.phitracker.ui.settings.AboutScreen
 import org.kasumi321.ushio.phitracker.ui.settings.AcknowledgmentsScreen
@@ -117,6 +118,7 @@ private fun popExitTransition(reducedMotionEnabled: Boolean): ExitTransition =
 
 @Composable
 fun PhiTrackerNavHost() {
+    AppLogger.event("startup", "NavHost.enter")
     val navController = rememberNavController()
     var b30ImageState by remember { mutableStateOf(B30ImageState()) }
     val reducedMotionEnabled = rememberReducedMotionEnabled()
@@ -133,12 +135,16 @@ fun PhiTrackerNavHost() {
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
             LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_login") }
+            AppLogger.event("startup", "Login.beforeViewModel")
+            val loginViewModel: LoginViewModel = koinViewModel()
+            AppLogger.event("startup", "Login.afterViewModel")
             LoginScreen(
                 onLoginSuccess = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
-                }
+                },
+                viewModel = loginViewModel
             )
         }
         composable(
@@ -161,10 +167,10 @@ fun PhiTrackerNavHost() {
                     navController.navigate(Screen.B30Image.route)
                 },
                 onNavigateToSongDetail = { songId ->
-                    navController.navigate(SongDetailRoute(songId = songId))
+                    navController.navigate(SongDetailRoute.from(songId = songId, difficulty = null))
                 },
                 onNavigateToSongDetailWithDifficulty = { songId, difficulty ->
-                    navController.navigate(SongDetailRoute(songId = songId, difficulty = difficulty))
+                    navController.navigate(SongDetailRoute.from(songId = songId, difficulty = difficulty))
                 },
                 onNavigateToAbout = {
                     navController.navigate(Screen.About.route)
@@ -283,7 +289,7 @@ fun PhiTrackerNavHost() {
             val state by homeViewModel.uiState.collectAsState()
             val route = backStackEntry.toRoute<SongDetailRoute>()
             val songId = route.songId
-            val difficulty = route.difficulty
+            val difficulty = route.difficulty()
             val songInfo = state.allSongs.find { it.id == songId }
             if (songInfo != null) {
                 val records = state.allRecords.filter { it.songId == songId }

@@ -61,12 +61,12 @@ import io.github.alexzhirkevich.qrose.options.circle
 import io.github.alexzhirkevich.qrose.options.roundCorners
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import org.kasumi321.ushio.phitracker.domain.model.Server
-import org.koin.compose.viewmodel.koinViewModel
+import org.kasumi321.ushio.phitracker.ui.common.SpringTabIndicator
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
-    viewModel: LoginViewModel = koinViewModel()
+    viewModel: LoginViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -153,7 +153,13 @@ fun LoginScreen(
 
             TabRow(
                 selectedTabIndex = selectedTab,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                indicator = { tabPositions ->
+                    SpringTabIndicator(
+                        selectedTabIndex = selectedTab,
+                        positions = tabPositions
+                    )
+                }
             ) {
                 Tab(
                     selected = selectedTab == 0,

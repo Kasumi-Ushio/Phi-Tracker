@@ -40,15 +40,43 @@ actual object CrashHookInstaller {
         val sb = StringBuilder()
         sb.appendLine("=== Kotlin/Native Unhandled Exception ===")
         sb.appendLine("Time: $time")
-        sb.appendLine("Exception: ${throwable::class.qualifiedName}: ${throwable.message}")
+        sb.appendLine(redactCrashLine("Exception: ${throwable::class.qualifiedName}: ${throwable.message}"))
         sb.appendLine()
-        sb.appendLine(throwable.stackTraceToString())
+
+        // Bounded structured stack rendering; no full-string materialization.
+        val stackFrames = throwable.getStackTrace()
+        var totalBytes = 0
+        val maxBytes = 64 * 1024
+        var lineCount = 0
+        for (frame in stackFrames) {
+            if (lineCount >= 100) break
+            val safeLine = redactCrashLine(frame)
+            val lineBytes = safeLine.encodeToByteArray().size + 1
+            if (totalBytes + lineBytes > maxBytes) break
+            sb.appendLine(safeLine)
+            totalBytes += lineBytes
+            lineCount++
+        }
 
         val sink = fs.sink(path).buffer()
         try {
-            sink.writeUtf8(LogRedactor.redact(sb.toString()))
+            sink.writeUtf8(sb.toString())
         } finally {
             sink.close()
         }
+    }
+
+    private fun redactCrashLine(line: String): String {
+        val sessionTokenIndex = line.indexOf("sessionToken=", ignoreCase = true)
+        if (sessionTokenIndex >= 0) {
+            return line.take(sessionTokenIndex) + "sessionToken=<redacted>"
+        }
+
+        val authorizationIndex = line.indexOf("Authorization:", ignoreCase = true)
+        if (authorizationIndex >= 0) {
+            return line.take(authorizationIndex) + "Authorization: <redacted>"
+        }
+
+        return line
     }
 }

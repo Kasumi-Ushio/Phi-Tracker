@@ -90,7 +90,7 @@ fun SongsTab(
     onToggleFilterSheet: (Boolean) -> Unit,
     onResetFilters: () -> Unit,
     getIllustrationUrl: (String) -> String?,
-    onSongClick: (String) -> Unit,
+    onSongClick: (String, Difficulty?) -> Unit,
     tip: String = "",
     modifier: Modifier = Modifier
 ) {
@@ -186,7 +186,7 @@ fun SongsTab(
                 SongItem(
                     song = song,
                     illustrationUrl = getIllustrationUrl(song.id),
-                    onSongClick = onSongClick
+                    onSongClick = { songId -> onSongClick(songId, null) }
                 )
             }
         }
