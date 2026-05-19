@@ -111,6 +111,7 @@ fun MainScreen(
     onLogout: () -> Unit,
     onNavigateToB30Image: (b30: List<org.kasumi321.ushio.phitracker.domain.model.BestRecord>, displayRks: Float, nickname: String) -> Unit,
     onNavigateToSongDetail: (String) -> Unit,
+    onNavigateToSongDetailWithDifficulty: (String, org.kasumi321.ushio.phitracker.domain.model.Difficulty?) -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
@@ -269,9 +270,14 @@ fun MainScreen(
                 apiRankByUser = state.apiRankByUser,
                 apiRankByPosition = state.apiRankByPosition,
                 apiRksRankResult = state.apiRksRankResult,
+                suggestItems = state.suggestItems,
                 onFetchRankByUser = { viewModel.fetchApiRankByUser() },
                 onFetchRankByPosition = { viewModel.fetchApiRankByPosition(it) },
                 onFetchRksRank = { viewModel.fetchApiRksRankForValue(it) },
+                onSuggestionClick = { songId, difficulty ->
+                    onNavigateToSongDetailWithDifficulty(songId, difficulty)
+                },
+                getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )

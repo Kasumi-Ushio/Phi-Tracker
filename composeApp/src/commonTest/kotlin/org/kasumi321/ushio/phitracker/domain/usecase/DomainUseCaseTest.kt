@@ -173,6 +173,7 @@ class DomainUseCaseTest {
             createBestRecord("best.0", Difficulty.IN, 15f, 100f, 15f),
             createBestRecord("best.1", Difficulty.HD, 14f, 99.5f, 14f)
         )
+        // Need 20 B30 records minimum for beta5 threshold (index 19)
         repeat(18) { i ->
             b30.add(createBestRecord("pad-$i", Difficulty.IN, 10f, 92f, 12f))
         }
@@ -199,6 +200,60 @@ class DomainUseCaseTest {
         assertEquals(2, results.size)
         assertEquals(true, results.first { it.songId == "song.0" }.isFullCombo)
         assertEquals(false, results.first { it.songId == "song.1" }.isFullCombo)
+    }
+
+    @Test
+    fun suggestBeta5ThresholdBehavior() {
+        val useCase = GetSuggestUseCase()
+        val diffs = mapOf("candidate" to mapOf(Difficulty.IN to 10f))
+        val names = mapOf("candidate" to "Candidate")
+
+        // 1. Less than 20 B30 records → empty
+        val tiny = (0 until 19).map { i ->
+            BestRecord("t-$i", "", Difficulty.IN, 0, 0f, false, 0f, 0f)
+        }
+        assertTrue(useCase(tiny, emptyMap(), diffs, names).isEmpty(),
+            "<20 B30 records must return empty")
+
+        // 2. Exactly 20 records: threshold = currentB30[19].rks
+        val nonPhi = (0 until 20).map { i ->
+            BestRecord("np-$i", "NP $i", Difficulty.IN, 1_000_000, 100f, false, 10f, 10f - i * 0.2f, isPhi = false)
+        }
+        val expectedThreshold = nonPhi[19].rks  // 10.0 - 19*0.2 = 6.2
+
+        // Candidate below threshold (acc 80, cc 10: rks = ((80-55)/45)^2 * 10 = 3.09 < 6.2) → suggested
+        val belowRecords = mapOf(
+            "candidate" to SongRecord(
+                "candidate", levels = mapOf(Difficulty.IN to LevelRecord(800_000, 80f, false))
+            )
+        )
+        val below = useCase(nonPhi, belowRecords, diffs, names)
+        assertTrue(below.isNotEmpty(), "Candidate below threshold should be suggested")
+
+        // Candidate above threshold (acc 100, cc 10: rks = 10.0 >= 6.2) → NOT suggested
+        val aboveRecords = mapOf(
+            "candidate" to SongRecord(
+                "candidate", levels = mapOf(Difficulty.IN to LevelRecord(1_000_000, 100f, false))
+            )
+        )
+        val above = useCase(nonPhi, aboveRecords, diffs, names)
+        assertTrue(above.isEmpty(), "Candidate above or at threshold should NOT be suggested")
+
+        // 3. Phi record at index 19 sets the threshold (phi NOT filtered before threshold selection)
+        val phiAt19 = nonPhi.toMutableList()
+        phiAt19[19] = BestRecord("phi-19", "Phi 19", Difficulty.IN, 1_000_000, 100f, true, 10f, 8f, isPhi = true)
+        // Now threshold = 8f. Candidate acc 94, cc 10: rks = ((94-55)/45)^2 * 10 = 7.51 < 8 → suggested
+        val mediumRecords = mapOf(
+            "candidate" to SongRecord(
+                "candidate", levels = mapOf(Difficulty.IN to LevelRecord(940_000, 94f, false))
+            )
+        )
+        // With original threshold 6.2: acc 94 rks=7.51 >= 6.2 → NOT suggested → empty
+        assertTrue(useCase(nonPhi, mediumRecords, diffs, names).isEmpty(),
+            "Without phi, threshold 6.2 excludes acc 94 candidate")
+        // With phi-raised threshold 8f: acc 94 rks=7.51 < 8 → suggested
+        assertTrue(useCase(phiAt19, mediumRecords, diffs, names).isNotEmpty(),
+            "Phi at index 19 raises threshold to 8f, making acc 94 candidate suggestable")
     }
 
     @Test

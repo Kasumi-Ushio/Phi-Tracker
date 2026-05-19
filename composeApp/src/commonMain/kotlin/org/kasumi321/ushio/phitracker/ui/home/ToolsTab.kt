@@ -3,6 +3,7 @@ package org.kasumi321.ushio.phitracker.ui.home
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.basicMarquee
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -36,6 +38,8 @@ import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,21 +60,29 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
 import org.kasumi321.ushio.phitracker.data.platform.copyToClipboard
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
+import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
+import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
+import kotlin.math.ceil
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -83,9 +95,12 @@ fun ToolsTab(
     apiRankByUser: ApiToolResult,
     apiRankByPosition: ApiToolResult,
     apiRksRankResult: ApiToolResult,
+    suggestItems: List<SuggestItem>,
     onFetchRankByUser: () -> Unit,
     onFetchRankByPosition: (Int) -> Unit,
     onFetchRksRank: (Float) -> Unit,
+    onSuggestionClick: (String, Difficulty?) -> Unit,
+    getIllustrationUrl: (String) -> String?,
     tip: String,
     modifier: Modifier = Modifier
 ) {
@@ -126,6 +141,18 @@ fun ToolsTab(
                 subtitle = "根据定数和准确率计算等效 RKS",
                 icon = Icons.Default.Calculate
             ) { RksCalculatorContent() }
+
+            CollapsibleToolCard(
+                title = "推分建议",
+                subtitle = "根据当前 B30 和存档数据推荐可推分曲目",
+                icon = Icons.Default.ShowChart
+            ) {
+                SuggestionContent(
+                    suggestItems = suggestItems,
+                    onSuggestionClick = onSuggestionClick,
+                    getIllustrationUrl = getIllustrationUrl
+                )
+            }
 
             CollapsibleToolCard(
                 title = "RKS 历史变化",
@@ -485,11 +512,7 @@ private fun ApiRankByUserContent(state: ApiToolResult, onFetch: () -> Unit) {
         }
         Text("查询当前用户排名")
     }
-    Text(
-        text = state.message ?: "尚未查询",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    ApiToolResultPanel(state = state)
 }
 
 @Composable
@@ -516,11 +539,7 @@ private fun ApiRankByPositionContent(state: ApiToolResult, onFetch: (Int) -> Uni
             }
         }
     }
-    Text(
-        text = state.message ?: "尚未查询",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    ApiToolResultPanel(state = state)
 }
 
 @Composable
@@ -549,11 +568,54 @@ private fun ApiRksRankContent(state: ApiToolResult, defaultRks: Float, onFetch: 
             }
         }
     }
+    ApiToolResultPanel(state = state)
+}
+
+@Composable
+private fun ApiToolResultPanel(state: ApiToolResult) {
+    if (state.rows.isNotEmpty()) {
+        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                state.rows.forEach { row ->
+                    RankInfoRow(label = row.label, value = row.value)
+                }
+            }
+        }
+        return
+    }
+
     Text(
         text = state.message ?: "尚未查询",
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
+}
+
+@Composable
+private fun RankInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(0.38f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.62f)
+        )
+    }
 }
 
 @Composable
@@ -622,5 +684,205 @@ private fun SessionTokenContent(sessionToken: String?) {
             },
             dismissButton = { TextButton(onClick = { showTokenDialog = false }) { Text("关闭") } }
         )
+    }
+}
+
+// ══════════════════════════════════════════════════════════════
+// 推分建议
+// ══════════════════════════════════════════════════════════════
+
+@Composable
+private fun SuggestionContent(
+    suggestItems: List<SuggestItem>,
+    onSuggestionClick: (String, Difficulty?) -> Unit,
+    getIllustrationUrl: (String) -> String?
+) {
+    if (suggestItems.isEmpty()) {
+        Text(
+            text = "暂无推分建议（请先同步存档）",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        return
+    }
+
+    val pageSize = 5
+    val cappedItems = remember(suggestItems) { suggestItems.take(30) }
+    val totalPages = remember(cappedItems) { ceil(cappedItems.size / pageSize.toFloat()).toInt().coerceAtLeast(1) }
+    var currentPage by rememberSaveable(cappedItems.size) { mutableStateOf(0) }
+    currentPage = currentPage.coerceIn(0, totalPages - 1)
+
+    val start = currentPage * pageSize
+    val end = (start + pageSize).coerceAtMost(cappedItems.size)
+    val pageItems = cappedItems.subList(start, end)
+
+    pageItems.forEach { item ->
+        SuggestScoreCard(
+            item = item,
+            illustrationUrl = getIllustrationUrl(item.songId),
+            onSuggestionClick = onSuggestionClick
+        )
+    }
+
+    if (totalPages > 1) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedButton(
+                onClick = { currentPage = (currentPage - 1).coerceAtLeast(0) },
+                enabled = currentPage > 0
+            ) {
+                Text("上一页")
+            }
+            Text(
+                text = "第 ${currentPage + 1} / $totalPages 页",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedButton(
+                onClick = { currentPage = (currentPage + 1).coerceAtMost(totalPages - 1) },
+                enabled = currentPage < totalPages - 1
+            ) {
+                Text("下一页")
+            }
+        }
+    }
+}
+
+private val FcColor = Color(0xFF4FC3F7)
+private val ApColor = Color(0xFFFFD54F)
+private val ApTextColor = Color(0xFF5D4037)
+
+@Composable
+private fun SuggestScoreCard(
+    item: SuggestItem,
+    illustrationUrl: String?,
+    onSuggestionClick: (String, Difficulty?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val diffColor = DifficultyColors.forDifficulty(item.difficulty)
+    val isAp = (item.currentAcc ?: 0f) >= 100f
+
+    val ccText = remember(item.chartConstant, item.difficulty) {
+        "${DifficultyColors.labelFor(item.difficulty)} ${item.chartConstant.formatOne()}"
+    }
+    val currentAccText = remember(item.currentAcc) { item.currentAcc?.let { "${it.formatTwo()}%" } ?: "暂无" }
+    val targetAccText = remember(item.targetAcc) { "${item.targetAcc.formatTwo()}%" }
+    val currentRksText = remember(item.currentRks) { item.currentRks.formatFour() }
+    val potentialRksText = remember(item.potentialRks) { item.potentialRks.formatFour() }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onSuggestionClick(item.songId, item.difficulty) },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (!illustrationUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = illustrationUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.songName,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(diffColor)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = ccText,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.surface,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 10.sp
+                        )
+                    }
+
+                    when {
+                        isAp -> {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(ApColor)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "φ",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = ApTextColor,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                        item.isFullCombo -> {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(FcColor)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "FC",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "$currentAccText → $targetAccText",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End
+                )
+                Text(
+                    text = "$currentRksText → $potentialRksText",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.End
+                )
+            }
+        }
     }
 }

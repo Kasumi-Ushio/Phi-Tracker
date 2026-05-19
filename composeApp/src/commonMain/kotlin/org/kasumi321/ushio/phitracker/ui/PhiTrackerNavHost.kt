@@ -163,6 +163,9 @@ fun PhiTrackerNavHost() {
                 onNavigateToSongDetail = { songId ->
                     navController.navigate(SongDetailRoute(songId = songId))
                 },
+                onNavigateToSongDetailWithDifficulty = { songId, difficulty ->
+                    navController.navigate(SongDetailRoute(songId = songId, difficulty = difficulty))
+                },
                 onNavigateToAbout = {
                     navController.navigate(Screen.About.route)
                 },
@@ -278,7 +281,9 @@ fun PhiTrackerNavHost() {
             val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
             val homeViewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
             val state by homeViewModel.uiState.collectAsState()
-            val songId = backStackEntry.toRoute<SongDetailRoute>().songId
+            val route = backStackEntry.toRoute<SongDetailRoute>()
+            val songId = route.songId
+            val difficulty = route.difficulty
             val songInfo = state.allSongs.find { it.id == songId }
             if (songInfo != null) {
                 val records = state.allRecords.filter { it.songId == songId }
@@ -293,6 +298,7 @@ fun PhiTrackerNavHost() {
                     onLoadSongApiDetail = { diff -> homeViewModel.loadSongApiDetail(songId, diff) },
                     getLowIllustrationUrl = { homeViewModel.getLowIllustrationUrl(it) },
                     getStandardIllustrationUrl = { homeViewModel.getStandardIllustrationUrl(it) },
+                    initialDifficulty = difficulty,
                     onBack = { navController.popBackStack() }
                 )
             } else {

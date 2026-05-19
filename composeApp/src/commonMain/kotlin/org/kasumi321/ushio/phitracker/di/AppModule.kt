@@ -32,6 +32,7 @@ val appModule = module {
         HomeViewModel(
             repository = get(),
             getB30UseCase = get(),
+            getSuggestUseCase = get(),
             syncSaveUseCase = get(),
             searchSongUseCase = get(),
             songDataProvider = get(),

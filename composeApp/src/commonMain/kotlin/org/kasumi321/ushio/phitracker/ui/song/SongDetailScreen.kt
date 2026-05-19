@@ -101,13 +101,14 @@ fun SongDetailScreen(
     onLoadSongApiDetail: (Difficulty) -> Unit = {},
     getLowIllustrationUrl: (String) -> String?,
     getStandardIllustrationUrl: (String) -> String?,
+    initialDifficulty: Difficulty? = null,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val availableDifficulties = Difficulty.entries.filter { songInfo.difficulties.containsKey(it) }
-    var selectedTabIndex by remember {
-        mutableIntStateOf(availableDifficulties.indexOfFirst { it == Difficulty.IN }.takeIf { it >= 0 } ?: 0)
-    }
+    val defaultTabIndex = availableDifficulties.indexOfFirst { it == Difficulty.IN }.takeIf { it >= 0 } ?: 0
+    val initialTabIndex = initialDifficulty?.let { availableDifficulties.indexOf(it) }?.takeIf { it >= 0 }
+    var selectedTabIndex by remember { mutableIntStateOf(initialTabIndex ?: defaultTabIndex) }
     val selectedDifficulty = availableDifficulties.getOrNull(selectedTabIndex) ?: Difficulty.IN
     val songApiDetail = getSongApiDetail(selectedDifficulty)
     var showImagePreview by remember { mutableStateOf(false) }

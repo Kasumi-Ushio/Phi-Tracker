@@ -22,6 +22,14 @@ fun Float.formatTwo(): String {
     return "$sign$whole.$fraction"
 }
 
+fun Float.formatOne(): String {
+    val scaled = (this * 10f).roundToLong()
+    val whole = abs(scaled) / 10L
+    val fraction = (abs(scaled) % 10L).toString()
+    val sign = if (scaled < 0) "-" else ""
+    return "$sign$whole.$fraction"
+}
+
 fun epochMillisToDateTimeString(epochMillis: Long): String {
     val instant = Instant.fromEpochMilliseconds(epochMillis)
     val dt = instant.toLocalDateTime(TimeZone.currentSystemDefault())

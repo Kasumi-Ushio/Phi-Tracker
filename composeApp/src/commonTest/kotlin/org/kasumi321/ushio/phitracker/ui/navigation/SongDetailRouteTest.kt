@@ -1,8 +1,10 @@
 package org.kasumi321.ushio.phitracker.ui.navigation
 
 import kotlinx.serialization.json.Json
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class SongDetailRouteTest {
 
@@ -102,5 +104,33 @@ class SongDetailRouteTest {
         val encoded = json.encodeToString(route)
         val decoded = json.decodeFromString<SongDetailRoute>(encoded)
         assertEquals(route, decoded)
+    }
+
+    // ---- Phase C: difficulty parameter ----
+
+    @Test
+    fun routeWithNullDifficultySerializes() {
+        val route = SongDetailRoute("song-a", difficulty = null)
+        val encoded = json.encodeToString(route)
+        val decoded = json.decodeFromString<SongDetailRoute>(encoded)
+        assertEquals(route, decoded)
+        assertNull(decoded.difficulty)
+    }
+
+    @Test
+    fun routeWithDifficultySerializes() {
+        for (diff in Difficulty.values()) {
+            val route = SongDetailRoute("song-a", difficulty = diff)
+            val encoded = json.encodeToString(route)
+            val decoded = json.decodeFromString<SongDetailRoute>(encoded)
+            assertEquals(route, decoded, "Failed for difficulty $diff")
+            assertEquals(diff, decoded.difficulty)
+        }
+    }
+
+    @Test
+    fun defaultDifficultyIsNull() {
+        val route = SongDetailRoute("song-a")
+        assertNull(route.difficulty)
     }
 }

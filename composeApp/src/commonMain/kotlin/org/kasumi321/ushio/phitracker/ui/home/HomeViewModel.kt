@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -50,8 +51,10 @@ import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 
 sealed class UpdateCheckState {
@@ -154,6 +157,7 @@ data class HomeUiState(
     val apiRankByUser: ApiToolResult = ApiToolResult(),
     val apiRankByPosition: ApiToolResult = ApiToolResult(),
     val apiRksRankResult: ApiToolResult = ApiToolResult(),
+    val suggestItems: List<SuggestItem> = emptyList(),
     val songApiDetailMap: Map<String, SongApiDetailState> = emptyMap(),
 
     val crashNotificationGuideShown: Boolean = false
@@ -162,6 +166,7 @@ data class HomeUiState(
 class HomeViewModel(
     private val repository: PhigrosRepository,
     private val getB30UseCase: GetB30UseCase,
+    private val getSuggestUseCase: GetSuggestUseCase,
     private val syncSaveUseCase: SyncSaveUseCase,
     private val searchSongUseCase: SearchSongUseCase,
     private val songDataProvider: SongDataProvider,
@@ -313,11 +318,22 @@ class HomeViewModel(
                 .stateIn(viewModelScope, SharingStarted.Eagerly, Pair(emptyList(), emptyList()))
                 .collect { (b30, allRecords) ->
                     val computedRks = RksCalculator.calculateDisplayRks(b30)
+                    val cachedSave = repository.getCachedSave().first()
+                    val suggestItems = cachedSave?.let {
+                        getSuggestUseCase(
+                            currentB30 = b30,
+                            records = it.gameRecord,
+                            difficulties = diffMap,
+                            songNames = nameMap,
+                            limit = 30
+                        )
+                    }.orEmpty()
                     _uiState.update {
                         it.copy(
                             b30 = b30,
                             allRecords = allRecords,
                             displayRks = if (it.displayRks == 0f) computedRks else it.displayRks,
+                            suggestItems = suggestItems,
                             isLoading = false
                         )
                     }

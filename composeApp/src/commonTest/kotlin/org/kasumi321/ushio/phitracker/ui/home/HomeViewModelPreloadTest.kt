@@ -43,7 +43,10 @@ import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 import okio.FileSystem
 import okio.Path.Companion.toPath
@@ -260,6 +263,7 @@ class HomeViewModelPreloadTest {
         val viewModel = HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
+            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = testSongDataProvider,
@@ -320,6 +324,7 @@ class HomeViewModelPreloadTest {
         val viewModel = HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
+            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = testSongDataProvider,
@@ -379,6 +384,7 @@ class HomeViewModelPreloadTest {
         return HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
+            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = testSongDataProvider,
@@ -618,7 +624,7 @@ class HomeViewModelPreloadTest {
     private class FakePhigrosRepositoryForSync(
         private val syncResult: Result<Save>,
         private val recordDao: StatefulRecordDao,
-        private val cachedSave: Save = emptySave()
+        private val cachedSave: Save? = emptySave()
     ) : FakePhigrosRepository() {
         override fun getCachedSave(): Flow<Save?> = flowOf(cachedSave)
 
@@ -789,6 +795,175 @@ class HomeViewModelPreloadTest {
         assertEquals("ok", result.message)
     }
 
+    // ---- Phase C: suggestion tests ----
+
+    @Test
+    fun emptyB30YieldsEmptySuggestions(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        val viewModel = createViewModel(settings, preloader)
+        advanceUntilIdle()
+
+        // No B30 records → empty suggestions
+        assertTrue(viewModel.uiState.value.suggestItems.isEmpty(),
+            "Empty B30 should yield empty suggestions")
+    }
+
+    @Test
+    fun noCachedSaveYieldsEmptySuggestions(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        val snapshotDao = TrackingSyncSnapshotDao()
+        val historyDao = TrackingSongSyncHistoryDao()
+        val existingRecords = listOf(
+            RecordEntity(songId = "song-a", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, updatedAt = 1_000L)
+        )
+        val recordDao = StatefulRecordDao(initialRecords = existingRecords, postSyncRecords = existingRecords)
+        // No cached save
+        val repository = FakePhigrosRepositoryForSync(
+            syncResult = Result.success(saveWithRks(15.5f)),
+            recordDao = recordDao,
+            cachedSave = null
+        )
+        val logFileStore = createTestLogFileStore()
+
+        val viewModel = HomeViewModel(
+            repository = repository,
+            getB30UseCase = GetB30UseCase(repository),
+            getSuggestUseCase = GetSuggestUseCase(),
+            syncSaveUseCase = SyncSaveUseCase(repository),
+            searchSongUseCase = SearchSongUseCase(),
+            songDataProvider = testSongDataProvider,
+            illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
+            tipsProvider = TipsProvider(FakeTextAssetReader),
+            settingsRepository = settings,
+            thumbnailPreloader = preloader,
+            clearCacheUrlsFn = {},
+            syncSnapshotDao = snapshotDao,
+            recordDao = recordDao,
+            songSyncHistoryDao = historyDao,
+            songDataUpdater = FakeSongDataUpdater(),
+            runtimeLogExporter = RuntimeLogExporter(logFileStore),
+            crashReportExporter = CrashReportExporter(logFileStore)
+        )
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.suggestItems.isEmpty(),
+            "No cached save should yield empty suggestions")
+    }
+
+    @Test
+    fun insufficientB30YieldsEmptySuggestions(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        // Only 1 record — below the 20 minimum
+        val existingRecords = listOf(
+            RecordEntity(songId = "song-a", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, updatedAt = 1_000L)
+        )
+        val recordDao = StatefulRecordDao(initialRecords = existingRecords, postSyncRecords = existingRecords)
+        val cachedSave = saveWithRecord(
+            songId = "song-a.0",
+            difficulty = Difficulty.IN,
+            score = 990_000,
+            accuracy = 99f,
+            isFullCombo = false
+        )
+        val repository = FakePhigrosRepositoryForSync(
+            syncResult = Result.success(saveWithRks(15.5f)),
+            recordDao = recordDao,
+            cachedSave = cachedSave
+        )
+        val logFileStore = createTestLogFileStore()
+
+        val viewModel = HomeViewModel(
+            repository = repository,
+            getB30UseCase = GetB30UseCase(repository),
+            getSuggestUseCase = GetSuggestUseCase(),
+            syncSaveUseCase = SyncSaveUseCase(repository),
+            searchSongUseCase = SearchSongUseCase(),
+            songDataProvider = testSongDataProvider,
+            illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
+            tipsProvider = TipsProvider(FakeTextAssetReader),
+            settingsRepository = settings,
+            thumbnailPreloader = preloader,
+            clearCacheUrlsFn = {},
+            syncSnapshotDao = FakeSyncSnapshotDao(),
+            recordDao = recordDao,
+            songSyncHistoryDao = FakeSongSyncHistoryDao(),
+            songDataUpdater = FakeSongDataUpdater(),
+            runtimeLogExporter = RuntimeLogExporter(logFileStore),
+            crashReportExporter = CrashReportExporter(logFileStore)
+        )
+        advanceUntilIdle()
+
+        // B30 has only 1 record (< 20 minimum) → empty suggestions
+        assertTrue(viewModel.uiState.value.suggestItems.isEmpty(),
+            "B30 with < 20 records should yield empty suggestions")
+    }
+
+    @Test
+    fun getSuggestUseCaseProducesCorrectItems(): Unit = runTest(dispatcher) {
+        val useCase = GetSuggestUseCase()
+        val diffMap = mapOf(
+            "song-a" to mapOf(
+                Difficulty.EZ to 1.0f,
+                Difficulty.HD to 5.0f,
+                Difficulty.IN to 10.0f,
+                Difficulty.AT to 14.0f
+            ),
+            "song-b" to mapOf(
+                Difficulty.EZ to 2.0f,
+                Difficulty.HD to 6.0f,
+                Difficulty.IN to 11.0f,
+                Difficulty.AT to 15.0f
+            )
+        )
+        val nameMap = mapOf("song-a" to "Song A", "song-b" to "Song B")
+
+        // Build 20 B30 records — minimum for beta5 threshold (index 19)
+        val b30 = (1..20).map { i ->
+            org.kasumi321.ushio.phitracker.domain.model.BestRecord(
+                songId = "song-$i",
+                songName = "Song $i",
+                difficulty = Difficulty.IN,
+                score = 900_000 + i * 1000,
+                accuracy = 90f + i * 0.3f,
+                isFullCombo = false,
+                chartConstant = 10.0f,
+                rks = 6.0f + i * 0.1f,
+                isPhi = false
+            )
+        }
+        // threshold = b30[19].rks = 6.0 + 20*0.1 = 8.0
+
+        // Records: song-a IN has acc 85 (below threshold), song-b IN has acc 95 (above)
+        val records = mapOf(
+            "song-a" to SongRecord(
+                songId = "song-a",
+                levels = mapOf(Difficulty.IN to LevelRecord(850_000, 85f, false))
+            ),
+            "song-b" to SongRecord(
+                songId = "song-b",
+                levels = mapOf(Difficulty.IN to LevelRecord(950_000, 95f, true))
+            )
+        )
+
+        val suggestions = useCase(b30, records, diffMap, nameMap, limit = 30)
+
+        // song-a IN should be suggested (acc 85, cc 10: rks = 4.44 < 8.0 threshold)
+        val songaSuggest = suggestions.find { it.songId == "song-a" && it.difficulty == Difficulty.IN }
+        assertNotNull(songaSuggest, "song-a IN should be suggested")
+        assertEquals("Song A", songaSuggest.songName)
+        assertEquals(85f, songaSuggest.currentAcc)
+        assertTrue(songaSuggest.targetAcc > 85f)
+        assertEquals(10.0f, songaSuggest.chartConstant)
+        assertFalse(songaSuggest.isFullCombo)
+
+        // song-b IN has currentRks = ((95-55)/45)^2 * 11 = 8.69 >= threshold 8.0 → NOT suggested
+        assertNull(suggestions.find { it.songId == "song-b" && it.difficulty == Difficulty.IN },
+            "song-b IN should NOT be suggested (currentRks >= threshold)")
+    }
+
     private fun createChapterFilterViewModel(
         settingsRepository: FakeSettingsRepository
     ): HomeViewModel {
@@ -799,6 +974,7 @@ class HomeViewModelPreloadTest {
         return HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
+            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = songDataProvider,
