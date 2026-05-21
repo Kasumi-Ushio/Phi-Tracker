@@ -1,6 +1,5 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,6 +53,15 @@ fun B30ImageScreen(
     b30: List<BestRecord>,
     displayRks: Float,
     nickname: String,
+    challengeModeRank: Int = 0,
+    moneyString: String = "",
+    clearCounts: Map<String, Int> = emptyMap(),
+    fcCount: Int = 0,
+    phiCount: Int = 0,
+    avatarUri: String? = null,
+    showB30Overflow: Boolean = false,
+    overflowCount: Int = 9,
+    getIllustrationUrl: (String) -> String? = { null },
     onBack: () -> Unit
 ) {
     var export by remember { mutableStateOf<B30ImageExport?>(null) }
@@ -62,7 +70,34 @@ fun B30ImageScreen(
     var scale by remember { mutableFloatStateOf(0.3f) }
     val coroutineScope = rememberCoroutineScope()
 
-    // 异步生成图片
+    val exportData = remember(
+        b30, displayRks, nickname, challengeModeRank, moneyString,
+        clearCounts, fcCount, phiCount, avatarUri,
+        showB30Overflow, overflowCount, getIllustrationUrl
+    ) {
+        val dateText = runCatching {
+            val now = Clock.System.now()
+            now.toString().take(19).replace('T', ' ')
+        }.getOrDefault("")
+
+        B30ExportDataBuilder.build(
+            b30 = b30,
+            displayRks = displayRks,
+            nickname = nickname,
+            challengeModeRank = challengeModeRank,
+            moneyString = moneyString,
+            showB30Overflow = showB30Overflow,
+            overflowCount = overflowCount,
+            illustrationProvider = getIllustrationUrl,
+            clearCounts = clearCounts,
+            fcCount = fcCount,
+            phiCount = phiCount,
+            avatarUri = avatarUri,
+            backgroundUri = null,
+            dateText = dateText
+        )
+    }
+
     LaunchedEffect(b30, displayRks, nickname) {
         isGenerating = true
         generationFailed = false
@@ -119,7 +154,6 @@ fun B30ImageScreen(
                 }
             } else {
                 export?.let { exp ->
-                    // 可缩放预览
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -131,17 +165,16 @@ fun B30ImageScreen(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Image(
-                            bitmap = exp.preview,
-                            contentDescription = "B30 成绩图",
+                        Box(
                             modifier = Modifier.graphicsLayer(
                                 scaleX = scale,
                                 scaleY = scale
                             )
-                        )
+                        ) {
+                            B30ExportLayout(exportData)
+                        }
                     }
 
-                    // 操作按钮
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

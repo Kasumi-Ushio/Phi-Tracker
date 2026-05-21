@@ -71,7 +71,15 @@ sealed class Screen(val route: String) {
 private data class B30ImageState(
     val b30: List<BestRecord> = emptyList(),
     val displayRks: Float = 0f,
-    val nickname: String = ""
+    val nickname: String = "",
+    val challengeModeRank: Int = 0,
+    val moneyString: String = "",
+    val clearCounts: Map<String, Int> = emptyMap(),
+    val fcCount: Int = 0,
+    val phiCount: Int = 0,
+    val avatarUri: String? = null,
+    val showB30Overflow: Boolean = false,
+    val overflowCount: Int = 9
 )
 
 private const val NavTransitionDurationMillis = 250
@@ -162,8 +170,20 @@ fun PhiTrackerNavHost() {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 },
-                onNavigateToB30Image = { b30, displayRks, nickname ->
-                    b30ImageState = B30ImageState(b30, displayRks, nickname)
+                onNavigateToB30Image = { b30, displayRks, nickname, challengeModeRank, moneyString, clearCounts, fcCount, phiCount, avatarUri, showB30Overflow, overflowCount ->
+                    b30ImageState = B30ImageState(
+                        b30 = b30,
+                        displayRks = displayRks,
+                        nickname = nickname,
+                        challengeModeRank = challengeModeRank,
+                        moneyString = moneyString,
+                        clearCounts = clearCounts,
+                        fcCount = fcCount,
+                        phiCount = phiCount,
+                        avatarUri = avatarUri,
+                        showB30Overflow = showB30Overflow,
+                        overflowCount = overflowCount
+                    )
                     navController.navigate(Screen.B30Image.route)
                 },
                 onNavigateToSongDetail = { songId ->
@@ -189,10 +209,21 @@ fun PhiTrackerNavHost() {
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
             LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_b30image") }
+            val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
+            val homeViewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
             B30ImageScreen(
                 b30 = b30ImageState.b30,
                 displayRks = b30ImageState.displayRks,
                 nickname = b30ImageState.nickname,
+                challengeModeRank = b30ImageState.challengeModeRank,
+                moneyString = b30ImageState.moneyString,
+                clearCounts = b30ImageState.clearCounts,
+                fcCount = b30ImageState.fcCount,
+                phiCount = b30ImageState.phiCount,
+                avatarUri = b30ImageState.avatarUri,
+                showB30Overflow = b30ImageState.showB30Overflow,
+                overflowCount = b30ImageState.overflowCount,
+                getIllustrationUrl = { homeViewModel.getLowIllustrationUrl(it) },
                 onBack = { navController.popBackStack() }
             )
         }

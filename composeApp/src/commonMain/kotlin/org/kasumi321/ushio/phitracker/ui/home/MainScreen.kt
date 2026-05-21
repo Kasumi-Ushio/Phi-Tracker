@@ -110,7 +110,19 @@ private fun MainBottomBar(
 @Composable
 fun MainScreen(
     onLogout: () -> Unit,
-    onNavigateToB30Image: (b30: List<org.kasumi321.ushio.phitracker.domain.model.BestRecord>, displayRks: Float, nickname: String) -> Unit,
+    onNavigateToB30Image: (
+        b30: List<org.kasumi321.ushio.phitracker.domain.model.BestRecord>,
+        displayRks: Float,
+        nickname: String,
+        challengeModeRank: Int,
+        moneyString: String,
+        clearCounts: Map<String, Int>,
+        fcCount: Int,
+        phiCount: Int,
+        avatarUri: String?,
+        showB30Overflow: Boolean,
+        overflowCount: Int
+    ) -> Unit,
     onNavigateToSongDetail: (String) -> Unit,
     onNavigateToSongDetailWithDifficulty: (String, org.kasumi321.ushio.phitracker.domain.model.Difficulty?) -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -239,7 +251,14 @@ fun MainScreen(
                 challengeModeRank = state.challengeModeRank,
                 isSyncing = state.isSyncing,
                 onRefresh = { viewModel.refresh() },
-                onGenerateImage = { onNavigateToB30Image(state.b30, state.displayRks, state.nickname) },
+                onGenerateImage = {
+                    onNavigateToB30Image(
+                        state.b30, state.displayRks, state.nickname,
+                        state.challengeModeRank, state.moneyString,
+                        state.clearCounts, state.fcCount, state.phiCount,
+                        state.avatarUri, state.showB30Overflow, state.overflowCount
+                    )
+                },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
                 onSongClick = { songId, difficulty ->
                     if (difficulty != null) {

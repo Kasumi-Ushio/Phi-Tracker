@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -100,7 +101,6 @@ fun ProfileTab(
     tip: String = "",
     modifier: Modifier = Modifier
 ) {
-    val platformContext = LocalPlatformContext.current
     val launchPicker = rememberAvatarPicker { uri ->
         uri?.let { onAvatarSelected(it) }
     }
@@ -146,120 +146,24 @@ fun ProfileTab(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
         ) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { launchPicker() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (avatarUri != null) {
-                            val imageRequest = remember(platformContext, avatarUri) {
-                                ImageRequest.Builder(platformContext)
-                                    .data(avatarUri)
-                                    .crossfade(true)
-                                    .build()
-                            }
-                            AsyncImage(
-                                model = imageRequest,
-                                contentDescription = "头像",
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "设置头像",
-                                modifier = Modifier.size(28.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.width(16.dp))
-
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(
-                            text = nickname.ifBlank { "未登录" },
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        if (moneyString.isNotBlank()) {
-                            Text(
-                                text = "Data: $moneyString",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = displayRks.formatFour(),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            if (challengeModeRank > 0) {
-                                ChallengeBadge(challengeModeRank)
-                            }
-                        }
-                    }
-                }
-            }
+            ProfileHeaderCard(
+                nickname = nickname,
+                displayRks = displayRks,
+                challengeModeRank = challengeModeRank,
+                moneyString = moneyString,
+                avatarUri = avatarUri,
+                onAvatarClick = { launchPicker() },
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        DifficultyStatItem("EZ", clearCounts["EZ"] ?: 0, DifficultyColors.EZ)
-                        DifficultyStatItem("HD", clearCounts["HD"] ?: 0, DifficultyColors.HD)
-                        DifficultyStatItem("IN", clearCounts["IN"] ?: 0, DifficultyColors.IN)
-                        DifficultyStatItem("AT", clearCounts["AT"] ?: 0, DifficultyColors.AT)
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        BadgeStatItem("FC", fcCount, FcColor, Color.White)
-                        BadgeStatItem("\u03C6", phiCount, PhiColor, PhiTextColor)
-                    }
-                }
-            }
+            StatsTableCard(
+                clearCounts = clearCounts,
+                fcCount = fcCount,
+                phiCount = phiCount,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -317,6 +221,158 @@ fun ProfileTab(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+fun ProfileHeaderCard(
+    nickname: String,
+    displayRks: Float,
+    challengeModeRank: Int,
+    moneyString: String,
+    avatarUri: String?,
+    onAvatarClick: (() -> Unit)? = null,
+    contentHorizontalPadding: Dp = 20.dp,
+    contentVerticalPadding: Dp = 20.dp,
+    textVerticalSpacing: Dp = 3.dp,
+    avatarSize: Dp = 72.dp,
+    avatarTextSpacing: Dp = 16.dp,
+    centerContent: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    val platformContext = LocalPlatformContext.current
+
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = if (centerContent) Arrangement.spacedBy(avatarTextSpacing) else Arrangement.Start
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(avatarSize)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .then(
+                        if (onAvatarClick != null) Modifier.clickable { onAvatarClick() }
+                        else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (avatarUri != null) {
+                    val imageRequest = remember(platformContext, avatarUri) {
+                        ImageRequest.Builder(platformContext)
+                            .data(avatarUri)
+                            .crossfade(true)
+                            .build()
+                    }
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = "头像",
+                        modifier = Modifier
+                            .size(avatarSize)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "设置头像",
+                        modifier = Modifier.size(avatarSize * 0.4f),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(avatarTextSpacing))
+
+            Column(
+                verticalArrangement = Arrangement.spacedBy(textVerticalSpacing),
+                horizontalAlignment = if (centerContent) Alignment.CenterHorizontally else Alignment.Start
+            ) {
+                Text(
+                    text = nickname.ifBlank { "未登录" },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = if (centerContent) TextAlign.Center else TextAlign.Start
+                )
+                if (moneyString.isNotBlank()) {
+                    Text(
+                        text = "Data: $moneyString",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = if (centerContent) TextAlign.Center else TextAlign.Start
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = displayRks.formatFour(),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    if (challengeModeRank > 0) {
+                        ChallengeBadge(challengeModeRank)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatsTableCard(
+    clearCounts: Map<String, Int>,
+    fcCount: Int,
+    phiCount: Int,
+    contentHorizontalPadding: Dp = 16.dp,
+    contentVerticalPadding: Dp = 16.dp,
+    rowSpacing: Dp = 12.dp,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
+            verticalArrangement = Arrangement.spacedBy(rowSpacing)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                DifficultyStatItem("EZ", clearCounts["EZ"] ?: 0, DifficultyColors.EZ)
+                DifficultyStatItem("HD", clearCounts["HD"] ?: 0, DifficultyColors.HD)
+                DifficultyStatItem("IN", clearCounts["IN"] ?: 0, DifficultyColors.IN)
+                DifficultyStatItem("AT", clearCounts["AT"] ?: 0, DifficultyColors.AT)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                BadgeStatItem("FC", fcCount, FcColor, Color.White)
+                BadgeStatItem("\u03C6", phiCount, PhiColor, PhiTextColor)
+            }
         }
     }
 }

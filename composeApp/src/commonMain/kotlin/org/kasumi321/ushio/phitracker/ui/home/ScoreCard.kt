@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -64,6 +65,40 @@ fun ScoreCard(
     onSongClick: (String, Difficulty?) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        ScoreCardContent(
+            record = record,
+            rank = rank,
+            rankLabel = "#$rank",
+            illustrationUri = illustrationUrl,
+            contentHorizontalPadding = 12.dp,
+            contentVerticalPadding = 12.dp,
+            compactText = false,
+            thumbnailScale = 1f,
+            onClick = onSongClick,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+fun ScoreCardContent(
+    record: BestRecord,
+    rank: Int,
+    rankLabel: String,
+    illustrationUri: String?,
+    contentHorizontalPadding: Dp,
+    contentVerticalPadding: Dp,
+    compactText: Boolean,
+    thumbnailScale: Float,
+    onClick: ((String, Difficulty?) -> Unit)?,
+    modifier: Modifier = Modifier
+) {
     val diffColor = DifficultyColors.forDifficulty(record.difficulty)
     val isAp = record.accuracy >= 100f
 
@@ -74,160 +109,160 @@ fun ScoreCard(
     val accText = remember(record.accuracy) { "${record.accuracy.formatRks()}%" }
     val rksText = remember(record.rks) { record.rks.formatRks() }
     val platformContext = LocalPlatformContext.current
-    val imageRequest = remember(platformContext, illustrationUrl) {
-        illustrationUrl?.takeIf { it.isNotBlank() }?.let { url ->
+    val thumbnailSize = (56 * thumbnailScale).dp
+    val imageRequest = remember(platformContext, illustrationUri) {
+        illustrationUri?.takeIf { it.isNotBlank() }?.let { url ->
             ImageRequest.Builder(platformContext)
                 .data(url)
-                .size(168)
+                .size((168 * thumbnailScale).toInt())
                 .networkCachePolicy(CachePolicy.READ_ONLY)
                 .crossfade(200)
                 .build()
         }
     }
 
-    Card(
-        modifier = modifier.fillMaxWidth()
-            .clickable { onSongClick(record.songId, record.difficulty) },
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        )
+    val clickModifier = if (onClick != null) {
+        Modifier.clickable { onClick(record.songId, record.difficulty) }
+    } else {
+        Modifier
+    }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(clickModifier)
+            .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier.size(if (compactText) 30.dp else 36.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier.size(36.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "#$rank",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = when (rank) {
-                        1 -> MaterialTheme.colorScheme.primary
-                        in 2..3 -> MaterialTheme.colorScheme.secondary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+            Text(
+                text = rankLabel,
+                style = if (compactText) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = when (rank) {
+                    1 -> MaterialTheme.colorScheme.primary
+                    in 2..3 -> MaterialTheme.colorScheme.secondary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+
+        Spacer(modifier = Modifier.width(if (compactText) 6.dp else 8.dp))
+
+        Box(
+            modifier = Modifier
+                .size(thumbnailSize)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (imageRequest != null) {
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
                 )
             }
+        }
 
-            Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(if (compactText) 8.dp else 10.dp))
 
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = record.songName,
+                style = if (compactText) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(if (compactText) 2.dp else 4.dp))
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (imageRequest != null) {
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(diffColor)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = ccText,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.surface,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = if (compactText) 9.sp else 10.sp
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = record.songName,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(diffColor)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = ccText,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.surface,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 10.sp
-                        )
-                    }
-
-                    when {
-                        isAp -> {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(ApColor)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "\u03C6",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ApTextColor,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 10.sp
-                                )
-                            }
+                when {
+                    isAp -> {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(ApColor)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "\u03C6",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = ApTextColor,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = if (compactText) 9.sp else 10.sp
+                            )
                         }
-                        record.isFullCombo -> {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(FcColor)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "FC",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
-                                )
-                            }
+                    }
+                    record.isFullCombo -> {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(FcColor)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "FC",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = if (compactText) 9.sp else 10.sp
+                            )
                         }
                     }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(if (compactText) 6.dp else 8.dp))
 
-            Column(
-                horizontalAlignment = Alignment.End
-            ) {
-                Text(
-                    text = scoreText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = accText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = rksText,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
+        Column(
+            horizontalAlignment = Alignment.End
+        ) {
+            Text(
+                text = scoreText,
+                style = if (compactText) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = accText,
+                style = if (compactText) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = rksText,
+                style = if (compactText) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
