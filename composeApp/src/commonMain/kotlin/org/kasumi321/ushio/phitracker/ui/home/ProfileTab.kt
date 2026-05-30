@@ -52,6 +52,7 @@ import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.data.platform.rememberAvatarPicker
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.ui.b30.setImageRequestAllowHardware
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 
 private val ChallengeTierColors = listOf(
@@ -239,7 +240,8 @@ fun ProfileHeaderCard(
     avatarSize: Dp = 72.dp,
     avatarTextSpacing: Dp = 16.dp,
     centerContent: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    allowHardwareImages: Boolean = true
 ) {
     val platformContext = LocalPlatformContext.current
 
@@ -252,10 +254,10 @@ fun ProfileHeaderCard(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = if (centerContent) Arrangement.spacedBy(avatarTextSpacing) else Arrangement.Start
+            horizontalArrangement = if (centerContent) Arrangement.Center else Arrangement.Start
         ) {
             Box(
                 modifier = Modifier
@@ -270,10 +272,11 @@ fun ProfileHeaderCard(
             ) {
                 if (avatarUri != null) {
                     val imageRequest = remember(platformContext, avatarUri) {
-                        ImageRequest.Builder(platformContext)
-                            .data(avatarUri)
-                            .crossfade(true)
-                            .build()
+                        ImageRequest.Builder(platformContext).apply {
+                            data(avatarUri)
+                            crossfade(true)
+                            setImageRequestAllowHardware(allowHardwareImages)
+                        }.build()
                     }
                     AsyncImage(
                         model = imageRequest,
@@ -296,22 +299,20 @@ fun ProfileHeaderCard(
             Spacer(modifier = Modifier.width(avatarTextSpacing))
 
             Column(
-                verticalArrangement = Arrangement.spacedBy(textVerticalSpacing),
-                horizontalAlignment = if (centerContent) Alignment.CenterHorizontally else Alignment.Start
+                verticalArrangement = Arrangement.spacedBy(textVerticalSpacing, Alignment.CenterVertically),
+                horizontalAlignment = Alignment.Start
             ) {
                 Text(
                     text = nickname.ifBlank { "未登录" },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = if (centerContent) TextAlign.Center else TextAlign.Start
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 if (moneyString.isNotBlank()) {
                     Text(
                         text = "Data: $moneyString",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = if (centerContent) TextAlign.Center else TextAlign.Start
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Row(
@@ -352,9 +353,9 @@ fun StatsTableCard(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
-            verticalArrangement = Arrangement.spacedBy(rowSpacing)
+            verticalArrangement = Arrangement.spacedBy(rowSpacing, Alignment.CenterVertically)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),

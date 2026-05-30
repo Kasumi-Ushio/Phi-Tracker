@@ -1,7 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
 import androidx.compose.ui.graphics.ImageBitmap
-import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 
 data class B30ImageExport(
@@ -11,19 +10,14 @@ data class B30ImageExport(
     val preview: ImageBitmap
 )
 
+/**
+ * Shared formatting helpers and colour constants for B30 export.
+ *
+ * Layout dimensions are now defined in [B30ExportSpec] (commonMain single source
+ * of truth). The pixel constants previously here (CARD_WIDTH, CARD_HEIGHT, etc.)
+ * were stale and have been removed — they are NOT used by the current export path.
+ */
 object B30ImageSpec {
-    const val CARD_WIDTH = 360
-    const val CARD_HEIGHT = 160
-    const val COLUMNS = 5
-    const val ROWS = 6
-    const val PADDING = 16
-    const val HEADER_HEIGHT = 200
-    const val FOOTER_HEIGHT = 60
-    const val GAP = 12
-
-    const val IMAGE_WIDTH = PADDING * 2 + COLUMNS * CARD_WIDTH + (COLUMNS - 1) * GAP
-    const val IMAGE_HEIGHT = PADDING * 2 + HEADER_HEIGHT + ROWS * CARD_HEIGHT + (ROWS - 1) * GAP + FOOTER_HEIGHT
-
     const val DEFAULT_NICKNAME = "Phigros Player"
 
     const val EZ_COLOR = 0xFF70D866.toInt()
@@ -72,9 +66,5 @@ object B30ImageSpec {
 }
 
 expect object B30ImageGenerator {
-    fun generate(
-        b30: List<BestRecord>,
-        displayRks: Float,
-        nickname: String
-    ): B30ImageExport
+    suspend fun generate(exportData: B30ExportData): B30ImageExport
 }

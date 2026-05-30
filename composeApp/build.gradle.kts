@@ -35,6 +35,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.security.crypto)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.coil3.core)
         }
         androidUnitTest.dependencies {
             implementation("androidx.test:core:1.5.0")

@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
+import androidx.compose.ui.graphics.ImageBitmap
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 
 /** Stats table data for the B30 export header. */
@@ -28,13 +29,7 @@ data class B30ExportData(
     val bestRecords: List<ExportCardData>,
     val overflowRecords: List<ExportCardData>,
     val backgroundUri: String?,
-    val profileCardWidthDp: Float,
-    val profileCardHeightDp: Float,
-    val statsCardWidthDp: Float,
-    val cardWidthDp: Float,
-    val cardHeightDp: Float,
-    val cardHorizontalGapDp: Float,
-    val cardVerticalGapDp: Float
+    val backgroundBitmap: ImageBitmap? = null
 )
 
 /** Pure builder that splits a B30 list into Phi / Best 27 / Overflow sections. */
@@ -98,14 +93,7 @@ object B30ExportDataBuilder {
             phiRecords = phiCards,
             bestRecords = bestCards,
             overflowRecords = overflowCards,
-            backgroundUri = backgroundUri,
-            profileCardWidthDp = 220f,
-            profileCardHeightDp = 90f,
-            statsCardWidthDp = 160f,
-            cardWidthDp = 110f,
-            cardHeightDp = 52f,
-            cardHorizontalGapDp = 6f,
-            cardVerticalGapDp = 6f
+            backgroundUri = backgroundUri
         )
     }
 }

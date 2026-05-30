@@ -5,22 +5,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class B30ImageGeneratorTest {
-    @Test
-    fun beta1ExportDimensionsArePreserved() {
-        assertEquals(360, B30ImageSpec.CARD_WIDTH)
-        assertEquals(160, B30ImageSpec.CARD_HEIGHT)
-        assertEquals(5, B30ImageSpec.COLUMNS)
-        assertEquals(6, B30ImageSpec.ROWS)
-        assertEquals(16, B30ImageSpec.PADDING)
-        assertEquals(200, B30ImageSpec.HEADER_HEIGHT)
-        assertEquals(60, B30ImageSpec.FOOTER_HEIGHT)
-        assertEquals(12, B30ImageSpec.GAP)
-        assertEquals(1880, B30ImageSpec.IMAGE_WIDTH)
-        assertEquals(1312, B30ImageSpec.IMAGE_HEIGHT)
-    }
 
     @Test
-    fun beta1TextFormattingIsPreserved() {
+    fun textFormattingIsPreserved() {
         assertEquals("12.3457", B30ImageSpec.formatRks(12.34567f))
         assertEquals("99.1235%", B30ImageSpec.formatAccuracy(99.12345f))
         assertEquals("15.6", B30ImageSpec.formatChartConstant(15.56f))
@@ -28,7 +15,7 @@ class B30ImageGeneratorTest {
     }
 
     @Test
-    fun beta1DifficultyLabelsAndColorsArePreserved() {
+    fun difficultyLabelsAndColorsArePreserved() {
         assertEquals("EZ", B30ImageSpec.difficultyLabel(Difficulty.EZ))
         assertEquals("HD", B30ImageSpec.difficultyLabel(Difficulty.HD))
         assertEquals("IN", B30ImageSpec.difficultyLabel(Difficulty.IN))
@@ -41,10 +28,9 @@ class B30ImageGeneratorTest {
     }
 
     @Test
-    fun blankNicknameFallsBackToBeta1Default() {
+    fun blankNicknameFallsBackToDefault() {
         assertEquals("Phigros Player", B30ImageSpec.displayNickname(""))
         assertEquals("Phigros Player", B30ImageSpec.displayNickname("   "))
         assertEquals("Ushio", B30ImageSpec.displayNickname("Ushio"))
     }
-
 }

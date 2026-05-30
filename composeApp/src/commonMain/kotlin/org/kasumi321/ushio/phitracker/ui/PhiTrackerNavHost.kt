@@ -223,7 +223,8 @@ fun PhiTrackerNavHost() {
                 avatarUri = b30ImageState.avatarUri,
                 showB30Overflow = b30ImageState.showB30Overflow,
                 overflowCount = b30ImageState.overflowCount,
-                getIllustrationUrl = { homeViewModel.getLowIllustrationUrl(it) },
+                getLowIllustrationUrl = { homeViewModel.getLowIllustrationUrl(it) },
+                getStandardIllustrationUrl = { homeViewModel.getStandardIllustrationUrl(it) },
                 onBack = { navController.popBackStack() }
             )
         }

@@ -1,17 +1,27 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -22,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -34,20 +45,33 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.time.Clock
-import kotlin.time.ExperimentalTime
+import org.kasumi321.ushio.phitracker.data.platform.rememberB30BackgroundPicker
 import org.kasumi321.ushio.phitracker.data.platform.saveB30ImageToPictures
 import org.kasumi321.ushio.phitracker.data.platform.shareB30Image
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
 fun B30ImageScreen(
     b30: List<BestRecord>,
@@ -61,24 +85,67 @@ fun B30ImageScreen(
     avatarUri: String? = null,
     showB30Overflow: Boolean = false,
     overflowCount: Int = 9,
-    getIllustrationUrl: (String) -> String? = { null },
+    getLowIllustrationUrl: (String) -> String? = { null },
+    getStandardIllustrationUrl: (String) -> String = { "" },
     onBack: () -> Unit
 ) {
     var export by remember { mutableStateOf<B30ImageExport?>(null) }
     var isGenerating by remember { mutableStateOf(true) }
     var generationFailed by remember { mutableStateOf(false) }
-    var scale by remember { mutableFloatStateOf(0.3f) }
+    var zoomFactor by remember { mutableFloatStateOf(1f) }
+    var backgroundMode by remember { mutableStateOf<B30BackgroundMode>(B30BackgroundMode.Auto) }
+    var customBackgroundUri by remember { mutableStateOf<String?>(null) }
+    var showBackgroundDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+
+    val pickBackground = rememberB30BackgroundPicker { uri ->
+        if (uri != null) {
+            customBackgroundUri = uri
+            backgroundMode = B30BackgroundMode.Custom(uri)
+        }
+    }
+
+    val distinctSongs = remember(b30) {
+        b30.distinctBy { it.songId }.map { it.songId to it.songName }
+    }
 
     val exportData = remember(
         b30, displayRks, nickname, challengeModeRank, moneyString,
         clearCounts, fcCount, phiCount, avatarUri,
-        showB30Overflow, overflowCount, getIllustrationUrl
+        showB30Overflow, overflowCount, getLowIllustrationUrl,
+        getStandardIllustrationUrl, backgroundMode, customBackgroundUri
     ) {
         val dateText = runCatching {
             val now = Clock.System.now()
-            now.toString().take(19).replace('T', ' ')
+            val localDt = now.toLocalDateTime(TimeZone.currentSystemDefault())
+            "${localDt.year.toString().padStart(4, '0')}." +
+                "${(localDt.month.ordinal + 1).toString().padStart(2, '0')}." +
+                "${localDt.dayOfMonth.toString().padStart(2, '0')} " +
+                "${localDt.hour.toString().padStart(2, '0')}:" +
+                "${localDt.minute.toString().padStart(2, '0')}:" +
+                "${localDt.second.toString().padStart(2, '0')}"
         }.getOrDefault("")
+
+        val resolvedBg = resolveBackgroundUri(
+            mode = backgroundMode,
+            exportData = B30ExportDataBuilder.build(
+                b30 = b30,
+                displayRks = displayRks,
+                nickname = nickname,
+                challengeModeRank = challengeModeRank,
+                moneyString = moneyString,
+                showB30Overflow = showB30Overflow,
+                overflowCount = overflowCount,
+                illustrationProvider = getLowIllustrationUrl,
+                clearCounts = clearCounts,
+                fcCount = fcCount,
+                phiCount = phiCount,
+                avatarUri = avatarUri,
+                backgroundUri = null,
+                dateText = dateText
+            ),
+            standardIllustrationProvider = getStandardIllustrationUrl
+        )
 
         B30ExportDataBuilder.build(
             b30 = b30,
@@ -88,23 +155,24 @@ fun B30ImageScreen(
             moneyString = moneyString,
             showB30Overflow = showB30Overflow,
             overflowCount = overflowCount,
-            illustrationProvider = getIllustrationUrl,
+            illustrationProvider = getLowIllustrationUrl,
             clearCounts = clearCounts,
             fcCount = fcCount,
             phiCount = phiCount,
             avatarUri = avatarUri,
-            backgroundUri = null,
+            backgroundUri = resolvedBg,
             dateText = dateText
         )
     }
 
-    LaunchedEffect(b30, displayRks, nickname) {
+    LaunchedEffect(exportData) {
         isGenerating = true
         generationFailed = false
+        zoomFactor = 1f
         export = null
         val result = runCatching {
             withContext(Dispatchers.Default) {
-                B30ImageGenerator.generate(b30, displayRks, nickname)
+                B30ImageGenerator.generate(exportData)
             }
         }
         export = result.getOrNull()
@@ -120,73 +188,30 @@ fun B30ImageScreen(
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
+                },
+                actions = {
+                    IconButton(onClick = { showBackgroundDialog = true }) {
+                        Icon(Icons.Filled.Image, contentDescription = "选择背景")
+                    }
                 }
             )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            if (isGenerating) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator()
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("正在生成 B30 图片...")
-                    }
-                }
-            } else if (generationFailed) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("B30 图片生成失败")
-                }
-            } else {
-                export?.let { exp ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .pointerInput(Unit) {
-                                detectTransformGestures { _, _, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(0.1f, 2f)
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier.graphicsLayer(
-                                scaleX = scale,
-                                scaleY = scale
-                            )
-                        ) {
-                            B30ExportLayout(exportData)
-                        }
-                    }
-
+        },
+        bottomBar = {
+            if (export != null && !isGenerating) {
+                Surface(tonalElevation = 4.dp) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .navigationBarsPadding(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Button(
                             onClick = {
-                                val pngBytes = exp.pngBytes
-                                val fileName = "B30_${currentTimeMillis()}.png"
+                                val exp = export ?: return@Button
                                 coroutineScope.launch {
-                                    val result = saveB30ImageToPictures(pngBytes, fileName)
+                                    val fileName = buildB30ExportFilename(nickname)
+                                    val result = saveB30ImageToPictures(exp.pngBytes, fileName)
                                     showPlatformMessage(
                                         if (result.isSuccess) "已保存到 Pictures/PhiTracker" else "保存失败"
                                     )
@@ -200,10 +225,10 @@ fun B30ImageScreen(
 
                         OutlinedButton(
                             onClick = {
-                                val pngBytes = exp.pngBytes
-                                val fileName = "B30_${currentTimeMillis()}.png"
+                                val exp = export ?: return@OutlinedButton
                                 coroutineScope.launch {
-                                    val result = shareB30Image(pngBytes, fileName)
+                                    val fileName = buildB30ExportFilename(nickname)
+                                    val result = shareB30Image(exp.pngBytes, fileName)
                                     if (result.isFailure) {
                                         showPlatformMessage("分享失败")
                                     }
@@ -218,8 +243,194 @@ fun B30ImageScreen(
                 }
             }
         }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (isGenerating) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("正在生成 B30 图片...")
+                    }
+                }
+            } else if (generationFailed) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("B30 图片生成失败")
+                }
+            } else {
+                export?.let { exp ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(exp.preview) {
+                                detectTransformGestures { _, _, zoom, _ ->
+                                    zoomFactor = (zoomFactor * zoom).coerceIn(1f, 2.5f)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.Image(
+                            bitmap = exp.preview,
+                            contentDescription = "B30 预览",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer(
+                                    scaleX = zoomFactor,
+                                    scaleY = zoomFactor
+                                ),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showBackgroundDialog) {
+        val selectedSongId = (backgroundMode as? B30BackgroundMode.SongBackground)?.songId
+        BackgroundPickerDialog(
+            distinctSongs = distinctSongs,
+            selectedSongId = selectedSongId,
+            getLowIllustrationUrl = getLowIllustrationUrl,
+            onSelectDefault = {
+                backgroundMode = B30BackgroundMode.Auto
+                customBackgroundUri = null
+                showBackgroundDialog = false
+            },
+            onSelectAlbum = {
+                showBackgroundDialog = false
+                pickBackground()
+            },
+            onSelectSong = { songId ->
+                backgroundMode = B30BackgroundMode.SongBackground(songId)
+                customBackgroundUri = null
+                showBackgroundDialog = false
+            },
+            onDismiss = { showBackgroundDialog = false }
+        )
     }
 }
 
-@OptIn(ExperimentalTime::class)
-private fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
+@Composable
+private fun BackgroundPickerDialog(
+    distinctSongs: List<Pair<String, String>>,
+    selectedSongId: String?,
+    getLowIllustrationUrl: (String) -> String?,
+    onSelectDefault: () -> Unit,
+    onSelectAlbum: () -> Unit,
+    onSelectSong: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val platformContext = LocalPlatformContext.current
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text("选择背景", style = MaterialTheme.typography.titleMedium)
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onSelectDefault) { Text("默认背景") }
+                    OutlinedButton(onClick = onSelectAlbum) { Text("相册图片") }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.height(360.dp),
+                    contentPadding = PaddingValues(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(distinctSongs, key = { it.first }) { (songId, songName) ->
+                        val isSelected = selectedSongId == songId
+                        SongGridItem(
+                            songId = songId,
+                            songName = songName,
+                            getLowIllustrationUrl = getLowIllustrationUrl,
+                            platformContext = platformContext,
+                            isSelected = isSelected,
+                            onClick = { onSelectSong(songId) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SongGridItem(
+    songId: String,
+    songName: String,
+    getLowIllustrationUrl: (String) -> String?,
+    platformContext: coil3.PlatformContext,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val thumbUrl = remember(songId) { getLowIllustrationUrl(songId) }
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surfaceContainerLow
+            )
+            .let { mod -> if (thumbUrl != null) mod.clickable { onClick() } else mod }
+            .padding(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(68.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center
+        ) {
+            if (thumbUrl != null) {
+                val imageRequest = remember(platformContext, thumbUrl) {
+                    ImageRequest.Builder(platformContext)
+                        .data(thumbUrl)
+                        .size(144)
+                        .networkCachePolicy(CachePolicy.READ_ONLY)
+                        .crossfade(150)
+                        .build()
+                }
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = songName,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = songName,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
+}

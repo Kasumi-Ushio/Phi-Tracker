@@ -314,4 +314,157 @@ class B30ExportDataTest {
         assertTrue(calledIds.contains("test_0"))
         assertTrue(calledIds.contains("test_1"))
     }
+
+    @Test
+    fun resolveBackgroundUriUsesStandardProvider() {
+        val b30 = listOf(makeRecord(index = 0, rks = 14f, isPhi = false))
+        val data = B30ExportDataBuilder.build(
+            b30 = b30, displayRks = 14f, nickname = "Test",
+            challengeModeRank = 0, moneyString = "",
+            showB30Overflow = false, overflowCount = 9,
+            illustrationProvider = { null },
+            clearCounts = emptyMap(), fcCount = 0, phiCount = 0,
+            avatarUri = null, backgroundUri = null, dateText = ""
+        )
+
+        val result = resolveBackgroundUri(
+            mode = B30BackgroundMode.SongBackground("test_0"),
+            exportData = data,
+            standardIllustrationProvider = { "https://example.com/$it.png" }
+        )
+        assertEquals("https://example.com/test_0.png", result)
+    }
+
+    @Test
+    fun resolveBackgroundUriCustomModeReturnsUri() {
+        val b30 = listOf(makeRecord(index = 0, rks = 14f, isPhi = false))
+        val data = B30ExportDataBuilder.build(
+            b30 = b30, displayRks = 14f, nickname = "Test",
+            challengeModeRank = 0, moneyString = "",
+            showB30Overflow = false, overflowCount = 9,
+            illustrationProvider = { null },
+            clearCounts = emptyMap(), fcCount = 0, phiCount = 0,
+            avatarUri = null, backgroundUri = null, dateText = ""
+        )
+
+        val result = resolveBackgroundUri(
+            mode = B30BackgroundMode.Custom("file:///album/photo.png"),
+            exportData = data,
+            standardIllustrationProvider = { "" }
+        )
+        assertEquals("file:///album/photo.png", result)
+    }
+
+    @Test
+    fun resolveBackgroundUriAutoModeUsesFirstRecordStandardUrl() {
+        val b30 = listOf(makeRecord(index = 0, rks = 14f, isPhi = false))
+        val data = B30ExportDataBuilder.build(
+            b30 = b30, displayRks = 14f, nickname = "Test",
+            challengeModeRank = 0, moneyString = "",
+            showB30Overflow = false, overflowCount = 9,
+            illustrationProvider = { null },
+            clearCounts = emptyMap(), fcCount = 0, phiCount = 0,
+            avatarUri = null, backgroundUri = null, dateText = ""
+        )
+
+        val result = resolveBackgroundUri(
+            mode = B30BackgroundMode.Auto,
+            exportData = data,
+            standardIllustrationProvider = { "https://example.com/$it.png" }
+        )
+        assertEquals("https://example.com/test_0.png", result)
+    }
+}
+
+class B30ExportSpecTest {
+
+    @Test
+    fun contentWidthDpMatchesFormula() {
+        val expected = B30ExportSpec.WIDTH_PX / B30ExportSpec.DENSITY - B30ExportSpec.PAGE_PADDING_DP * 2
+        assertEquals(expected, B30ExportSpec.contentWidthDp)
+    }
+
+    @Test
+    fun cardWidthDpUsesThreeColumnGrid() {
+        val expected = (B30ExportSpec.contentWidthDp - B30ExportSpec.CARD_GAP_DP * 2) / 3f
+        assertEquals(expected, B30ExportSpec.cardWidthDp)
+    }
+
+    @Test
+    fun cardHeightDpDerivedFromAspectRatio() {
+        val expected = B30ExportSpec.cardWidthDp / B30ExportSpec.CARD_ASPECT
+        assertEquals(expected, B30ExportSpec.cardHeightDp)
+    }
+
+    @Test
+    fun specConstantsMatchBeta5Baseline() {
+        assertEquals(2400, B30ExportSpec.WIDTH_PX)
+        assertEquals(2.6666667f, B30ExportSpec.DENSITY)
+        assertEquals(1f, B30ExportSpec.FONT_SCALE)
+        assertEquals(16f, B30ExportSpec.PAGE_PADDING_DP)
+        assertEquals(9.6f, B30ExportSpec.CARD_GAP_DP)
+        assertEquals(4f, B30ExportSpec.CARD_ASPECT)
+        assertEquals(100f, B30ExportSpec.HEADER_HEIGHT_DP)
+    }
+
+    @Test
+    fun profileStatsCardWidthsEqualCardWidth() {
+        assertEquals(B30ExportSpec.cardWidthDp, B30ExportSpec.profileCardWidthDp)
+        assertEquals(B30ExportSpec.cardWidthDp, B30ExportSpec.statsCardWidthDp)
+    }
+
+    @Test
+    fun profileCardDimensionsAreStable() {
+        assertEquals(100f, B30ExportSpec.profileCardHeightDp)
+    }
+
+    @Test
+    fun gridGapsAreConsistent() {
+        assertEquals(B30ExportSpec.CARD_GAP_DP, B30ExportSpec.cardHorizontalGapDp)
+        assertEquals(B30ExportSpec.CARD_GAP_DP, B30ExportSpec.cardVerticalGapDp)
+    }
+
+    @Test
+    fun computedDimensionsArePositive() {
+        assertTrue(B30ExportSpec.contentWidthDp > 0f)
+        assertTrue(B30ExportSpec.cardWidthDp > 0f)
+        assertTrue(B30ExportSpec.cardHeightDp > 0f)
+    }
+
+    @Test
+    fun cardWidthIsLessThanContentWidth() {
+        assertTrue(B30ExportSpec.cardWidthDp < B30ExportSpec.contentWidthDp)
+    }
+
+    @Test
+    fun threeCardsPlusGapsFitContentWidth() {
+        val totalNeeded = B30ExportSpec.cardWidthDp * 3 + B30ExportSpec.CARD_GAP_DP * 2
+        assertEquals(B30ExportSpec.contentWidthDp, totalNeeded, 0.01f)
+    }
+
+    @Test
+    fun sectionFooterLayoutConstantsMatchBeta5Baseline() {
+        assertEquals(30f, B30ExportSpec.sectionTitleHeightDp)
+        assertEquals(30f, B30ExportSpec.footerHeightDp)
+        assertEquals(11.25f, B30ExportSpec.footerTextOffsetDp)
+    }
+
+    @Test
+    fun sectionFooterLayoutConstantsArePositive() {
+        assertTrue(B30ExportSpec.sectionTitleHeightDp > 0f)
+        assertTrue(B30ExportSpec.footerHeightDp > 0f)
+        assertTrue(B30ExportSpec.footerTextOffsetDp > 0f)
+    }
+
+    @Test
+    fun sectionFooterPixelConversionMatchesCurrentRender() {
+        // When converted to px at spec density, the dp values must produce
+        // the pixel values used by the current iOS Skia render fallback.
+        // This prevents accidental visual drift in platform renderers.
+        val d = B30ExportSpec.DENSITY
+        val eps = 0.05f // epsilon for floating-point comparison at px scale
+        assertEquals(80f, B30ExportSpec.sectionTitleHeightDp * d, eps)
+        assertEquals(80f, B30ExportSpec.footerHeightDp * d, eps)
+        assertEquals(30f, B30ExportSpec.footerTextOffsetDp * d, eps)
+    }
 }

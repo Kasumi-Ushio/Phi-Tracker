@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -24,31 +24,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import coil3.compose.LocalPlatformContext
-import coil3.request.ImageRequest
-import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.ui.home.ProfileHeaderCard
 import org.kasumi321.ushio.phitracker.ui.home.ScoreCardContent
 import org.kasumi321.ushio.phitracker.ui.home.StatsTableCard
 
 @Composable
-fun B30ExportLayout(data: B30ExportData) {
+fun B30ExportLayout(data: B30ExportData, allowHardwareImages: Boolean = true) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentHeight()
     ) {
-        data.backgroundUri?.let { uri ->
-            val platformContext = LocalPlatformContext.current
-            val imageRequest = remember(platformContext, uri) {
-                ImageRequest.Builder(platformContext)
-                    .data(uri)
-                    .crossfade(false)
-                    .build()
-            }
-            AsyncImage(
-                model = imageRequest,
+        // Pre-blurred bitmap supplied by the platform renderer.
+        // Android provides a StackBlur(radius=50) bitmap via B30ImageGenerator.android;
+        // iOS uses its own Skia background path and does not invoke this layout.
+        // Production code MUST supply backgroundBitmap — when absent, no image
+        // background is rendered (only the white overlay below contributes).
+        if (data.backgroundBitmap != null) {
+            Image(
+                bitmap = data.backgroundBitmap,
                 contentDescription = null,
                 modifier = Modifier
                     .matchParentSize()
@@ -72,7 +66,7 @@ fun B30ExportLayout(data: B30ExportData) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            val headerHeight = data.profileCardHeightDp.dp
+            val headerHeight = B30ExportSpec.profileCardHeightDp.dp
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -91,8 +85,9 @@ fun B30ExportLayout(data: B30ExportData) {
                     avatarTextSpacing = 18.dp,
                     centerContent = true,
                     modifier = Modifier
-                        .width(data.profileCardWidthDp.dp)
-                        .height(headerHeight)
+                        .width(B30ExportSpec.profileCardWidthDp.dp)
+                        .height(headerHeight),
+                    allowHardwareImages = allowHardwareImages
                 )
                 StatsTableCard(
                     clearCounts = data.statsTable.clearCounts,
@@ -102,7 +97,7 @@ fun B30ExportLayout(data: B30ExportData) {
                     contentVerticalPadding = 5.dp,
                     rowSpacing = 7.dp,
                     modifier = Modifier
-                        .width(data.statsCardWidthDp.dp)
+                        .width(B30ExportSpec.statsCardWidthDp.dp)
                         .height(headerHeight)
                 )
             }
@@ -113,10 +108,11 @@ fun B30ExportLayout(data: B30ExportData) {
             ExportCardGrid(
                 cards = data.phiRecords,
                 rankLabelProvider = { index -> "P${index + 1}" },
-                cardWidth = data.cardWidthDp.dp,
-                cardHeight = data.cardHeightDp.dp,
-                horizontalGap = data.cardHorizontalGapDp.dp,
-                verticalGap = data.cardVerticalGapDp.dp
+                cardWidth = B30ExportSpec.cardWidthDp.dp,
+                cardHeight = B30ExportSpec.cardHeightDp.dp,
+                horizontalGap = B30ExportSpec.cardHorizontalGapDp.dp,
+                verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
+                allowHardwareImages = allowHardwareImages
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -125,10 +121,11 @@ fun B30ExportLayout(data: B30ExportData) {
             ExportCardGrid(
                 cards = data.bestRecords,
                 rankLabelProvider = { index -> "#${index + 1}" },
-                cardWidth = data.cardWidthDp.dp,
-                cardHeight = data.cardHeightDp.dp,
-                horizontalGap = data.cardHorizontalGapDp.dp,
-                verticalGap = data.cardVerticalGapDp.dp
+                cardWidth = B30ExportSpec.cardWidthDp.dp,
+                cardHeight = B30ExportSpec.cardHeightDp.dp,
+                horizontalGap = B30ExportSpec.cardHorizontalGapDp.dp,
+                verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
+                allowHardwareImages = allowHardwareImages
             )
 
             if (data.overflowRecords.isNotEmpty()) {
@@ -138,10 +135,11 @@ fun B30ExportLayout(data: B30ExportData) {
                 ExportCardGrid(
                     cards = data.overflowRecords,
                     rankLabelProvider = { index -> "#${index + 1}" },
-                    cardWidth = data.cardWidthDp.dp,
-                    cardHeight = data.cardHeightDp.dp,
-                    horizontalGap = data.cardHorizontalGapDp.dp,
-                    verticalGap = data.cardVerticalGapDp.dp
+                    cardWidth = B30ExportSpec.cardWidthDp.dp,
+                    cardHeight = B30ExportSpec.cardHeightDp.dp,
+                    horizontalGap = B30ExportSpec.cardHorizontalGapDp.dp,
+                    verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
+                    allowHardwareImages = allowHardwareImages
                 )
             }
 
@@ -174,7 +172,8 @@ private fun ExportCardGrid(
     cardWidth: Dp,
     cardHeight: Dp,
     horizontalGap: Dp,
-    verticalGap: Dp
+    verticalGap: Dp,
+    allowHardwareImages: Boolean = true
 ) {
     val rows = cards.chunked(3)
     rows.forEachIndexed { rowIndex, row ->
@@ -195,7 +194,8 @@ private fun ExportCardGrid(
                     onClick = null,
                     modifier = Modifier
                         .width(cardWidth)
-                        .height(cardHeight)
+                        .height(cardHeight),
+                    allowHardwareImages = allowHardwareImages
                 )
             }
         }
