@@ -12,22 +12,24 @@ import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSURL
 import platform.Foundation.writeToURL
+import platform.PhotosUI.PHPickerConfiguration
+import platform.PhotosUI.PHPickerFilter
+import platform.PhotosUI.PHPickerResult
+import platform.PhotosUI.PHPickerViewController
+import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
 import platform.UIKit.UIApplication
 import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
-import platform.UIKit.UIImagePickerController
-import platform.UIKit.UIImagePickerControllerDelegateProtocol
-import platform.UIKit.UIImagePickerControllerEditedImage
-import platform.UIKit.UIImagePickerControllerOriginalImage
-import platform.UIKit.UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypePhotoLibrary
-import platform.UIKit.UINavigationControllerDelegateProtocol
 import platform.UIKit.UISceneActivationStateForegroundActive
 import platform.UIKit.UIViewController
+import platform.UIKit.UIWindow
 import platform.UIKit.UIWindowScene
+import platform.UniformTypeIdentifiers.UTTypeImage
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_get_main_queue
@@ -47,9 +49,9 @@ actual fun rememberB30BackgroundPicker(onResult: (String?) -> Unit): () -> Unit 
 
 private class B30BackgroundPickerDelegate(
     private val onResult: (String?) -> Unit
-) : NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {
+) : NSObject(), PHPickerViewControllerDelegateProtocol {
 
-    private var picker: UIImagePickerController? = null
+    private var picker: PHPickerViewController? = null
     private var strongRef: B30BackgroundPickerDelegate? = null
 
     fun launchPicker() {
@@ -59,49 +61,47 @@ private class B30BackgroundPickerDelegate(
                 return
             }
 
-        val imagePicker = UIImagePickerController().apply {
-            sourceType = UIImagePickerControllerSourceTypePhotoLibrary
-            allowsEditing = true
+        val configuration = PHPickerConfiguration().apply {
+            selectionLimit = 1
+            filter = PHPickerFilter.imagesFilter
+        }
+        val imagePicker = PHPickerViewController(configuration).apply {
             delegate = this@B30BackgroundPickerDelegate
         }
         picker = imagePicker
         strongRef = this
-        presenter.presentViewController(imagePicker, animated = true, null)
+        presenter.presentViewController(imagePicker, animated = true, completion = null)
     }
 
-    override fun imagePickerController(
-        picker: UIImagePickerController,
-        didFinishPickingMediaWithInfo: Map<Any?, *>
-    ) {
-        val editedImage = didFinishPickingMediaWithInfo[UIImagePickerControllerEditedImage] as? UIImage
-        val originalImage = didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage
-        val image = editedImage ?: originalImage
-
+    override fun picker(picker: PHPickerViewController, didFinishPicking: List<*>) {
         picker.dismissViewControllerAnimated(true, null)
         this.picker = null
-        strongRef = null
 
-        if (image == null) {
+        val result = didFinishPicking.firstOrNull() as? PHPickerResult
+        if (result == null) {
+            strongRef = null
             onResult(null)
             return
         }
 
-        val savedPath = saveBackgroundImage(image)
-        onResult(savedPath)
+        val typeIdentifier = result.itemProvider.registeredTypeIdentifiers
+            .filterIsInstance<String>()
+            .firstOrNull { it == UTTypeImage.identifier || it.startsWith("public.image") || it.startsWith("public.") }
+            ?: UTTypeImage.identifier
+
+        result.itemProvider.loadDataRepresentationForTypeIdentifier(typeIdentifier) { data, _ ->
+            val savedPath = data?.let { saveBackgroundData(it) }
+            dispatch_async(dispatch_get_main_queue()) {
+                strongRef = null
+                onResult(savedPath)
+            }
+        }
     }
 
-    override fun imagePickerControllerDidCancel(picker: UIImagePickerController) {
-        picker.dismissViewControllerAnimated(true, null)
-        this.picker = null
-        strongRef = null
-        onResult(null)
-    }
-
-    private fun saveBackgroundImage(image: UIImage): String? {
+    private fun saveBackgroundData(data: NSData): String? {
         return runCatching {
             val paths = createPlatformPaths()
             val bgDir = "${paths.filesDir}/b30-backgrounds"
-
             val fm = NSFileManager.defaultManager
             memScoped {
                 val err = alloc<ObjCObjectVar<NSError?>>()
@@ -115,20 +115,18 @@ private class B30BackgroundPickerDelegate(
                 }
             }
 
+            val image = UIImage.imageWithData(data)
+                ?: throw RuntimeException("Failed to decode selected background image")
+            val pngData = UIImagePNGRepresentation(image)
+                ?: throw RuntimeException("Failed to convert selected background image to PNG")
             val timestamp = Clock.System.now().toEpochMilliseconds()
             val fileName = "bg_$timestamp.png"
             val filePath = "$bgDir/$fileName"
             val fileUrl = NSURL.fileURLWithPath(filePath)
-
-            val pngData = UIImagePNGRepresentation(image)
-                ?: throw RuntimeException("Failed to convert background image to PNG")
-
             check(pngData.writeToURL(fileUrl, atomically = true)) {
                 "Failed to write background image to file"
             }
-
             cleanupOldBackgrounds(bgDir, keepCount = 3)
-
             filePath
         }.getOrNull()
     }
@@ -158,12 +156,16 @@ private class B30BackgroundPickerDelegate(
 }
 
 private fun topMostViewController(): UIViewController? {
-    val windowScene = UIApplication.sharedApplication.connectedScenes
-        .filterIsInstance<UIWindowScene>()
-        .firstOrNull { it.activationState == UISceneActivationStateForegroundActive }
+    val scenes = UIApplication.sharedApplication.connectedScenes.filterIsInstance<UIWindowScene>()
+    val windowScene = scenes.firstOrNull { it.activationState == UISceneActivationStateForegroundActive }
+        ?: scenes.firstOrNull { it.keyWindow != null }
+        ?: scenes.firstOrNull()
 
-    val rootVC = windowScene?.keyWindow?.rootViewController ?: return null
-
+    val rootVC = windowScene?.keyWindow?.rootViewController
+        ?: windowScene?.windows
+            ?.filterIsInstance<UIWindow>()
+            ?.firstNotNullOfOrNull { it.rootViewController }
+        ?: return null
     var topVC: UIViewController = rootVC
     while (true) {
         val presented = topVC.presentedViewController ?: break

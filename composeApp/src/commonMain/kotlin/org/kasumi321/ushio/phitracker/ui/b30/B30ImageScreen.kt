@@ -65,6 +65,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.data.platform.rememberB30BackgroundPicker
 import org.kasumi321.ushio.phitracker.data.platform.saveB30ImageToPictures
 import org.kasumi321.ushio.phitracker.data.platform.shareB30Image
@@ -176,6 +177,9 @@ fun B30ImageScreen(
             }
         }
         export = result.getOrNull()
+        result.exceptionOrNull()?.let { throwable ->
+            AppLogger.e("B30ImageScreen", "B30 image generation failed", throwable)
+        }
         generationFailed = result.isFailure
         isGenerating = false
     }
