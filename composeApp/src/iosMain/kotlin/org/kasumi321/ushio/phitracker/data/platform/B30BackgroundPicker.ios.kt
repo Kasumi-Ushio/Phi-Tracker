@@ -28,6 +28,7 @@ import platform.UIKit.UIImagePNGRepresentation
 import platform.UIKit.UISceneActivationStateForegroundActive
 import platform.UIKit.UIViewController
 import platform.UIKit.UIWindow
+import platform.UIKit.UIWindowLevelNormal
 import platform.UIKit.UIWindowScene
 import platform.UniformTypeIdentifiers.UTTypeImage
 import platform.darwin.NSObject
@@ -52,14 +53,24 @@ private class B30BackgroundPickerDelegate(
 ) : NSObject(), PHPickerViewControllerDelegateProtocol {
 
     private var picker: PHPickerViewController? = null
+    private var pickerWindow: UIWindow? = null
+    private var previousKeyWindow: UIWindow? = null
     private var strongRef: B30BackgroundPickerDelegate? = null
 
     fun launchPicker() {
-        val presenter = topMostViewController()
+        val windowScene = findActiveWindowScene()
             ?: run {
                 onResult(null)
                 return
             }
+
+        val presenter = UIViewController()
+        previousKeyWindow = windowScene.keyWindow
+        pickerWindow = UIWindow(windowScene = windowScene).apply {
+            rootViewController = presenter
+            windowLevel = UIWindowLevelNormal
+            makeKeyAndVisible()
+        }
 
         val configuration = PHPickerConfiguration().apply {
             selectionLimit = 1
@@ -79,7 +90,7 @@ private class B30BackgroundPickerDelegate(
 
         val result = didFinishPicking.firstOrNull() as? PHPickerResult
         if (result == null) {
-            strongRef = null
+            releasePickerWindow()
             onResult(null)
             return
         }
@@ -92,10 +103,20 @@ private class B30BackgroundPickerDelegate(
         result.itemProvider.loadDataRepresentationForTypeIdentifier(typeIdentifier) { data, _ ->
             val savedPath = data?.let { saveBackgroundData(it) }
             dispatch_async(dispatch_get_main_queue()) {
-                strongRef = null
+                releasePickerWindow()
                 onResult(savedPath)
             }
         }
+    }
+
+    private fun releasePickerWindow() {
+        picker = null
+        pickerWindow?.setHidden(true)
+        pickerWindow?.rootViewController = null
+        pickerWindow = null
+        previousKeyWindow?.makeKeyAndVisible()
+        previousKeyWindow = null
+        strongRef = null
     }
 
     private fun saveBackgroundData(data: NSData): String? {
@@ -155,21 +176,9 @@ private class B30BackgroundPickerDelegate(
     }
 }
 
-private fun topMostViewController(): UIViewController? {
+private fun findActiveWindowScene(): UIWindowScene? {
     val scenes = UIApplication.sharedApplication.connectedScenes.filterIsInstance<UIWindowScene>()
-    val windowScene = scenes.firstOrNull { it.activationState == UISceneActivationStateForegroundActive }
+    return scenes.firstOrNull { it.activationState == UISceneActivationStateForegroundActive }
         ?: scenes.firstOrNull { it.keyWindow != null }
         ?: scenes.firstOrNull()
-
-    val rootVC = windowScene?.keyWindow?.rootViewController
-        ?: windowScene?.windows
-            ?.filterIsInstance<UIWindow>()
-            ?.firstNotNullOfOrNull { it.rootViewController }
-        ?: return null
-    var topVC: UIViewController = rootVC
-    while (true) {
-        val presented = topVC.presentedViewController ?: break
-        topVC = presented
-    }
-    return topVC
 }
