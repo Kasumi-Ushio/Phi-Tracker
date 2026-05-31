@@ -229,4 +229,171 @@ class LogRedactorTest {
         assertContains(result, "sessiontoken=<redacted>")
         assertContains(result, "SessionToken=<redacted>")
     }
+
+    // ── Beta5-sensitive: client_id ─────────────────────────────────
+
+    @Test
+    fun `redacts client_id in key=value format`() {
+        val input = "client_id=tap_abc123def456"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "client_id=<redacted>")
+        assertFalse(result.contains("tap_abc123def456"))
+    }
+
+    @Test
+    fun `redacts client_id in key colon value header style`() {
+        val input = "client_id: tap_xyz789"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "client_id: <redacted>")
+        assertFalse(result.contains("tap_xyz789"))
+    }
+
+    @Test
+    fun `redacts client_id in JSON format`() {
+        val input = """{"client_id":"tap_app_001","platform":"TapTap"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"client_id":"<redacted>"""")
+        assertFalse(result.contains("tap_app_001"))
+    }
+
+    @Test
+    fun `redacts client_id in query parameter`() {
+        val input = "GET /auth?client_id=tap_app_001&response_type=code"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "client_id=<redacted>")
+        assertFalse(result.contains("tap_app_001"))
+    }
+
+    // ── Beta5-sensitive: device_id ─────────────────────────────────
+
+    @Test
+    fun `redacts device_id in key=value format`() {
+        val input = "device_id=DEADBEEF-CAFE-1234-5678-ABCDEF012345"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "device_id=<redacted>")
+        assertFalse(result.contains("DEADBEEF-CAFE-1234-5678-ABCDEF012345"))
+    }
+
+    @Test
+    fun `preserves X-Device-ID header since it differs from device_id`() {
+        val input = "X-Device-ID: device-uuid-001"
+        val result = LogRedactor.redact(input)
+        assertEquals(input, result)
+    }
+
+    @Test
+    fun `redacts bare device_id in key colon value style`() {
+        val input = "device_id: device-uuid-001"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "device_id: <redacted>")
+        assertFalse(result.contains("device-uuid-001"))
+    }
+
+    @Test
+    fun `redacts device_id in JSON format`() {
+        val input = """{"device_id":"uuid-abc-123","os":"iOS"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"device_id":"<redacted>"""")
+        assertFalse(result.contains("uuid-abc-123"))
+    }
+
+    @Test
+    fun `redacts device_id in query parameter`() {
+        val input = "POST /sync?device_id=uuid-abc-123&data=1"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "device_id=<redacted>")
+        assertFalse(result.contains("uuid-abc-123"))
+    }
+
+    // ── Beta5-sensitive: kid (key identifier) ──────────────────────
+
+    @Test
+    fun `redacts kid in key=value format`() {
+        val input = "kid=rsa-key-2024-001"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "kid=<redacted>")
+        assertFalse(result.contains("rsa-key-2024-001"))
+    }
+
+    @Test
+    fun `redacts kid in key colon value header style`() {
+        val input = "kid: key-identifier-xyz"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "kid: <redacted>")
+        assertFalse(result.contains("key-identifier-xyz"))
+    }
+
+    @Test
+    fun `redacts kid in JSON format`() {
+        val input = """{"kid":"key-2024-rsa","alg":"RS256"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"kid":"<redacted>"""")
+        assertFalse(result.contains("key-2024-rsa"))
+    }
+
+    @Test
+    fun `redacts kid in query parameter`() {
+        val input = "GET /jwks?kid=key-2024-rsa"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "kid=<redacted>")
+        assertFalse(result.contains("key-2024-rsa"))
+    }
+
+    // ── Beta5: platformId in JSON format ───────────────────────────
+
+    @Test
+    fun `redacts platformId in JSON format`() {
+        val input = """{"platformId":"tap-ios-17","userId":"u_123"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"platformId":"<redacted>"""")
+        assertFalse(result.contains("tap-ios-17"))
+    }
+
+    // ── Beta5: platform_id in query parameter ──────────────────────
+
+    @Test
+    fun `redacts platform_id in query parameter`() {
+        val input = "GET /api/data?platform_id=android_arm64&v=2"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "platform_id=<redacted>")
+        assertFalse(result.contains("android_arm64"))
+    }
+
+    // ── Beta5: access_token in JSON format ─────────────────────────
+
+    @Test
+    fun `redacts access_token in JSON format`() {
+        val input = """{"access_token":"ya29.abcdefghijk","token_type":"Bearer"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"access_token":"<redacted>"""")
+        assertFalse(result.contains("ya29.abcdefghijk"))
+    }
+
+    // ── Beta5: sessionToken in query parameter ─────────────────────
+
+    @Test
+    fun `redacts sessionToken in query parameter`() {
+        val input = "GET /data?sessionToken=r_abc123def&limit=10"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "sessionToken=<redacted>")
+        assertFalse(result.contains("r_abc123def"))
+    }
+
+    // ── Beta5: compound TapTap request body ────────────────────────
+
+    @Test
+    fun `redacts compound TapTap request body with multiple beta5 keys`() {
+        val input = """{"client_id":"tap_app","device_id":"dev_uuid","kid":"k1","sessionToken":"r_stok","access_token":"at1","platformId":"ios"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"client_id":"<redacted>"""")
+        assertContains(result, """"device_id":"<redacted>"""")
+        assertContains(result, """"kid":"<redacted>"""")
+        assertContains(result, """"sessionToken":"<redacted>"""")
+        assertContains(result, """"access_token":"<redacted>"""")
+        assertContains(result, """"platformId":"<redacted>"""")
+        assertFalse(result.contains("tap_app"))
+        assertFalse(result.contains("dev_uuid"))
+        assertFalse(result.contains("r_stok"))
+        assertFalse(result.contains("at1"))
+    }
 }

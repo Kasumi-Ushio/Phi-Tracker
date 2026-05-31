@@ -10,6 +10,10 @@ inputs:
     description: 'Set Gradle cache to read-only for non-main branches'
     required: false
     default: 'true'
+  cache-encryption-key:
+    description: 'Base64 AES key used by setup-gradle to cache Gradle configuration-cache state'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -23,9 +27,10 @@ runs:
     - name: Set up Gradle
       uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
       with:
-        cache-provider: basic
+        cache-provider: enhanced
         cache-read-only: ${{ inputs.cache-read-only == 'true' }}
         cache-cleanup: on-success
+        cache-overwrite-existing: true
+        cache-encryption-key: ${{ inputs.cache-encryption-key }}
         gradle-home-cache-excludes: |
-          caches/jars-9
-          caches/transforms-3
+          caches/keyrings

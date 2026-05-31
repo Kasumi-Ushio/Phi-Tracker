@@ -36,6 +36,7 @@ jobs:
         uses: ./.github/actions/gradle-setup
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Shared Kotlin compilation
         run: |

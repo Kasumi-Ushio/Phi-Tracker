@@ -13,9 +13,10 @@
 我们在 KMP 重写分支中实现了 GitHub CI 的自动打包流程，在每次推送后，对应的编译和打包任务将推送至 GitHub Actions 对应的 Workflows 中，若要实时跟进开发进度，只需在每次构建完成后下载 Artifacts 即可。
 
 > 当前已设置的 CI 编译工作流：
-> - Android CI：Android 侧编译，产出未签名的 Debug 和已签名的 Release 包
+> - Android CI：Android 侧编译，产出默认签名的 Debug 和已签名的 Release 包
 > - iOS CI：iOS 侧编译，产出未签名的 Debug 和 Release 包
 >   - 我们当前没有 Apple 开发者账户，所以需要通过 AltStore/SideStore 或 LiveContainer 等方式手动安装。
+>   - 在重写完成前，Release 构建工作流将不工作，直至重写完成。
 
 > 请注意：我们不保证 CI 编译版本在任何意义上的可用性，使用 CI 编译产物所导致的一切后果，由使用者自行承担。
 

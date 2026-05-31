@@ -40,6 +40,7 @@ import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPre
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.clearAllImageCache
 import org.kasumi321.ushio.phitracker.data.platform.clearImageCacheUrls
+import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.data.platform.triggerAppRestart
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
@@ -142,6 +143,7 @@ data class HomeUiState(
 
     // Pre-release channel and update check
     val includePreRelease: Boolean = false,
+    val autoCheckUpdate: Boolean = true,
     val updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
 
     // PhiPlugin API
@@ -182,6 +184,7 @@ class HomeViewModel(
     private val songDataUpdater: SongDataUpdater,
     private val runtimeLogExporter: RuntimeLogExporter,
     private val crashReportExporter: CrashReportExporter,
+    private val appVersionNameProvider: () -> String = { getAppMetadata().versionName },
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -238,6 +241,12 @@ class HomeViewModel(
                 _uiState.update { it.copy(includePreRelease = enabled) }
             }
         }
+        // Observe auto-update check setting
+        viewModelScope.launch {
+            settingsRepository.autoCheckUpdate.collect { enabled ->
+                _uiState.update { it.copy(autoCheckUpdate = enabled) }
+            }
+        }
         // Observe PhiPlugin API settings
         viewModelScope.launch {
             settingsRepository.apiEnabled.collect { enabled ->
@@ -271,6 +280,12 @@ class HomeViewModel(
         viewModelScope.launch {
             loadRecentEffectiveSyncHistory()
             loadStats()
+        }
+        viewModelScope.launch {
+            val shouldAutoCheck = settingsRepository.autoCheckUpdate.first()
+            if (shouldAutoCheck) {
+                checkForUpdate(appVersionNameProvider())
+            }
         }
     }
 
@@ -809,6 +824,10 @@ class HomeViewModel(
 
     fun setIncludePreRelease(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setIncludePreRelease(enabled) }
+    }
+
+    fun setAutoCheckUpdate(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAutoCheckUpdate(enabled) }
     }
 
     fun setApiEnabled(enabled: Boolean) {

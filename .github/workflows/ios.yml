@@ -35,13 +35,14 @@ jobs:
       - name: Gradle Setup
         uses: ./.github/actions/gradle-setup
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
       - name: Restore Kotlin/Native cache
         uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.konan
-          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'build.gradle.kts', 'composeApp/build.gradle.kts') }}
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties', 'gradle.properties', 'settings.gradle.kts', 'build.gradle.kts', 'composeApp/build.gradle.kts') }}
           restore-keys: |
             konan-${{ runner.os }}-
 
@@ -88,10 +89,13 @@ jobs:
           name: ios-device-compose-resources
           path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64
 
+      - name: Prepare Xcode DerivedData cache directory
+        run: mkdir -p "$RUNNER_TEMP/DerivedDataDebug"
+
       - name: Xcode cache
         uses: irgaly/xcode-cache@4141f139f00e335c6e1031fb93e667181f86146f # v1.9.2
         with:
-          key: xcode-debug-${{ runner.os }}-${{ hashFiles('iosApp/iosApp.xcodeproj/project.pbxproj') }}
+          key: xcode-debug-${{ runner.os }}-${{ hashFiles('iosApp/iosApp.xcodeproj/project.pbxproj', 'iosApp/iosApp.xcodeproj/xcshareddata/xcschemes/*.xcscheme', 'iosApp/iosApp/**/*.swift', 'iosApp/iosApp/**/*.plist') }}
           restore-keys: |
             xcode-debug-${{ runner.os }}-
             xcode-debug-
@@ -167,10 +171,13 @@ jobs:
           name: ios-device-compose-resources
           path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64
 
+      - name: Prepare Xcode DerivedData cache directory
+        run: mkdir -p "$RUNNER_TEMP/DerivedDataRelease"
+
       - name: Xcode cache
         uses: irgaly/xcode-cache@4141f139f00e335c6e1031fb93e667181f86146f # v1.9.2
         with:
-          key: xcode-release-${{ runner.os }}-${{ hashFiles('iosApp/iosApp.xcodeproj/project.pbxproj') }}
+          key: xcode-release-${{ runner.os }}-${{ hashFiles('iosApp/iosApp.xcodeproj/project.pbxproj', 'iosApp/iosApp.xcodeproj/xcshareddata/xcschemes/*.xcscheme', 'iosApp/iosApp/**/*.swift', 'iosApp/iosApp/**/*.plist') }}
           restore-keys: |
             xcode-release-${{ runner.os }}-
             xcode-release-

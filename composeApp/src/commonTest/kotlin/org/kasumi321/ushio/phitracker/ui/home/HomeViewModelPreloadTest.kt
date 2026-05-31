@@ -5,6 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -371,14 +372,15 @@ class HomeViewModelPreloadTest {
 
     private fun createViewModel(
         settingsRepository: FakeSettingsRepository,
-        preloader: IllustrationThumbnailPreloader,
+        preloader: IllustrationThumbnailPreloader = RecordingPreloader(),
         cacheClearFn: suspend (List<String>) -> Unit = {},
         songDataUpdater: FakeSongDataUpdater = FakeSongDataUpdater(
             paths = testPlatformPaths,
             songDataProvider = testSongDataProvider
-        )
+        ),
+        appVersionName: String = "",
+        repository: PhigrosRepository = FakePhigrosRepository()
     ): HomeViewModel {
-        val repository = FakePhigrosRepository()
         val illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") }
         val logFileStore = createTestLogFileStore()
         return HomeViewModel(
@@ -398,7 +400,8 @@ class HomeViewModelPreloadTest {
             songSyncHistoryDao = FakeSongSyncHistoryDao(),
             songDataUpdater = songDataUpdater,
             runtimeLogExporter = RuntimeLogExporter(logFileStore),
-            crashReportExporter = CrashReportExporter(logFileStore)
+            crashReportExporter = CrashReportExporter(logFileStore),
+            appVersionNameProvider = { appVersionName }
         )
     }
 
@@ -414,7 +417,11 @@ class HomeViewModelPreloadTest {
         }
     }
 
-    private class FakeSettingsRepository(preloadDone: Boolean) : SettingsRepository {
+    private class FakeSettingsRepository(
+        preloadDone: Boolean,
+        autoCheckUpdate: Boolean = true,
+        includePreRelease: Boolean = false
+    ) : SettingsRepository {
         override val themeMode: Flow<Int> = flowOf(0)
         override val showB30Overflow: Flow<Boolean> = flowOf(false)
         override val overflowCount: Flow<Int> = flowOf(9)
@@ -433,10 +440,19 @@ class HomeViewModelPreloadTest {
         override suspend fun setAvatarUri(uri: String?) = Unit
         override val moneyString: Flow<String> = flowOf("")
         override suspend fun setMoneyString(money: String) = Unit
-        override val includePreRelease: Flow<Boolean> = flowOf(false)
-        override val autoCheckUpdate: Flow<Boolean> = flowOf(true)
-        override suspend fun setIncludePreRelease(enabled: Boolean) = Unit
-        override suspend fun setAutoCheckUpdate(enabled: Boolean) = Unit
+        private val _includePreRelease = MutableStateFlow(includePreRelease)
+        override val includePreRelease: Flow<Boolean> = _includePreRelease.asStateFlow()
+        private val _autoCheckUpdate = MutableStateFlow(autoCheckUpdate)
+        override val autoCheckUpdate: Flow<Boolean> = _autoCheckUpdate.asStateFlow()
+        var autoCheckUpdateSetValue: Boolean? = null
+            private set
+        override suspend fun setIncludePreRelease(enabled: Boolean) {
+            _includePreRelease.value = enabled
+        }
+        override suspend fun setAutoCheckUpdate(enabled: Boolean) {
+            autoCheckUpdateSetValue = enabled
+            _autoCheckUpdate.value = enabled
+        }
         override val apiEnabled: Flow<Boolean> = flowOf(false)
         override suspend fun setApiEnabled(enabled: Boolean) = Unit
         override val useApiData: Flow<Boolean> = flowOf(false)
@@ -502,8 +518,16 @@ class HomeViewModelPreloadTest {
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
-        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease> =
-            Result.failure(IllegalStateException("Not implemented in Phase E"))
+        open var fetchLatestReleaseCallCount = 0
+        val fetchLatestReleaseIncludePreReleaseValues = mutableListOf<Boolean>()
+        open var fetchLatestReleaseResult: Result<GitHubRelease> =
+            Result.failure(IllegalStateException("Not configured"))
+
+        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease> {
+            fetchLatestReleaseCallCount++
+            fetchLatestReleaseIncludePreReleaseValues.add(includePreRelease)
+            return fetchLatestReleaseResult
+        }
     }
 
     private class FakeSyncSnapshotDao : SyncSnapshotDao {
@@ -1004,6 +1028,130 @@ class HomeViewModelPreloadTest {
             "notesInfo.json" -> "{}"
             else -> error("Test asset not found: $name")
         }
+    }
+
+    // ---- Phase G: auto-update core tests ----
+
+    @Test
+    fun autoCheckUpdateDefaultsTrueInUiState(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        val viewModel = createViewModel(settings, preloader)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.autoCheckUpdate,
+            "autoCheckUpdate should default true")
+    }
+
+    @Test
+    fun setAutoCheckUpdateFalsePersistsAndReflectsInState(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        val viewModel = createViewModel(settings, preloader)
+        advanceUntilIdle()
+
+        viewModel.setAutoCheckUpdate(false)
+        advanceUntilIdle()
+
+        assertEquals(false, settings.autoCheckUpdateSetValue,
+            "Repository setAutoCheckUpdate should be called with false")
+        assertEquals(false, viewModel.uiState.value.autoCheckUpdate,
+            "UI state should reflect autoCheckUpdate=false")
+    }
+
+    @Test
+    fun startupAutoCheckEnabledFetchesAndSetsAvailable(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = true)
+        val repository = FakePhigrosRepository().apply {
+            fetchLatestReleaseResult = Result.success(
+                GitHubRelease(
+                    tagName = "v9.9.9",
+                    htmlUrl = "https://example.test/release/v9.9.9",
+                    prerelease = false,
+                    body = "New version available"
+                )
+            )
+        }
+        val viewModel = createViewModel(
+            settings, RecordingPreloader(),
+            appVersionName = "0.1.0",
+            repository = repository
+        )
+        advanceUntilIdle()
+
+        assertEquals(1, repository.fetchLatestReleaseCallCount,
+            "Startup auto-check should call fetchLatestRelease exactly once")
+        assertEquals(
+            listOf(false),
+            repository.fetchLatestReleaseIncludePreReleaseValues,
+            "Startup auto-check should use includePreRelease=false by default"
+        )
+        val state = viewModel.uiState.value.updateCheckState
+        assertTrue(state is UpdateCheckState.Available,
+            "Should be Available when a newer version is returned")
+        val available = state as UpdateCheckState.Available
+        assertEquals("v9.9.9", available.version)
+        assertEquals("https://example.test/release/v9.9.9", available.htmlUrl)
+        assertEquals("New version available", available.body)
+    }
+
+    @Test
+    fun startupAutoCheckDisabledLeavesIdleAndSkipsFetch(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
+        val repository = FakePhigrosRepository()
+        val viewModel = createViewModel(
+            settings, RecordingPreloader(),
+            appVersionName = "0.1.0",
+            repository = repository
+        )
+        advanceUntilIdle()
+
+        assertEquals(0, repository.fetchLatestReleaseCallCount,
+            "Should NOT call fetchLatestRelease when auto-check is disabled")
+        assertTrue(viewModel.uiState.value.updateCheckState is UpdateCheckState.Idle,
+            "UpdateCheckState should remain Idle")
+    }
+
+    @Test
+    fun manualCheckRespectsIncludePreRelease(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
+        val repository = FakePhigrosRepository().apply {
+            fetchLatestReleaseResult = Result.success(
+                GitHubRelease(
+                    tagName = "v2.0.0-beta1",
+                    htmlUrl = "https://example.test/release/v2.0.0-beta1",
+                    prerelease = true,
+                    body = "Beta release"
+                )
+            )
+        }
+        val viewModel = createViewModel(
+            settings, RecordingPreloader(),
+            appVersionName = "0.1.0",
+            repository = repository
+        )
+        advanceUntilIdle()
+
+        // Enable includePreRelease via settings setter
+        viewModel.setIncludePreRelease(true)
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.includePreRelease,
+            "includePreRelease should be true after setting")
+
+        // Manual check should pass the current includePreRelease
+        viewModel.checkForUpdate("0.1.0")
+        advanceUntilIdle()
+
+        assertEquals(1, repository.fetchLatestReleaseCallCount,
+            "Manual check should call fetchLatestRelease")
+        assertEquals(
+            listOf(true),
+            repository.fetchLatestReleaseIncludePreReleaseValues,
+            "Manual check should pass includePreRelease=true"
+        )
+        val state = viewModel.uiState.value.updateCheckState
+        assertTrue(state is UpdateCheckState.Available,
+            "Should find the beta release available")
     }
 
     private companion object {

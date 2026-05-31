@@ -31,6 +31,9 @@ object LogRedactor {
         "platform-id",
         "access_token",
         "mac_key",
+        "client_id",
+        "device_id",
+        "kid",
     )
 
     /** Escaped alternation of all sensitive key names for regex use. */

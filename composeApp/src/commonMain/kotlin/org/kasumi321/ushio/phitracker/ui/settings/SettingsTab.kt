@@ -64,9 +64,11 @@ fun SettingsTab(
     onUpdateSongData: () -> Unit = {},
     onDismissUpdateError: () -> Unit = {},
     includePreRelease: Boolean = false,
+    autoCheckUpdate: Boolean = true,
     updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
     onCheckForUpdate: () -> Unit = {},
     onIncludePreReleaseChange: (Boolean) -> Unit = {},
+    onAutoCheckUpdateChange: (Boolean) -> Unit = {},
     onDismissUpdateResult: () -> Unit = {},
     isDebugBuild: Boolean = false,
     hasRuntimeLogs: Boolean = false,
@@ -210,8 +212,8 @@ fun SettingsTab(
                     Slider(
                         value = overflowCount.toFloat(),
                         onValueChange = { onOverflowCountChange(it.roundToInt()) },
-                        valueRange = 1f..15f,
-                        steps = 13,
+                        valueRange = SettingsConstants.OVERFLOW_COUNT_MIN.toFloat()..SettingsConstants.OVERFLOW_COUNT_MAX.toFloat(),
+                        steps = SettingsConstants.OVERFLOW_SLIDER_STEPS,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -338,6 +340,27 @@ fun SettingsTab(
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
             CategoryTitle("程序更新")
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("启动时自动检查更新", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        text = "应用启动时自动检查是否有新版本",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = autoCheckUpdate,
+                    onCheckedChange = { onAutoCheckUpdateChange(it) }
+                )
+            }
 
             Row(
                 modifier = Modifier
