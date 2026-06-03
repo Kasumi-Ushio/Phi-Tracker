@@ -29,6 +29,7 @@ import org.kasumi321.ushio.phitracker.data.platform.showPlatformAlert
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
 import org.kasumi321.ushio.phitracker.ui.home.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.home.UpdateResultDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,16 +76,13 @@ fun SettingsTab(
     hasCrashLogs: Boolean = false,
     onExportRuntimeLog: () -> String = { "" },
     onExportCrashLog: () -> String = { "" },
-    onClearRuntimeLogs: () -> Boolean = { false },
-    onClearCrashLogs: () -> Boolean = { false },
+    onClearAllLogs: () -> Boolean = { false },
     crashNotificationGuideShown: Boolean = false,
     onCrashNotificationGuideShown: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val noRuntimeLogMessage = "Phi Tracker 目前尚未形成运行日志，请使用一段时间后重试。"
     val noCrashLogMessage = "Phi Tracker 还未发生过崩溃，请在发生一次崩溃后重试。"
-    val runtimeLogClearedMessage = "已清理 Phi Tracker 运行时产生的日志，建议您定期清理不需要的日志。"
-    val crashLogClearedMessage = "已清理 Phi Tracker 崩溃时产生的日志，建议您定期清理不需要的日志。"
 
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
@@ -95,8 +93,8 @@ fun SettingsTab(
     var showNotificationGuideDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(Unit) {
-        if (!notificationPermissionGranted && !crashNotificationGuideShown) {
+    LaunchedEffect(isDebugBuild, notificationPermissionGranted, crashNotificationGuideShown) {
+        if (shouldShowCrashNotificationGuide(isDebugBuild, notificationPermissionGranted, crashNotificationGuideShown)) {
             showNotificationGuideDialog = true
             onCrashNotificationGuideShown()
         }
@@ -414,34 +412,30 @@ fun SettingsTab(
                 modifier = Modifier.clickable { showUpdateDataDialog = true }
             )
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
-
-            CategoryTitle("崩溃通知")
-
-            CenteredListItem(
-                headlineContent = { Text("崩溃通知权限") },
-                supportingContent = {
-                    if (notificationPermissionGranted) {
-                        Text("已开启，可在应用崩溃后显示提醒通知")
-                    } else {
-                        Text("未开启，建议开启以便在崩溃后及时收到提示")
-                    }
-                },
-                leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
-                modifier = Modifier.clickable {
-                    requestCrashNotificationPermission { granted ->
-                        notificationPermissionGranted = granted
-                        if (!granted) {
-                            showPlatformMessage("通知权限未开启，崩溃提示可能无法显示")
-                        }
-                    }
-                }
-            )
-
             if (isDebugBuild) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
                 CategoryTitle("调试选项")
+
+                CenteredListItem(
+                    headlineContent = { Text("崩溃通知权限") },
+                    supportingContent = {
+                        if (notificationPermissionGranted) {
+                            Text("已开启，可在应用崩溃后显示提醒通知")
+                        } else {
+                            Text("未开启，建议开启以便在崩溃后及时收到提示")
+                        }
+                    },
+                    leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
+                    modifier = Modifier.clickable {
+                        requestCrashNotificationPermission { granted ->
+                            notificationPermissionGranted = granted
+                            if (!granted) {
+                                showPlatformMessage("通知权限未开启，崩溃提示可能无法显示")
+                            }
+                        }
+                    }
+                )
 
                 CenteredListItem(
                     headlineContent = { Text("导出运行日志") },
@@ -501,28 +495,14 @@ fun SettingsTab(
 
                 CenteredListItem(
                     headlineContent = { Text("清理运行日志") },
-                    supportingContent = { Text("删除所有运行时日志文件") },
+                    supportingContent = { Text("清空目前为止所有的运行日志与崩溃日志") },
                     leadingContent = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
                     modifier = Modifier.clickable {
-                        val ok = onClearRuntimeLogs()
+                        val ok = onClearAllLogs()
                         if (ok) {
-                            showPlatformAlert("运行日志已清理", runtimeLogClearedMessage)
+                            showPlatformAlert("运行日志已清理", "已清理 Phi Tracker 运行时及崩溃产生的日志，建议您定期清理不需要的日志。")
                         } else {
                             showPlatformAlert("清理运行日志失败", "Phi Tracker 未能清理运行日志，请稍后重试。\n\n错误信息：未知错误")
-                        }
-                    }
-                )
-
-                CenteredListItem(
-                    headlineContent = { Text("清理崩溃日志") },
-                    supportingContent = { Text("删除所有崩溃日志文件") },
-                    leadingContent = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        val ok = onClearCrashLogs()
-                        if (ok) {
-                            showPlatformAlert("崩溃日志已清理", crashLogClearedMessage)
-                        } else {
-                            showPlatformAlert("清理崩溃日志失败", "Phi Tracker 未能清理崩溃日志，请稍后重试。\n\n错误信息：未知错误")
                         }
                     }
                 )
@@ -747,41 +727,6 @@ fun SettingsTab(
         )
     }
 
-    if (updateCheckState is UpdateCheckState.Available) {
-        val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
-        AlertDialog(
-            onDismissRequest = { onDismissUpdateResult() },
-            title = { Text("发现新版本") },
-            text = {
-                Column {
-                    Text("最新版本: ${updateCheckState.version}")
-                    if (updateCheckState.body.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = updateCheckState.body,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 10
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    onDismissUpdateResult()
-                    uriHandler.openUri(updateCheckState.htmlUrl)
-                }) {
-                    Text("前往下载")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { onDismissUpdateResult() }) {
-                    Text("稍后再说")
-                }
-            }
-        )
-    }
-
     if (showNotificationGuideDialog) {
         AlertDialog(
             onDismissRequest = {
@@ -818,6 +763,20 @@ fun SettingsTab(
             }
         )
     }
+
+    val updateState = updateCheckState
+    if (updateState is UpdateCheckState.Available) {
+        UpdateResultDialog(
+            version = updateState.version,
+            body = updateState.body,
+            htmlUrl = updateState.htmlUrl,
+            onDismiss = onDismissUpdateResult,
+            onDownload = { uriHandler ->
+                onDismissUpdateResult()
+                uriHandler.openUri(updateState.htmlUrl)
+            }
+        )
+    }
 }
 
 @Composable
@@ -829,3 +788,9 @@ private fun CategoryTitle(title: String) {
         modifier = Modifier.padding(vertical = 8.dp)
     )
 }
+
+internal fun shouldShowCrashNotificationGuide(
+    isDebugBuild: Boolean,
+    permissionGranted: Boolean,
+    alreadyShown: Boolean
+): Boolean = isDebugBuild && !permissionGranted && !alreadyShown

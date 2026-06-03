@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
@@ -43,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
@@ -164,6 +166,22 @@ fun MainScreen(
         }
     }
 
+    // Home-visible update dialog (Blocker 1 fix)
+    // Composed BEFORE early returns so Available state is visible even during preload/loading
+    val updateState = state.updateCheckState
+    if (updateState is UpdateCheckState.Available) {
+        UpdateResultDialog(
+            version = updateState.version,
+            body = updateState.body,
+            htmlUrl = updateState.htmlUrl,
+            onDismiss = { viewModel.dismissUpdateResult() },
+            onDownload = { uriHandler ->
+                viewModel.dismissUpdateResult()
+                uriHandler.openUri(updateState.htmlUrl)
+            }
+        )
+    }
+
     if (state.showPreloadDialog) {
         IllustrationPreloadDialog(
             isPreloading = state.isPreloading,
@@ -249,8 +267,6 @@ fun MainScreen(
                 displayRks = state.displayRks,
                 nickname = state.nickname,
                 challengeModeRank = state.challengeModeRank,
-                isSyncing = state.isSyncing,
-                onRefresh = { viewModel.refresh() },
                 onGenerateImage = {
                     onNavigateToB30Image(
                         state.b30, state.displayRks, state.nickname,
@@ -315,6 +331,45 @@ fun MainScreen(
             )
         }
     }
+}
+
+@Composable
+internal fun UpdateResultDialog(
+    version: String,
+    body: String,
+    htmlUrl: String,
+    onDismiss: () -> Unit,
+    onDownload: (androidx.compose.ui.platform.UriHandler) -> Unit
+) {
+    val uriHandler = LocalUriHandler.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("发现新版本") },
+        text = {
+            Column {
+                Text("最新版本: $version")
+                if (body.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = body,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 10
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onDownload(uriHandler) }) {
+                Text("前往下载")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("稍后再说")
+            }
+        }
+    )
 }
 
 @Composable

@@ -69,8 +69,7 @@ fun SettingsScreen(
         hasCrashLogs = viewModel.hasCrashLogs(),
         onExportRuntimeLog = { viewModel.exportRuntimeLogText() },
         onExportCrashLog = { viewModel.exportCrashLogText() },
-        onClearRuntimeLogs = { viewModel.clearRuntimeLogs() },
-        onClearCrashLogs = { viewModel.clearCrashLogs() },
+        onClearAllLogs = { viewModel.clearAllLogs() },
         crashNotificationGuideShown = state.crashNotificationGuideShown,
         onCrashNotificationGuideShown = { viewModel.setCrashNotificationGuideShown() },
         modifier = androidx.compose.ui.Modifier

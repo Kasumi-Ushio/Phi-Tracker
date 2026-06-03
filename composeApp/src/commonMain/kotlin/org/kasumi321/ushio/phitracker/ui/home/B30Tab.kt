@@ -15,10 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,11 +32,6 @@ import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 
-private fun Float.formatRks(): String {
-    val v = (this * 10000).toLong()
-    return "${v / 10000}.${(kotlin.math.abs(v) % 10000).toString().padStart(4, '0')}"
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun B30Tab(
@@ -46,8 +39,6 @@ fun B30Tab(
     displayRks: Float,
     nickname: String,
     challengeModeRank: Int,
-    isSyncing: Boolean,
-    onRefresh: () -> Unit,
     onGenerateImage: () -> Unit,
     getIllustrationUrl: (String) -> String?,
     onSongClick: (String, Difficulty?) -> Unit,
@@ -83,13 +74,6 @@ fun B30Tab(
                 ) {
                     Icon(Icons.Filled.Image, contentDescription = "生成图片")
                 }
-                IconButton(onClick = onRefresh, enabled = !isSyncing) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Filled.Refresh, contentDescription = "刷新")
-                    }
-                }
             }
         )
 
@@ -115,7 +99,7 @@ fun B30Tab(
                         color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                     Text(
-                        text = displayRks.formatRks(),
+                        text = displayRks.formatFour(),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -131,7 +115,7 @@ fun B30Tab(
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                             Text(
-                                text = phi3.first().rks.formatRks(),
+                                text = phi3.first().rks.formatFour(),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -139,7 +123,7 @@ fun B30Tab(
                         }
                         if (b27.size >= 27) {
                             Text(
-                                text = "B27 末位: ${b27.last().rks.formatRks()}",
+                                text = "B27 末位: ${b27.last().rks.formatFour()}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                             )
@@ -159,7 +143,7 @@ fun B30Tab(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "暂无数据\n点击右上角刷新按钮以同步存档",
+                    text = "暂无数据\n请前往首页同步存档以获取数据",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

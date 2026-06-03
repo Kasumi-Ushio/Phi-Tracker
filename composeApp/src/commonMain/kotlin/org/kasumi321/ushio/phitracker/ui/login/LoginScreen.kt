@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -202,10 +203,11 @@ fun LoginScreen(
 }
 
 @Composable
-private fun QrLoginContent(
+internal fun QrLoginContent(
     state: LoginUiState,
     onStartQrLogin: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    onOpenQrUrl: ((String) -> Unit)? = null
 ) {
     DisposableEffect(Unit) {
         onDispose { onCancel() }
@@ -248,11 +250,24 @@ private fun QrLoginContent(
             }
 
             QrStatus.WaitingScan, QrStatus.Scanned -> {
+                val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
                 state.qrCodeUrl?.let { url ->
-                    QrCodeImage(url = url)
+                    QrCodeImage(
+                        url = url,
+                        onClick = { onOpenQrUrl?.invoke(url) ?: uriHandler.openUri(url) }
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "点击二维码可在浏览器或 TapTap 中打开",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
 
                 val statusText = if (state.qrStatus == QrStatus.Scanned) {
                     "已扫描，请在 TapTap 上确认登录"
@@ -431,11 +446,12 @@ private fun TokenLoginContent(
 }
 
 @Composable
-private fun QrCodeImage(url: String) {
+private fun QrCodeImage(url: String, onClick: (() -> Unit)? = null) {
     ElevatedCard(
         modifier = Modifier
             .fillMaxWidth(0.7f)
-            .aspectRatio(1f),
+            .aspectRatio(1f)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
     ) {

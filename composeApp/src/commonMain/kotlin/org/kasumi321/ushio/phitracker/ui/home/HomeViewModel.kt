@@ -1388,4 +1388,10 @@ class HomeViewModel(
             false
         }
     }
+
+    fun clearAllLogs(): Boolean {
+        val runtimeOk = clearRuntimeLogs()
+        val crashOk = clearCrashLogs()
+        return runtimeOk && crashOk
+    }
 }
