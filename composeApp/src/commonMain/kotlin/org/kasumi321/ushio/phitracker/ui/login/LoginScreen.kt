@@ -220,7 +220,7 @@ internal fun QrLoginContent(
         when (state.qrStatus) {
             QrStatus.Idle -> {
                 Text(
-                    text = "使用 TapTap App 扫描二维码\n无需手动抓取 sessionToken，登录将自动完成",
+                    text = "使用 TapTap App 扫描二维码，即可自动完成登录",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -303,7 +303,7 @@ internal fun QrLoginContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "请注意，登录 TapTap 可能造成账号及财产损失\n请在信任来源的情况下扫码登录",
+                    text = "温馨提示：请确认你在信任的环境下登录，以保护账号安全",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -315,7 +315,7 @@ internal fun QrLoginContent(
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "正在获取 Token 并同步存档...",
+                    text = "正在同步你的游戏数据，请稍候...",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -391,7 +391,7 @@ private fun TokenLoginContent(
         OutlinedTextField(
             value = state.token,
             onValueChange = onTokenChange,
-            label = { Text("Session Token") },
+            label = { Text("sessionToken") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             enabled = !state.isLoading
@@ -432,7 +432,7 @@ private fun TokenLoginContent(
                 )
             )
             pushLink(link)
-            append("点我获取教程")
+            append("查看获取教程")
             pop()
         }
 

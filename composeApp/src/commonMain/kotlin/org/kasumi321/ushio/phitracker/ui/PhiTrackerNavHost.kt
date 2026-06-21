@@ -383,7 +383,7 @@ private fun SongDetailNotFound(songId: String, onBack: () -> Unit, modifier: Mod
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "无法找到该曲目",
+                text = "找不到这个曲目",
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center
             )

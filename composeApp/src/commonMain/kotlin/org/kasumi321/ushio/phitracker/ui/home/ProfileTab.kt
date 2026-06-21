@@ -199,7 +199,7 @@ fun ProfileTab(
                     }
                 } else {
                     Text(
-                        text = "本次同步没有检测到分数或 ACC 变化",
+                        text = "本次同步没有新的成绩变动",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -213,7 +213,7 @@ fun ProfileTab(
                     )
                 ) {
                     Text(
-                        text = "尚未同步过存档\n点击右上角刷新按钮开始同步",
+                        text = "还没有同步过数据\n点击右上角按钮开始",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(24.dp)

@@ -384,7 +384,7 @@ private fun IllustrationPreloadDialog(
                     )
                 } else {
                     Text(
-                        text = "首次使用需要下载曲绘缩略图资源，以确保最佳显示效果。\n\n预计大小约 60 MB，建议在 Wi-Fi 环境下下载。",
+                        text = "首次使用需要下载曲绘缩略图资源包以正常显示曲目封面。\n\n预计约 60 MB，推荐在 Wi-Fi 下完成。",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Start
                     )

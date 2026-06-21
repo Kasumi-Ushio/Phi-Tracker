@@ -437,7 +437,7 @@ private fun DifficultyContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "查分 API 统计信息",
+                        text = "社区统计数据",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -551,7 +551,7 @@ private fun DifficultyContent(
                 )
             ) {
                 Text(
-                    text = "暂无同步历史\n同步后发生变化的成绩将显示在这里",
+                    text = "还没有同步记录\n成绩变动后会显示在这里",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(16.dp)

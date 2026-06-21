@@ -145,7 +145,7 @@ fun B30Tab(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "暂无数据\n请前往首页同步存档以获取数据",
+                    text = "还没有成绩数据\n前往首页同步即可查看",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center

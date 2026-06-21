@@ -75,7 +75,7 @@ class LoginViewModel(
                         server = server,
                         isCheckingToken = false,
                         isLoggedIn = false,
-                        error = "Token 验证失败: ${validateResult.exceptionOrNull()?.message}"
+                        error = "登录凭据已失效，请重新登录"
                     )
                 }
                 AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "false"))
@@ -90,7 +90,7 @@ class LoginViewModel(
                         server = server,
                         isCheckingToken = false,
                         isLoggedIn = false,
-                        error = "存档同步失败: ${syncResult.exceptionOrNull()?.message}"
+                        error = "同步失败，请检查网络后重试"
                     )
                 }
                 AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "false"))
@@ -120,7 +120,7 @@ class LoginViewModel(
     fun login() {
         val state = _uiState.value
         if (state.token.isBlank()) {
-            _uiState.update { it.copy(error = "请输入 Session Token") }
+            _uiState.update { it.copy(error = "请输入 sessionToken") }
             return
         }
 
@@ -132,7 +132,7 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = "Token 验证失败: ${validateResult.exceptionOrNull()?.message}"
+                        error = "登录凭据已失效，请重新登录"
                     )
                 }
                 return@launch
@@ -145,7 +145,7 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = "存档同步失败: ${syncResult.exceptionOrNull()?.message}"
+                        error = "同步失败，请检查网络后重试"
                     )
                 }
                 return@launch

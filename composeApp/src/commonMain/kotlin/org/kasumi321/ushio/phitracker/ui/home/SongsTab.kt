@@ -272,7 +272,7 @@ private fun FilterBottomSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("定数范围 (Level): $minLevel - $maxLevel", style = MaterialTheme.typography.titleMedium)
+        Text("定数范围：$minLevel ~ $maxLevel", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
         var sliderPosition by remember(minLevel, maxLevel) { mutableStateOf(minLevel.toFloat()..maxLevel.toFloat()) }
         RangeSlider(

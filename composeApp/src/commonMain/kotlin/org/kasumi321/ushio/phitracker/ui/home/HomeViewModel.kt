@@ -581,7 +581,7 @@ class HomeViewModel(
             jobs.forEach { it.join() }
 
             val errorMessage = if (hasChildError) {
-                "部分预览图加载失败"
+                "部分曲绘图片未能加载"
             } else {
                 val persistResult = runCatching { settingsRepository.setPreloadDone(true) }
                 persistResult.exceptionOrNull()?.message
@@ -617,7 +617,7 @@ class HomeViewModel(
             try {
                 val tokenPair = repository.getSessionToken()
                 if (tokenPair == null) {
-                    _uiState.update { it.copy(isSyncing = false, error = "未登录") }
+                    _uiState.update { it.copy(isSyncing = false, error = "请先登录后再操作") }
                     return@launch
                 }
 
@@ -911,7 +911,7 @@ class HomeViewModel(
         )
 
         if (addedFailure > 0) {
-            throw IllegalStateException("曲目数据已更新，但 $addedFailure 个新增曲绘缩略图缓存失败")
+            throw IllegalStateException("曲目数据已更新，但部分曲绘未能下载，可稍后在设置中重试")
         }
     }
 
@@ -1247,9 +1247,9 @@ class HomeViewModel(
                 it.copy(
                     isApiTesting = false,
                     apiTestMessage = if (bindResult.isSuccess) {
-                        "连接测试成功"
+                        "连接正常"
                     } else {
-                        "连接可用，但绑定查询失败：${bindResult.exceptionOrNull()?.message ?: "未知错误"}"
+                        "已连接，但账号查询失败：${bindResult.exceptionOrNull()?.message ?: "未知错误"}"
                     }
                 )
             }
@@ -1287,7 +1287,7 @@ class HomeViewModel(
                 _uiState.update {
                     it.copy(
                         apiRankByUser = ApiToolResult(
-                            message = "查询失败：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                            message = "查询未成功，请检查网络或稍后重试"
                         )
                     )
                 }
@@ -1341,7 +1341,7 @@ class HomeViewModel(
                 _uiState.update {
                     it.copy(
                         apiRankByPosition = ApiToolResult(
-                            message = "查询失败：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                            message = "查询未成功，请检查网络或稍后重试"
                         )
                     )
                 }
@@ -1389,7 +1389,7 @@ class HomeViewModel(
                 _uiState.update {
                     it.copy(
                         apiRksRankResult = ApiToolResult(
-                            message = "查询失败：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                            message = "查询未成功，请检查网络或稍后重试"
                         )
                     )
                 }
@@ -1450,7 +1450,7 @@ class HomeViewModel(
                     val updated = it.songApiDetailMap.toMutableMap()
                     updated[key] = (updated[key] ?: SongApiDetailState()).copy(
                         isLoading = false,
-                        error = "API 拉取失败：$firstError"
+                        error = "数据获取失败，请稍后重试"
                     )
                     it.copy(songApiDetailMap = updated)
                 }

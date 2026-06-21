@@ -373,7 +373,7 @@ fun SettingsTab(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("启用查分 API", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                            text = "使用第三方 API 获取额外统计信息",
+                            text = "获取社区统计数据（如排名、RKS 分布等）",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -457,7 +457,7 @@ fun SettingsTab(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("使用查分 API 数据", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                                text = "开启后首页和统计优先显示 API 数据",
+                                text = "开启后优先展示社区统计数据",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -466,7 +466,7 @@ fun SettingsTab(
                 }
 
                 Text(
-                        text = "本地同步和 API 同步记录可能存在差异。切换数据源不影响本地数据，本地数据库始终保持更新。",
+                        text = "社区数据与本地数据可能有差异，切换数据源不会影响你的本地记录。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -500,7 +500,7 @@ fun SettingsTab(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("接收预发布版本更新", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                            text = "启用后您将收到预发布版本的更新",
+                            text = "开启后将收到测试版更新通知",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -527,7 +527,7 @@ fun SettingsTab(
                         if (isCachingB30Artwork) {
                             Text("正在缓存 $b30ArtworkCacheCompleted/$b30ArtworkCacheTotal")
                         } else {
-                            Text("提前缓存当前 B30 的标准曲绘，用于离线生成成绩图")
+                            Text("提前下载当前 B30 中曲目的高清封面，离线也能生成图片")
                         }
                     },
                     leadingContent = {
@@ -544,10 +544,10 @@ fun SettingsTab(
                             Modifier.clickable(enabled = !isCachingB30Artwork) {
                                 onCacheB30Artwork { result ->
                                     if (result.isSuccess) {
-                                        showPlatformMessage("B30 高清曲绘缓存完成")
+                                        showPlatformMessage("曲绘预加载完成")
                                     } else {
                                         showPlatformMessage(
-                                                "B30 高清曲绘缓存失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                                "预加载失败，请重试"
                                         )
                                     }
                                 }

@@ -78,7 +78,7 @@ fun AboutScreen(
 
             CenteredListItem(
                 headlineContent = { Text("建议和反馈") },
-                supportingContent = { Text("遇到 Bug 或有建议？通过 Issues 告诉我们") },
+                supportingContent = { Text("遇到问题或有建议？在 GitHub 上告诉我们") },
                 leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable {
