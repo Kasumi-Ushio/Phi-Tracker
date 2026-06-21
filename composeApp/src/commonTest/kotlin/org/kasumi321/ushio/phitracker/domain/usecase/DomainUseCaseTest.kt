@@ -199,7 +199,73 @@ class DomainUseCaseTest {
 
         assertEquals(2, results.size)
         assertEquals(true, results.first { it.songId == "song.0" }.isFullCombo)
+        assertEquals(950_000, results.first { it.songId == "song.0" }.currentScore)
         assertEquals(false, results.first { it.songId == "song.1" }.isFullCombo)
+    }
+
+    @Test
+    fun suggestSingleChartTargetUsesProvidedRks() {
+        val useCase = GetSuggestUseCase()
+        val currentB30 = (0 until 20).map { i ->
+            BestRecord("b-$i", "B $i", Difficulty.IN, 900_000, 90f, false, 10f, 8f)
+        }
+        val records = mapOf(
+            "candidate" to SongRecord(
+                songId = "candidate",
+                levels = mapOf(Difficulty.IN to LevelRecord(900_000, 90f, false))
+            )
+        )
+        val difficulties = mapOf("candidate" to mapOf(Difficulty.IN to 16f))
+        val names = mapOf("candidate" to "Candidate")
+
+        val result = useCase(
+            currentB30 = currentB30,
+            records = records,
+            difficulties = difficulties,
+            songNames = names,
+            targetMode = SuggestTargetMode.SingleChartRks,
+            targetRks = 15f
+        )
+
+        assertEquals(1, result.size)
+        assertClose(15f, result.single().potentialRks, tolerance = 0.001f)
+        assertTrue(result.single().targetAcc > 98f)
+    }
+
+    @Test
+    fun suggestPlayerTargetKeepsPhiAndB27AsSeparateContributionSlots() {
+        val useCase = GetSuggestUseCase()
+        val currentB30 = (0 until 20).map { i ->
+            BestRecord("b-$i", "B $i", Difficulty.IN, 900_000, 90f, false, 10f, 8f)
+        }
+        val records = mutableMapOf<String, SongRecord>()
+        val difficulties = mutableMapOf<String, Map<Difficulty, Float>>()
+        val names = mutableMapOf<String, String>()
+        repeat(26) { i ->
+            val songId = "base-$i"
+            records[songId] = SongRecord(songId, mapOf(Difficulty.IN to LevelRecord(900_000, 95f, false)))
+            difficulties[songId] = mapOf(Difficulty.IN to 10f)
+            names[songId] = "Base $i"
+        }
+        records["candidate"] = SongRecord(
+            "candidate",
+            mapOf(Difficulty.IN to LevelRecord(900_000, 90f, false))
+        )
+        difficulties["candidate"] = mapOf(Difficulty.IN to 16f)
+        names["candidate"] = "Candidate"
+
+        val result = useCase(
+            currentB30 = currentB30,
+            records = records,
+            difficulties = difficulties,
+            songNames = names,
+            targetMode = SuggestTargetMode.PlayerDisplayRks,
+            targetRks = 7.8f
+        )
+
+        val candidate = result.single { it.songId == "candidate" }
+        assertClose(16f, candidate.potentialRks, tolerance = 0.001f)
+        assertClose(100f, candidate.targetAcc, tolerance = 0.001f)
     }
 
     @Test
@@ -291,8 +357,8 @@ class DomainUseCaseTest {
         summary = null
     )
 
-    private fun assertClose(expected: Float, actual: Float) {
-        assertTrue(abs(expected - actual) < 0.0001f, "Expected $expected but was $actual")
+    private fun assertClose(expected: Float, actual: Float, tolerance: Float = 0.0001f) {
+        assertTrue(abs(expected - actual) < tolerance, "Expected $expected but was $actual")
     }
 
     private fun createBestRecord(

@@ -56,12 +56,13 @@ class PhigrosRepositoryImpl(
     }
 
     override suspend fun syncSave(sessionToken: String, server: Server): Result<Save> = runCatching {
-        val saveList = apiClient.getGameSaves(sessionToken, server)
-        val latestSave = saveList.results.firstOrNull() ?: error("没有找到存档")
+        val userInfo = apiClient.getUserInfo(sessionToken, server)
+        val saveList = apiClient.getGameSaves(sessionToken, server, userInfo.objectId)
+        val latestSave = saveList.results.firstOrNull { it.user?.objectId == userInfo.objectId }
+            ?: error("没有找到当前用户的存档")
         val summary = saveParser.parseSummary(latestSave.summary)
         val saveData = apiClient.downloadSave(latestSave.gameFile.url)
         val save = saveParser.parseSave(saveData).copy(summary = summary)
-        val userInfo = apiClient.getUserInfo(sessionToken, server)
         val userProfile = UserProfile(
             playerId = userInfo.objectId,
             nickname = userInfo.nickname,

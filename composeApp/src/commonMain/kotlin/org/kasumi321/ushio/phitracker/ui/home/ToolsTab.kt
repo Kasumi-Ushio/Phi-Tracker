@@ -43,6 +43,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -75,12 +76,19 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
 import org.kasumi321.ushio.phitracker.data.platform.copyToClipboard
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
+import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
+import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
+import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import kotlin.math.ceil
 
@@ -95,7 +103,12 @@ fun ToolsTab(
     apiRankByUser: ApiToolResult,
     apiRankByPosition: ApiToolResult,
     apiRksRankResult: ApiToolResult,
+    suggestTargetMode: SuggestTargetMode,
+    suggestTargetInput: String,
+    suggestTargetError: String?,
     suggestItems: List<SuggestItem>,
+    onSuggestTargetModeChange: (SuggestTargetMode) -> Unit,
+    onSuggestTargetInputChange: (String) -> Unit,
     onFetchRankByUser: () -> Unit,
     onFetchRankByPosition: (Int) -> Unit,
     onFetchRksRank: (Float) -> Unit,
@@ -148,7 +161,12 @@ fun ToolsTab(
                 icon = Icons.Default.ShowChart
             ) {
                 SuggestionContent(
+                    targetMode = suggestTargetMode,
+                    targetInput = suggestTargetInput,
+                    targetError = suggestTargetError,
                     suggestItems = suggestItems,
+                    onTargetModeChange = onSuggestTargetModeChange,
+                    onTargetInputChange = onSuggestTargetInputChange,
                     onSuggestionClick = onSuggestionClick,
                     getIllustrationUrl = getIllustrationUrl
                 )
@@ -693,13 +711,51 @@ private fun SessionTokenContent(sessionToken: String?) {
 
 @Composable
 private fun SuggestionContent(
+    targetMode: SuggestTargetMode,
+    targetInput: String,
+    targetError: String?,
     suggestItems: List<SuggestItem>,
+    onTargetModeChange: (SuggestTargetMode) -> Unit,
+    onTargetInputChange: (String) -> Unit,
     onSuggestionClick: (String, Difficulty?) -> Unit,
     getIllustrationUrl: (String) -> String?
 ) {
+    Text(
+        text = "留空时沿用当前 B30 阈值；输入目标后按所选模式重新推荐。",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FilterChip(
+            selected = targetMode == SuggestTargetMode.PlayerDisplayRks,
+            onClick = { onTargetModeChange(SuggestTargetMode.PlayerDisplayRks) },
+            label = { Text("玩家最终 RKS") }
+        )
+        FilterChip(
+            selected = targetMode == SuggestTargetMode.SingleChartRks,
+            onClick = { onTargetModeChange(SuggestTargetMode.SingleChartRks) },
+            label = { Text("单谱面 RKS") }
+        )
+    }
+
+    OutlinedTextField(
+        value = targetInput,
+        onValueChange = onTargetInputChange,
+        label = { Text("目标 RKS") },
+        placeholder = { Text("例如 16.50") },
+        supportingText = {
+            Text(targetError ?: "范围 0.00 到 17.00，最多两位小数")
+        },
+        isError = targetError != null,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth()
+    )
+
     if (suggestItems.isEmpty()) {
         Text(
-            text = "暂无推分建议（请先同步存档）",
+            text = targetError ?: "暂无推分建议（请先同步存档，或调整目标 RKS）",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -751,10 +807,6 @@ private fun SuggestionContent(
     }
 }
 
-private val FcColor = Color(0xFF4FC3F7)
-private val ApColor = Color(0xFFFFD54F)
-private val ApTextColor = Color(0xFF5D4037)
-
 @Composable
 private fun SuggestScoreCard(
     item: SuggestItem,
@@ -763,15 +815,28 @@ private fun SuggestScoreCard(
     modifier: Modifier = Modifier
 ) {
     val diffColor = DifficultyColors.forDifficulty(item.difficulty)
-    val isAp = (item.currentAcc ?: 0f) >= 100f
 
     val ccText = remember(item.chartConstant, item.difficulty) {
         "${DifficultyColors.labelFor(item.difficulty)} ${item.chartConstant.formatOne()}"
+    }
+    val rating = remember(item.currentScore, item.isFullCombo) {
+        item.currentScore?.let { ScoreRating.fromScore(it, item.isFullCombo) }
     }
     val currentAccText = remember(item.currentAcc) { item.currentAcc?.let { "${it.formatTwo()}%" } ?: "暂无" }
     val targetAccText = remember(item.targetAcc) { "${item.targetAcc.formatTwo()}%" }
     val currentRksText = remember(item.currentRks) { item.currentRks.formatFour() }
     val potentialRksText = remember(item.potentialRks) { item.potentialRks.formatFour() }
+    val platformContext = LocalPlatformContext.current
+    val imageRequest = remember(platformContext, illustrationUrl) {
+        illustrationUrl?.takeIf { it.isNotBlank() }?.let { url ->
+            ImageRequest.Builder(platformContext)
+                .data(url)
+                .size(168)
+                .networkCachePolicy(CachePolicy.READ_ONLY)
+                .crossfade(200)
+                .build()
+        }
+    }
 
     Card(
         modifier = modifier
@@ -787,9 +852,9 @@ private fun SuggestScoreCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!illustrationUrl.isNullOrBlank()) {
+            if (imageRequest != null) {
                 AsyncImage(
-                    model = illustrationUrl,
+                    model = imageRequest,
                     contentDescription = null,
                     modifier = Modifier
                         .size(56.dp)
@@ -829,39 +894,8 @@ private fun SuggestScoreCard(
                         )
                     }
 
-                    when {
-                        isAp -> {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(ApColor)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "φ",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ApTextColor,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
-                        item.isFullCombo -> {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(FcColor)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "FC",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 10.sp
-                                )
-                            }
-                        }
+                    if (rating != null) {
+                        ScoreRatingTag(rating = rating, fontSize = 10.sp)
                     }
                 }
             }

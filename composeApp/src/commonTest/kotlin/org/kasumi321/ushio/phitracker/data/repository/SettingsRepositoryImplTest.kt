@@ -29,6 +29,35 @@ class SettingsRepositoryImplTest {
     }
 
     @Test
+    fun defaultsThemeColorSettings(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals("system", repo.themeColorSource.first())
+        assertEquals(-10011977, repo.seedColorArgb.first())
+        assertNull(repo.themeImageSeedColorArgb.first())
+        assertNull(repo.themeImageUri.first())
+        assertEquals("TonalSpot", repo.paletteStyleName.first())
+    }
+
+    @Test
+    fun setAndReadThemeColorSettings(): Unit = runTest {
+        val repo = createRepo()
+        repo.setThemeColorSource("seed")
+        repo.setSeedColorArgb(-16738680)
+        repo.setPaletteStyleName("Vibrant")
+        repo.setThemeImageColor("content://image/1", -1499549)
+
+        assertEquals("seed", repo.themeColorSource.first())
+        assertEquals(-16738680, repo.seedColorArgb.first())
+        assertEquals("Vibrant", repo.paletteStyleName.first())
+        assertEquals("content://image/1", repo.themeImageUri.first())
+        assertEquals(-1499549, repo.themeImageSeedColorArgb.first())
+
+        repo.clearThemeImageColor()
+        assertNull(repo.themeImageUri.first())
+        assertNull(repo.themeImageSeedColorArgb.first())
+    }
+
+    @Test
     fun defaultsShowB30OverflowFalse(): Unit = runTest {
         val repo = createRepo()
         assertEquals(false, repo.showB30Overflow.first())

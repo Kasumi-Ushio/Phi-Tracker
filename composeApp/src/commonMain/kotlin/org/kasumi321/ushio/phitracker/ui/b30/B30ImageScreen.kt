@@ -3,6 +3,7 @@ package org.kasumi321.ushio.phitracker.ui.b30
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -71,6 +72,7 @@ import org.kasumi321.ushio.phitracker.data.platform.saveB30ImageToPictures
 import org.kasumi321.ushio.phitracker.data.platform.shareB30Image
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
@@ -86,6 +88,7 @@ fun B30ImageScreen(
     avatarUri: String? = null,
     showB30Overflow: Boolean = false,
     overflowCount: Int = 9,
+    themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings(),
     getLowIllustrationUrl: (String) -> String? = { null },
     getStandardIllustrationUrl: (String) -> String = { "" },
     onBack: () -> Unit
@@ -98,11 +101,21 @@ fun B30ImageScreen(
     var customBackgroundUri by remember { mutableStateOf<String?>(null) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val systemDark = isSystemInDarkTheme()
+    val exportDarkTheme = when (themeSettings.themeMode) {
+        1 -> false
+        2, 3 -> true
+        else -> systemDark
+    }
+    val exportAmoled = themeSettings.themeMode == 3
 
     val pickBackground = rememberB30BackgroundPicker { uri ->
         if (uri != null) {
+            AppLogger.event("b30_export", "background_selected", mapOf("type" to "custom", "uriPresent" to "true"))
             customBackgroundUri = uri
             backgroundMode = B30BackgroundMode.Custom(uri)
+        } else {
+            AppLogger.event("b30_export", "background_picker_cancelled", mapOf("type" to "custom"))
         }
     }
 
@@ -114,7 +127,8 @@ fun B30ImageScreen(
         b30, displayRks, nickname, challengeModeRank, moneyString,
         clearCounts, fcCount, phiCount, avatarUri,
         showB30Overflow, overflowCount, getLowIllustrationUrl,
-        getStandardIllustrationUrl, backgroundMode, customBackgroundUri
+        getStandardIllustrationUrl, backgroundMode, customBackgroundUri,
+        exportDarkTheme, exportAmoled, themeSettings
     ) {
         val dateText = runCatching {
             val now = Clock.System.now()
@@ -143,7 +157,10 @@ fun B30ImageScreen(
                 phiCount = phiCount,
                 avatarUri = avatarUri,
                 backgroundUri = null,
-                dateText = dateText
+                dateText = dateText,
+                darkTheme = exportDarkTheme,
+                isAmoled = exportAmoled,
+                themeSettings = themeSettings
             ),
             standardIllustrationProvider = getStandardIllustrationUrl
         )
@@ -162,7 +179,10 @@ fun B30ImageScreen(
             phiCount = phiCount,
             avatarUri = avatarUri,
             backgroundUri = resolvedBg,
-            dateText = dateText
+            dateText = dateText,
+            darkTheme = exportDarkTheme,
+            isAmoled = exportAmoled,
+            themeSettings = themeSettings
         )
     }
 
@@ -171,13 +191,30 @@ fun B30ImageScreen(
         generationFailed = false
         zoomFactor = 1f
         export = null
+        AppLogger.event(
+            "b30_export",
+            "generate_started",
+            mapOf(
+                "cards" to b30.size.toString(),
+                "background" to backgroundMode::class.simpleName.orEmpty(),
+                "darkTheme" to exportDarkTheme.toString()
+            )
+        )
         val result = runCatching {
             withContext(Dispatchers.Default) {
                 B30ImageGenerator.generate(exportData)
             }
         }
         export = result.getOrNull()
+        result.getOrNull()?.let { exp ->
+            AppLogger.event(
+                "b30_export",
+                "generate_success",
+                mapOf("width" to exp.width.toString(), "height" to exp.height.toString())
+            )
+        }
         result.exceptionOrNull()?.let { throwable ->
+            AppLogger.event("b30_export", "generate_failed", mapOf("error" to (throwable.message ?: "unknown")))
             AppLogger.e("B30ImageScreen", "B30 image generation failed", throwable)
         }
         generationFailed = result.isFailure
@@ -216,6 +253,11 @@ fun B30ImageScreen(
                                 coroutineScope.launch {
                                     val fileName = buildB30ExportFilename(nickname)
                                     val result = saveB30ImageToPictures(exp.pngBytes, fileName)
+                                    AppLogger.event(
+                                        "b30_export",
+                                        if (result.isSuccess) "save_success" else "save_failed",
+                                        mapOf("fileName" to fileName)
+                                    )
                                     showPlatformMessage(
                                         if (result.isSuccess) "已保存到 Pictures/PhiTracker" else "保存失败"
                                     )
@@ -233,6 +275,11 @@ fun B30ImageScreen(
                                 coroutineScope.launch {
                                     val fileName = buildB30ExportFilename(nickname)
                                     val result = shareB30Image(exp.pngBytes, fileName)
+                                    AppLogger.event(
+                                        "b30_export",
+                                        if (result.isSuccess) "share_success" else "share_failed",
+                                        mapOf("fileName" to fileName)
+                                    )
                                     if (result.isFailure) {
                                         showPlatformMessage("分享失败")
                                     }
@@ -308,15 +355,18 @@ fun B30ImageScreen(
             selectedSongId = selectedSongId,
             getLowIllustrationUrl = getLowIllustrationUrl,
             onSelectDefault = {
+                AppLogger.event("b30_export", "background_selected", mapOf("type" to "auto"))
                 backgroundMode = B30BackgroundMode.Auto
                 customBackgroundUri = null
                 showBackgroundDialog = false
             },
             onSelectAlbum = {
+                AppLogger.event("b30_export", "background_picker_opened", mapOf("type" to "album"))
                 showBackgroundDialog = false
                 pickBackground()
             },
             onSelectSong = { songId ->
+                AppLogger.event("b30_export", "background_selected", mapOf("type" to "song", "songId" to songId))
                 backgroundMode = B30BackgroundMode.SongBackground(songId)
                 customBackgroundUri = null
                 showBackgroundDialog = false

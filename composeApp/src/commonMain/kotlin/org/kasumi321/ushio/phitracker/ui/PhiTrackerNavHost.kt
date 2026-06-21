@@ -52,6 +52,7 @@ import org.kasumi321.ushio.phitracker.ui.settings.LicensesScreen
 import org.kasumi321.ushio.phitracker.ui.settings.PrivacyPolicyScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
+import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -79,7 +80,8 @@ private data class B30ImageState(
     val phiCount: Int = 0,
     val avatarUri: String? = null,
     val showB30Overflow: Boolean = false,
-    val overflowCount: Int = 9
+    val overflowCount: Int = 9,
+    val themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings()
 )
 
 private const val NavTransitionDurationMillis = 250
@@ -170,7 +172,7 @@ fun PhiTrackerNavHost() {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 },
-                onNavigateToB30Image = { b30, displayRks, nickname, challengeModeRank, moneyString, clearCounts, fcCount, phiCount, avatarUri, showB30Overflow, overflowCount ->
+                onNavigateToB30Image = { b30, displayRks, nickname, challengeModeRank, moneyString, clearCounts, fcCount, phiCount, avatarUri, showB30Overflow, overflowCount, themeSettings ->
                     b30ImageState = B30ImageState(
                         b30 = b30,
                         displayRks = displayRks,
@@ -182,7 +184,8 @@ fun PhiTrackerNavHost() {
                         phiCount = phiCount,
                         avatarUri = avatarUri,
                         showB30Overflow = showB30Overflow,
-                        overflowCount = overflowCount
+                        overflowCount = overflowCount,
+                        themeSettings = themeSettings
                     )
                     navController.navigate(Screen.B30Image.route)
                 },
@@ -223,8 +226,9 @@ fun PhiTrackerNavHost() {
                 avatarUri = b30ImageState.avatarUri,
                 showB30Overflow = b30ImageState.showB30Overflow,
                 overflowCount = b30ImageState.overflowCount,
+                themeSettings = b30ImageState.themeSettings,
                 getLowIllustrationUrl = { homeViewModel.getLowIllustrationUrl(it) },
-                getStandardIllustrationUrl = { homeViewModel.getStandardIllustrationUrl(it) },
+                getStandardIllustrationUrl = { homeViewModel.getCachedOrStandardIllustrationUri(it) },
                 onBack = { navController.popBackStack() }
             )
         }
@@ -315,13 +319,19 @@ fun PhiTrackerNavHost() {
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) { backStackEntry ->
-            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_songdetail") }
             val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
             val homeViewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
             val state by homeViewModel.uiState.collectAsState()
             val route = backStackEntry.toRoute<SongDetailRoute>()
             val songId = route.songId
             val difficulty = route.difficulty()
+            LaunchedEffect(songId, difficulty) {
+                AppLogger.event(
+                    "navigation",
+                    "entered_songdetail",
+                    mapOf("songId" to songId, "difficulty" to (difficulty?.name ?: "default"))
+                )
+            }
             val songInfo = state.allSongs.find { it.id == songId }
             if (songInfo != null) {
                 val records = state.allRecords.filter { it.songId == songId }

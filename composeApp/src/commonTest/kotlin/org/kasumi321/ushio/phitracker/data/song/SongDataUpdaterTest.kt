@@ -14,6 +14,7 @@ import okio.FileSystem
 import okio.Path.Companion.toPath
 import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
+import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -29,7 +30,7 @@ class SongDataUpdaterTest {
 
     @BeforeTest
     fun setUp() {
-        testBaseDir = "/tmp/song-updater-test-${hashCode()}".toPath()
+        testBaseDir = "/tmp/song-updater-test-${hashCode()}-${Random.nextLong().toString(16)}".toPath()
         fs.createDirectories(testBaseDir)
         fs.createDirectories(testBaseDir / "cache")
         paths = PlatformPaths(

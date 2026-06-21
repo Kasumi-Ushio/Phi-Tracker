@@ -13,6 +13,8 @@ import org.kasumi321.ushio.phitracker.data.database.createAppDatabase
 import org.kasumi321.ushio.phitracker.data.parser.AesDecryptor
 import org.kasumi321.ushio.phitracker.data.parser.SaveParser
 import org.kasumi321.ushio.phitracker.data.platform.TokenManager
+import org.kasumi321.ushio.phitracker.data.platform.ArtworkFileCache
+import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.createPlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.createSecureKeyValueStorage
 import org.kasumi321.ushio.phitracker.data.repository.PhigrosRepositoryImpl
@@ -55,6 +57,7 @@ val dataModule = module {
         )
     }
     single { createPlatformPaths() }
+    single<StandardArtworkCache> { ArtworkFileCache(get(), get()) }
     single<PhigrosRepository> { PhigrosRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get()) }
     single { SongDataProvider(paths = get()) }
     single { IllustrationProvider() }

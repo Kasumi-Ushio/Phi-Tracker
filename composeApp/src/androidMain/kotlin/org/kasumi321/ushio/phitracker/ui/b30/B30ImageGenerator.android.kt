@@ -105,7 +105,11 @@ actual object B30ImageGenerator {
                 CompositionLocalProvider(
                     LocalDensity provides Density(B30ExportSpec.DENSITY, B30ExportSpec.FONT_SCALE)
                 ) {
-                    PhiTrackerTheme {
+                    PhiTrackerTheme(
+                        darkTheme = augmentedData.darkTheme,
+                        isAmoled = augmentedData.isAmoled,
+                        settings = augmentedData.themeSettings
+                    ) {
                         B30ExportLayout(augmentedData, allowHardwareImages = false)
                     }
                 }

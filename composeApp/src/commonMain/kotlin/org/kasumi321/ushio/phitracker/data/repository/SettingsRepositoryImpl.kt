@@ -13,6 +13,21 @@ class SettingsRepositoryImpl(
     private val themeModeState = MutableStateFlow(storage.getString(KEY_THEME_MODE)?.toIntOrNull() ?: 0)
     override val themeMode: Flow<Int> = themeModeState.asStateFlow()
 
+    private val themeColorSourceState = MutableStateFlow(storage.getString(KEY_THEME_COLOR_SOURCE) ?: "system")
+    override val themeColorSource: Flow<String> = themeColorSourceState.asStateFlow()
+
+    private val seedColorArgbState = MutableStateFlow(storage.getString(KEY_SEED_COLOR_ARGB)?.toIntOrNull() ?: -10011977)
+    override val seedColorArgb: Flow<Int> = seedColorArgbState.asStateFlow()
+
+    private val themeImageSeedColorArgbState = MutableStateFlow(storage.getString(KEY_THEME_IMAGE_SEED_COLOR_ARGB)?.toIntOrNull())
+    override val themeImageSeedColorArgb: Flow<Int?> = themeImageSeedColorArgbState.asStateFlow()
+
+    private val themeImageUriState = MutableStateFlow(storage.getString(KEY_THEME_IMAGE_URI))
+    override val themeImageUri: Flow<String?> = themeImageUriState.asStateFlow()
+
+    private val paletteStyleNameState = MutableStateFlow(storage.getString(KEY_PALETTE_STYLE_NAME) ?: "TonalSpot")
+    override val paletteStyleName: Flow<String> = paletteStyleNameState.asStateFlow()
+
     private val showB30OverflowState = MutableStateFlow(storage.getString(KEY_SHOW_B30_OVERFLOW)?.toBooleanStrictOrNull() ?: false)
     override val showB30Overflow: Flow<Boolean> = showB30OverflowState.asStateFlow()
 
@@ -24,6 +39,39 @@ class SettingsRepositoryImpl(
     override suspend fun setThemeMode(mode: Int) {
         storage.putString(KEY_THEME_MODE, mode.toString())
         themeModeState.value = mode
+    }
+
+    override suspend fun setThemeColorSource(source: String) {
+        storage.putString(KEY_THEME_COLOR_SOURCE, source)
+        themeColorSourceState.value = source
+    }
+
+    override suspend fun setSeedColorArgb(argb: Int) {
+        storage.putString(KEY_SEED_COLOR_ARGB, argb.toString())
+        seedColorArgbState.value = argb
+    }
+
+    override suspend fun setThemeImageColor(uri: String?, seedColorArgb: Int) {
+        if (uri == null) {
+            storage.remove(KEY_THEME_IMAGE_URI)
+        } else {
+            storage.putString(KEY_THEME_IMAGE_URI, uri)
+        }
+        storage.putString(KEY_THEME_IMAGE_SEED_COLOR_ARGB, seedColorArgb.toString())
+        themeImageUriState.value = uri
+        themeImageSeedColorArgbState.value = seedColorArgb
+    }
+
+    override suspend fun clearThemeImageColor() {
+        storage.remove(KEY_THEME_IMAGE_URI)
+        storage.remove(KEY_THEME_IMAGE_SEED_COLOR_ARGB)
+        themeImageUriState.value = null
+        themeImageSeedColorArgbState.value = null
+    }
+
+    override suspend fun setPaletteStyleName(name: String) {
+        storage.putString(KEY_PALETTE_STYLE_NAME, name)
+        paletteStyleNameState.value = name
     }
 
     override suspend fun setShowB30Overflow(show: Boolean) {
@@ -133,6 +181,11 @@ class SettingsRepositoryImpl(
 
     private companion object {
         const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_THEME_COLOR_SOURCE = "theme_color_source"
+        const val KEY_SEED_COLOR_ARGB = "seed_color_argb"
+        const val KEY_THEME_IMAGE_SEED_COLOR_ARGB = "theme_image_seed_color_argb"
+        const val KEY_THEME_IMAGE_URI = "theme_image_uri"
+        const val KEY_PALETTE_STYLE_NAME = "palette_style_name"
         const val KEY_SHOW_B30_OVERFLOW = "show_b30_overflow"
         const val KEY_OVERFLOW_COUNT = "overflow_count"
         const val KEY_PRELOAD_DONE = "preload_done"

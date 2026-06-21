@@ -20,66 +20,91 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import com.materialkolor.PaletteStyle
+import com.materialkolor.ktx.themeColor
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.kasumi321.ushio.phitracker.data.platform.ThemeImageColorPickResult
 import org.kasumi321.ushio.phitracker.data.platform.hasCrashNotificationPermission
+import org.kasumi321.ushio.phitracker.data.platform.rememberThemeImageColorPicker
 import org.kasumi321.ushio.phitracker.data.platform.requestCrashNotificationPermission
 import org.kasumi321.ushio.phitracker.data.platform.shareTextLog
+import org.kasumi321.ushio.phitracker.data.platform.shouldShowThemeColorSourceSetting
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformAlert
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
 import org.kasumi321.ushio.phitracker.ui.home.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.home.UpdateResultDialog
+import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_IMAGE
+import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_SYSTEM
+import org.kasumi321.ushio.phitracker.ui.theme.argbToColor
+import org.kasumi321.ushio.phitracker.ui.theme.colorToArgb
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsTab(
-    themeMode: Int,
-    showB30Overflow: Boolean,
-    overflowCount: Int,
-    onThemeModeChange: (Int) -> Unit,
-    onShowB30OverflowChange: (Boolean) -> Unit,
-    onOverflowCountChange: (Int) -> Unit,
-    onClearHighResCache: ((Result<Unit>) -> Unit) -> Unit,
-    onRedownloadIllustrations: () -> Unit,
-    onNavigateToAbout: () -> Unit,
-    onLogout: () -> Unit,
-    onNavigateBack: (() -> Unit)? = null,
-    tip: String = "",
-    apiEnabled: Boolean = false,
-    useApiData: Boolean = false,
-    apiPlatform: String = "",
-    apiPlatformId: String = "",
-    isApiTesting: Boolean = false,
-    apiTestMessage: String? = null,
-    onApiEnabledChange: (Boolean) -> Unit = {},
-    onUseApiDataChange: (Boolean) -> Unit = {},
-    onApiPlatformChange: (String) -> Unit = {},
-    onApiPlatformIdChange: (String) -> Unit = {},
-    onApiTestConnection: () -> Unit = {},
-    isUpdatingData: Boolean = false,
-    updateDataProgress: Int = 0,
-    updateDataTotal: Int = 0,
-    updateDataFileName: String = "",
-    updateDataError: String? = null,
-    onUpdateSongData: () -> Unit = {},
-    onDismissUpdateError: () -> Unit = {},
-    includePreRelease: Boolean = false,
-    autoCheckUpdate: Boolean = true,
-    updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
-    onCheckForUpdate: () -> Unit = {},
-    onIncludePreReleaseChange: (Boolean) -> Unit = {},
-    onAutoCheckUpdateChange: (Boolean) -> Unit = {},
-    onDismissUpdateResult: () -> Unit = {},
-    isDebugBuild: Boolean = false,
-    hasRuntimeLogs: Boolean = false,
-    hasCrashLogs: Boolean = false,
-    onExportRuntimeLog: () -> String = { "" },
-    onExportCrashLog: () -> String = { "" },
-    onClearAllLogs: () -> Boolean = { false },
-    crashNotificationGuideShown: Boolean = false,
-    onCrashNotificationGuideShown: () -> Unit = {},
-    modifier: Modifier = Modifier
+        themeMode: Int,
+        themeColorSource: String = THEME_COLOR_SOURCE_SYSTEM,
+        seedColorArgb: Int = -10011977,
+        themeImageSeedColorArgb: Int? = null,
+        themeImageUri: String? = null,
+        paletteStyleName: String = PaletteStyle.TonalSpot.name,
+        showB30Overflow: Boolean,
+        overflowCount: Int,
+        onThemeModeChange: (Int) -> Unit,
+        onThemeColorSourceChange: (String) -> Unit = {},
+        onSeedColorArgbChange: (Int) -> Unit = {},
+        onThemeImageColorSelected: (String?, Int) -> Unit = { _, _ -> },
+        onThemeImageColorClear: () -> Unit = {},
+        onPaletteStyleNameChange: (String) -> Unit = {},
+        onShowB30OverflowChange: (Boolean) -> Unit,
+        onOverflowCountChange: (Int) -> Unit,
+        isCachingB30Artwork: Boolean = false,
+        b30ArtworkCacheCompleted: Int = 0,
+        b30ArtworkCacheTotal: Int = 0,
+        onCacheB30Artwork: ((Result<Unit>) -> Unit) -> Unit = {},
+        onClearHighResCache: ((Result<Unit>) -> Unit) -> Unit,
+        onRedownloadIllustrations: () -> Unit,
+        onNavigateToAbout: () -> Unit,
+        onLogout: () -> Unit,
+        onNavigateBack: (() -> Unit)? = null,
+        tip: String = "",
+        apiEnabled: Boolean = false,
+        useApiData: Boolean = false,
+        apiPlatform: String = "",
+        apiPlatformId: String = "",
+        isApiTesting: Boolean = false,
+        apiTestMessage: String? = null,
+        onApiEnabledChange: (Boolean) -> Unit = {},
+        onUseApiDataChange: (Boolean) -> Unit = {},
+        onApiPlatformChange: (String) -> Unit = {},
+        onApiPlatformIdChange: (String) -> Unit = {},
+        onApiTestConnection: () -> Unit = {},
+        isUpdatingData: Boolean = false,
+        updateDataProgress: Int = 0,
+        updateDataTotal: Int = 0,
+        updateDataFileName: String = "",
+        updateDataError: String? = null,
+        onUpdateSongData: () -> Unit = {},
+        onDismissUpdateError: () -> Unit = {},
+        includePreRelease: Boolean = false,
+        autoCheckUpdate: Boolean = true,
+        updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
+        onCheckForUpdate: () -> Unit = {},
+        onIncludePreReleaseChange: (Boolean) -> Unit = {},
+        onAutoCheckUpdateChange: (Boolean) -> Unit = {},
+        onDismissUpdateResult: () -> Unit = {},
+        isDebugBuild: Boolean = false,
+        hasRuntimeLogs: Boolean = false,
+        hasCrashLogs: Boolean = false,
+        onExportRuntimeLog: () -> String = { "" },
+        onExportCrashLog: () -> String = { "" },
+        onClearAllLogs: () -> Boolean = { false },
+        crashNotificationGuideShown: Boolean = false,
+        onCrashNotificationGuideShown: () -> Unit = {},
+        modifier: Modifier = Modifier
 ) {
     val noRuntimeLogMessage = "Phi Tracker 目前尚未形成运行日志，请使用一段时间后重试。"
     val noCrashLogMessage = "Phi Tracker 还未发生过崩溃，请在发生一次崩溃后重试。"
@@ -89,50 +114,77 @@ fun SettingsTab(
     var showRedownloadDialog by remember { mutableStateOf(false) }
     var showApiRiskDialog by remember { mutableStateOf(false) }
     var showUpdateDataDialog by remember { mutableStateOf(false) }
-    var notificationPermissionGranted by remember { mutableStateOf(hasCrashNotificationPermission()) }
+    var notificationPermissionGranted by remember {
+        mutableStateOf(hasCrashNotificationPermission())
+    }
     var showNotificationGuideDialog by remember { mutableStateOf(false) }
+    var expandedColorSource by remember { mutableStateOf(false) }
+    var expandedPaletteStyle by remember { mutableStateOf(false) }
+    var pendingThemeImageColor by remember { mutableStateOf<ThemeImageColorPickResult?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    val pickThemeImageColor = rememberThemeImageColorPicker { result ->
+        pendingThemeImageColor = result
+    }
+
+    LaunchedEffect(pendingThemeImageColor) {
+        val result = pendingThemeImageColor ?: return@LaunchedEffect
+        val fallback = argbToColor(themeImageSeedColorArgb ?: seedColorArgb)
+        val themeColor =
+                withContext(Dispatchers.Default) { result.image.themeColor(fallback = fallback) }
+        onThemeImageColorSelected(result.uri, colorToArgb(themeColor))
+        onThemeColorSourceChange(THEME_COLOR_SOURCE_IMAGE)
+        pendingThemeImageColor = null
+        showPlatformMessage("已从图片提取主题色")
+    }
 
     LaunchedEffect(isDebugBuild, notificationPermissionGranted, crashNotificationGuideShown) {
-        if (shouldShowCrashNotificationGuide(isDebugBuild, notificationPermissionGranted, crashNotificationGuideShown)) {
+        if (shouldShowCrashNotificationGuide(
+                        isDebugBuild,
+                        notificationPermissionGranted,
+                        crashNotificationGuideShown
+                )
+        ) {
             showNotificationGuideDialog = true
             onCrashNotificationGuideShown()
         }
     }
 
     Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("设置")
-                        if (tip.isNotBlank()) {
-                            Text(
-                                text = tip,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.fillMaxWidth(0.75f)
-                            )
+            modifier = modifier.fillMaxSize(),
+            topBar = {
+                TopAppBar(
+                        title = {
+                            Column {
+                                Text("设置")
+                                if (tip.isNotBlank()) {
+                                    Text(
+                                            text = tip,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.fillMaxWidth(0.75f)
+                                    )
+                                }
+                            }
+                        },
+                        navigationIcon = {
+                            if (onNavigateBack != null) {
+                                IconButton(onClick = onNavigateBack) {
+                                    Icon(
+                                            Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "返回"
+                                    )
+                                }
+                            }
                         }
-                    }
-                },
-                navigationIcon = {
-                    if (onNavigateBack != null) {
-                        IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                        }
-                    }
-                }
-            )
-        }
+                )
+            }
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                modifier =
+                        Modifier.fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                                .padding(innerPadding)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             CategoryTitle("界面与主题")
 
@@ -140,11 +192,9 @@ fun SettingsTab(
             var expandedTheme by remember { mutableStateOf(false) }
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("深色模式", style = MaterialTheme.typography.bodyLarge)
                 Box {
@@ -153,16 +203,112 @@ fun SettingsTab(
                         Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                     }
                     DropdownMenu(
-                        expanded = expandedTheme,
-                        onDismissRequest = { expandedTheme = false }
+                            expanded = expandedTheme,
+                            onDismissRequest = { expandedTheme = false }
                     ) {
                         themeOptions.forEachIndexed { index, title ->
                             DropdownMenuItem(
-                                text = { Text(title) },
-                                onClick = {
-                                    onThemeModeChange(index)
-                                    expandedTheme = false
-                                }
+                                    text = { Text(title) },
+                                    onClick = {
+                                        onThemeModeChange(index)
+                                        expandedTheme = false
+                                    }
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (shouldShowThemeColorSourceSetting) {
+                val colorSourceOptions =
+                        listOf(
+                                THEME_COLOR_SOURCE_SYSTEM to "默认颜色",
+                                THEME_COLOR_SOURCE_IMAGE to "从图片取色"
+                        )
+
+                Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("主题取色来源", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                                text =
+                                        if (themeColorSource == THEME_COLOR_SOURCE_IMAGE &&
+                                                        themeImageSeedColorArgb != null
+                                        ) {
+                                            "已从所选图片提取主题色"
+                                        } else {
+                                            "选择 Phi Tracker 如何决定主题颜色"
+                                        },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Box {
+                        TextButton(onClick = { expandedColorSource = true }) {
+                            Text(
+                                    colorSourceOptions
+                                            .firstOrNull { it.first == themeColorSource }
+                                            ?.second
+                                            ?: "默认颜色"
+                            )
+                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                        }
+                        DropdownMenu(
+                                expanded = expandedColorSource,
+                                onDismissRequest = { expandedColorSource = false }
+                        ) {
+                            DropdownMenuItem(
+                                    text = { Text("默认颜色") },
+                                    onClick = {
+                                        onThemeImageColorClear()
+                                        onThemeColorSourceChange(THEME_COLOR_SOURCE_SYSTEM)
+                                        expandedColorSource = false
+                                    }
+                            )
+                            DropdownMenuItem(
+                                    text = { Text("从图片取色") },
+                                    onClick = {
+                                        expandedColorSource = false
+                                        pickThemeImageColor()
+                                    }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("调色板风格", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                            text = "可以通过不同的调色板风格改变主题风格",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Box {
+                    TextButton(onClick = { expandedPaletteStyle = true }) {
+                        Text(paletteStyleName)
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    }
+                    DropdownMenu(
+                            expanded = expandedPaletteStyle,
+                            onDismissRequest = { expandedPaletteStyle = false }
+                    ) {
+                        PaletteStyle.entries.forEach { style ->
+                            DropdownMenuItem(
+                                    text = { Text(style.name) },
+                                    onClick = {
+                                        onPaletteStyleNameChange(style.name)
+                                        expandedPaletteStyle = false
+                                    }
                             )
                         }
                     }
@@ -174,45 +320,43 @@ fun SettingsTab(
             CategoryTitle("B30 设置")
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("显示 Overflow", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "在 B30 页面展示 B27 之后的曲目",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "在 B30 页面展示 B27 之后的曲目",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
-                    checked = showB30Overflow,
-                    onCheckedChange = { onShowB30OverflowChange(it) }
-                )
+                Switch(checked = showB30Overflow, onCheckedChange = { onShowB30OverflowChange(it) })
             }
 
             if (showB30Overflow) {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text("Overflow 显示数量")
                         Text(
-                            text = overflowCount.toString(),
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                                text = overflowCount.toString(),
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Slider(
-                        value = overflowCount.toFloat(),
-                        onValueChange = { onOverflowCountChange(it.roundToInt()) },
-                        valueRange = SettingsConstants.OVERFLOW_COUNT_MIN.toFloat()..SettingsConstants.OVERFLOW_COUNT_MAX.toFloat(),
-                        steps = SettingsConstants.OVERFLOW_SLIDER_STEPS,
-                        modifier = Modifier.fillMaxWidth()
+                            value = overflowCount.toFloat(),
+                            onValueChange = { onOverflowCountChange(it.roundToInt()) },
+                            valueRange =
+                                    SettingsConstants.OVERFLOW_COUNT_MIN
+                                            .toFloat()..SettingsConstants.OVERFLOW_COUNT_MAX
+                                                    .toFloat(),
+                            steps = SettingsConstants.OVERFLOW_SLIDER_STEPS,
+                            modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -222,74 +366,72 @@ fun SettingsTab(
             CategoryTitle("查分 API")
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("启用查分 API", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "使用第三方 API 获取额外统计信息",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "使用第三方 API 获取额外统计信息",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
-                    checked = apiEnabled,
-                    onCheckedChange = { enabled ->
-                        if (enabled) {
-                            showApiRiskDialog = true
-                        } else {
-                            onApiEnabledChange(false)
+                        checked = apiEnabled,
+                        onCheckedChange = { enabled ->
+                            if (enabled) {
+                                showApiRiskDialog = true
+                            } else {
+                                onApiEnabledChange(false)
+                            }
                         }
-                    }
                 )
             }
 
             if (apiEnabled) {
                 Text(
-                    text = "要确定您的平台名称和平台 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令以确定。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "要确定您的平台名称和平台 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令以确定。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedTextField(
-                        value = apiPlatform,
-                        onValueChange = onApiPlatformChange,
-                        label = { Text("平台名称") },
-                        placeholder = { Text("platform") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
+                            value = apiPlatform,
+                            onValueChange = onApiPlatformChange,
+                            label = { Text("平台名称") },
+                            placeholder = { Text("platform") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
-                        value = apiPlatformId,
-                        onValueChange = onApiPlatformIdChange,
-                        label = { Text("平台 ID") },
-                        placeholder = { Text("platform_id") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f)
+                            value = apiPlatformId,
+                            onValueChange = onApiPlatformIdChange,
+                            label = { Text("平台 ID") },
+                            placeholder = { Text("platform_id") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedButton(
-                    onClick = onApiTestConnection,
-                    enabled = !isApiTesting,
-                    modifier = Modifier.fillMaxWidth()
+                        onClick = onApiTestConnection,
+                        enabled = !isApiTesting,
+                        modifier = Modifier.fillMaxWidth()
                 ) {
                     if (isApiTesting) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            strokeWidth = 2.dp
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                     }
@@ -299,39 +441,34 @@ fun SettingsTab(
                 if (!apiTestMessage.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = apiTestMessage,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = apiTestMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("使用查分 API 数据", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            text = "开启后首页和统计优先显示 API 数据",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "开启后首页和统计优先显示 API 数据",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Switch(
-                        checked = useApiData,
-                        onCheckedChange = onUseApiDataChange
-                    )
+                    Switch(checked = useApiData, onCheckedChange = onUseApiDataChange)
                 }
 
                 Text(
-                    text = "本地同步和 API 同步记录可能存在差异。切换数据源不影响本地数据，本地数据库始终保持更新。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "本地同步和 API 同步记录可能存在差异。切换数据源不影响本地数据，本地数据库始终保持更新。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -340,51 +477,44 @@ fun SettingsTab(
             CategoryTitle("程序更新")
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("启动时自动检查更新", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "应用启动时自动检查是否有新版本",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "应用启动时自动检查是否有新版本",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                Switch(
-                    checked = autoCheckUpdate,
-                    onCheckedChange = { onAutoCheckUpdateChange(it) }
-                )
+                Switch(checked = autoCheckUpdate, onCheckedChange = { onAutoCheckUpdateChange(it) })
             }
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("接收预发布版本更新", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        text = "启用后您将收到预发布版本的更新",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "启用后您将收到预发布版本的更新",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Switch(
-                    checked = includePreRelease,
-                    onCheckedChange = { onIncludePreReleaseChange(it) }
+                        checked = includePreRelease,
+                        onCheckedChange = { onIncludePreReleaseChange(it) }
                 )
             }
 
             Text(
-                text = "预发布版本可能包含错误或不稳定功能，在绝大多数情况下，请优先考虑正式版。如果您希望参与我们的功能测试，则可以选择启用此选项。",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "预发布版本可能包含错误或不稳定功能，在绝大多数情况下，请优先考虑正式版。如果您希望参与我们的功能测试，则可以选择启用此选项。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
@@ -392,24 +522,65 @@ fun SettingsTab(
             CategoryTitle("数据与缓存")
 
             CenteredListItem(
-                headlineContent = { Text("清理高清曲绘缓存") },
-                supportingContent = { Text("释放存储空间，将保留缩略图") },
-                leadingContent = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
-                modifier = Modifier.clickable { showClearCacheDialog = true }
+                    headlineContent = { Text("缓存 B30 高清曲绘") },
+                    supportingContent = {
+                        if (isCachingB30Artwork) {
+                            Text("正在缓存 $b30ArtworkCacheCompleted/$b30ArtworkCacheTotal")
+                        } else {
+                            Text("提前缓存当前 B30 的标准曲绘，用于离线生成成绩图")
+                        }
+                    },
+                    leadingContent = {
+                        if (isCachingB30Artwork) {
+                            CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null)
+                        }
+                    },
+                    modifier =
+                            Modifier.clickable(enabled = !isCachingB30Artwork) {
+                                onCacheB30Artwork { result ->
+                                    if (result.isSuccess) {
+                                        showPlatformMessage("B30 高清曲绘缓存完成")
+                                    } else {
+                                        showPlatformMessage(
+                                                "B30 高清曲绘缓存失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                        )
+                                    }
+                                }
+                            }
             )
 
             CenteredListItem(
-                headlineContent = { Text("重新下载所有曲绘") },
-                supportingContent = { Text("清空所有图片并强制重启应用") },
-                leadingContent = { Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                modifier = Modifier.clickable { showRedownloadDialog = true }
+                    headlineContent = { Text("清理高清曲绘缓存") },
+                    supportingContent = { Text("释放存储空间，将保留缩略图") },
+                    leadingContent = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
+                    modifier = Modifier.clickable { showClearCacheDialog = true }
             )
 
             CenteredListItem(
-                headlineContent = { Text("更新曲目数据") },
-                supportingContent = { Text("下载最新的 Phigros 全曲目信息") },
-                leadingContent = { Icon(Icons.Default.CloudDownload, contentDescription = null) },
-                modifier = Modifier.clickable { showUpdateDataDialog = true }
+                    headlineContent = { Text("重新下载所有曲绘") },
+                    supportingContent = { Text("清空所有图片并强制重启应用") },
+                    leadingContent = {
+                        Icon(
+                                Icons.Default.Warning,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    modifier = Modifier.clickable { showRedownloadDialog = true }
+            )
+
+            CenteredListItem(
+                    headlineContent = { Text("更新曲目数据") },
+                    supportingContent = { Text("下载最新的 Phigros 全曲目信息") },
+                    leadingContent = {
+                        Icon(Icons.Default.CloudDownload, contentDescription = null)
+                    },
+                    modifier = Modifier.clickable { showUpdateDataDialog = true }
             )
 
             if (isDebugBuild) {
@@ -418,93 +589,107 @@ fun SettingsTab(
                 CategoryTitle("调试选项")
 
                 CenteredListItem(
-                    headlineContent = { Text("崩溃通知权限") },
-                    supportingContent = {
-                        if (notificationPermissionGranted) {
-                            Text("已开启，可在应用崩溃后显示提醒通知")
-                        } else {
-                            Text("未开启，建议开启以便在崩溃后及时收到提示")
-                        }
-                    },
-                    leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        requestCrashNotificationPermission { granted ->
-                            notificationPermissionGranted = granted
-                            if (!granted) {
-                                showPlatformMessage("通知权限未开启，崩溃提示可能无法显示")
+                        headlineContent = { Text("崩溃通知权限") },
+                        supportingContent = {
+                            if (notificationPermissionGranted) {
+                                Text("已开启，可在应用崩溃后显示提醒通知")
+                            } else {
+                                Text("未开启，建议开启以便在崩溃后及时收到提示")
                             }
-                        }
-                    }
+                        },
+                        leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
+                        modifier =
+                                Modifier.clickable {
+                                    requestCrashNotificationPermission { granted ->
+                                        notificationPermissionGranted = granted
+                                        if (!granted) {
+                                            showPlatformMessage("通知权限未开启，崩溃提示可能无法显示")
+                                        }
+                                    }
+                                }
                 )
 
                 CenteredListItem(
-                    headlineContent = { Text("导出运行日志") },
-                    supportingContent = {
-                        Text("导出 Phi Tracker 的运行日志，可以用于向开发者报告错误")
-                    },
-                    leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        if (!hasRuntimeLogs) {
-                            showPlatformAlert("暂无可导出的运行日志", noRuntimeLogMessage)
-                            return@clickable
-                        }
-                        val text = onExportRuntimeLog()
-                        if (text.isBlank()) {
-                            showPlatformAlert("暂无可导出的运行日志", noRuntimeLogMessage)
-                            return@clickable
-                        }
-                        coroutineScope.launch {
-                            val result = shareTextLog(text, "phitracker_runtime_logs.txt")
-                            if (result.isFailure) {
-                                showPlatformAlert(
-                                    "导出运行日志失败",
-                                    "Phi Tracker 未能导出运行日志，请稍后重试。\n\n错误信息：${result.exceptionOrNull()?.message ?: "未知错误"}"
-                                )
-                            }
-                        }
-                    }
+                        headlineContent = { Text("导出运行日志") },
+                        supportingContent = { Text("导出 Phi Tracker 的运行日志，可以用于向开发者报告错误") },
+                        leadingContent = {
+                            Icon(Icons.Default.BugReport, contentDescription = null)
+                        },
+                        modifier =
+                                Modifier.clickable {
+                                    if (!hasRuntimeLogs) {
+                                        showPlatformAlert("暂无可导出的运行日志", noRuntimeLogMessage)
+                                        return@clickable
+                                    }
+                                    val text = onExportRuntimeLog()
+                                    if (text.isBlank()) {
+                                        showPlatformAlert("暂无可导出的运行日志", noRuntimeLogMessage)
+                                        return@clickable
+                                    }
+                                    coroutineScope.launch {
+                                        val result =
+                                                shareTextLog(text, "phitracker_runtime_logs.txt")
+                                        if (result.isFailure) {
+                                            showPlatformAlert(
+                                                    "导出运行日志失败",
+                                                    "Phi Tracker 未能导出运行日志，请稍后重试。\n\n错误信息：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                            )
+                                        }
+                                    }
+                                }
                 )
 
                 CenteredListItem(
-                    headlineContent = { Text("导出崩溃日志") },
-                    supportingContent = {
-                        Text("导出运行时的崩溃报告，当 App 崩溃时可用于 issue 反馈")
-                    },
-                    leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        if (!hasCrashLogs) {
-                            showPlatformAlert("暂无可导出的崩溃日志", noCrashLogMessage)
-                            return@clickable
-                        }
-                        val text = onExportCrashLog()
-                        if (text.isBlank()) {
-                            showPlatformAlert("暂无可导出的崩溃日志", noCrashLogMessage)
-                            return@clickable
-                        }
-                        coroutineScope.launch {
-                            val result = shareTextLog(text, "phitracker_crash_reports.txt")
-                            if (result.isFailure) {
-                                showPlatformAlert(
-                                    "导出崩溃日志失败",
-                                    "Phi Tracker 未能导出崩溃日志，请稍后重试。\n\n错误信息：${result.exceptionOrNull()?.message ?: "未知错误"}"
-                                )
-                            }
-                        }
-                    }
+                        headlineContent = { Text("导出崩溃日志") },
+                        supportingContent = { Text("导出运行时的崩溃报告，当 App 崩溃时可用于 issue 反馈") },
+                        leadingContent = {
+                            Icon(Icons.Default.BugReport, contentDescription = null)
+                        },
+                        modifier =
+                                Modifier.clickable {
+                                    if (!hasCrashLogs) {
+                                        showPlatformAlert("暂无可导出的崩溃日志", noCrashLogMessage)
+                                        return@clickable
+                                    }
+                                    val text = onExportCrashLog()
+                                    if (text.isBlank()) {
+                                        showPlatformAlert("暂无可导出的崩溃日志", noCrashLogMessage)
+                                        return@clickable
+                                    }
+                                    coroutineScope.launch {
+                                        val result =
+                                                shareTextLog(text, "phitracker_crash_reports.txt")
+                                        if (result.isFailure) {
+                                            showPlatformAlert(
+                                                    "导出崩溃日志失败",
+                                                    "Phi Tracker 未能导出崩溃日志，请稍后重试。\n\n错误信息：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                            )
+                                        }
+                                    }
+                                }
                 )
 
                 CenteredListItem(
-                    headlineContent = { Text("清理运行日志") },
-                    supportingContent = { Text("清空目前为止所有的运行日志与崩溃日志") },
-                    leadingContent = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
-                    modifier = Modifier.clickable {
-                        val ok = onClearAllLogs()
-                        if (ok) {
-                            showPlatformAlert("运行日志已清理", "已清理 Phi Tracker 运行时及崩溃产生的日志，建议您定期清理不需要的日志。")
-                        } else {
-                            showPlatformAlert("清理运行日志失败", "Phi Tracker 未能清理运行日志，请稍后重试。\n\n错误信息：未知错误")
-                        }
-                    }
+                        headlineContent = { Text("清理运行日志") },
+                        supportingContent = { Text("清空目前为止所有的运行日志与崩溃日志") },
+                        leadingContent = {
+                            Icon(Icons.Default.DeleteSweep, contentDescription = null)
+                        },
+                        modifier =
+                                Modifier.clickable {
+                                    val ok = onClearAllLogs()
+                                    if (ok) {
+                                        showPlatformAlert(
+                                                "运行日志已清理",
+                                                "已清理 Phi Tracker 运行时及崩溃产生的日志，建议您定期清理不需要的日志。"
+                                        )
+                                    } else {
+                                        showPlatformAlert(
+                                                "清理运行日志失败",
+                                                "Phi Tracker 未能清理运行日志，请稍后重试。\n\n错误信息：未知错误"
+                                        )
+                                    }
+                                }
                 )
             }
 
@@ -513,48 +698,53 @@ fun SettingsTab(
             CategoryTitle("关于")
 
             CenteredListItem(
-                headlineContent = { Text("检查更新") },
-                supportingContent = {
-                    when (val state = updateCheckState) {
-                        is UpdateCheckState.Checking -> Text("正在检查...")
-                        is UpdateCheckState.NoUpdate -> Text("已是最新版本")
-                        is UpdateCheckState.Error -> Text("检查失败: ${state.message}")
-                        else -> Text("从 GitHub Releases 检查是否有新版本")
-                    }
-                },
-                leadingContent = {
-                    if (updateCheckState is UpdateCheckState.Checking) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null)
-                    }
-                },
-                modifier = Modifier.clickable(enabled = updateCheckState !is UpdateCheckState.Checking) {
-                    onCheckForUpdate()
-                }
+                    headlineContent = { Text("检查更新") },
+                    supportingContent = {
+                        when (val state = updateCheckState) {
+                            is UpdateCheckState.Checking -> Text("正在检查...")
+                            is UpdateCheckState.NoUpdate -> Text("已是最新版本")
+                            is UpdateCheckState.Error -> Text("检查失败: ${state.message}")
+                            else -> Text("从 GitHub Releases 检查是否有新版本")
+                        }
+                    },
+                    leadingContent = {
+                        if (updateCheckState is UpdateCheckState.Checking) {
+                            CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null)
+                        }
+                    },
+                    modifier =
+                            Modifier.clickable(
+                                    enabled = updateCheckState !is UpdateCheckState.Checking
+                            ) { onCheckForUpdate() }
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
             CenteredListItem(
-                headlineContent = { Text("关于 Phi Tracker") },
-                supportingContent = { Text("了解有关本应用的更多信息，包括作者、版权和第三方组件") },
-                leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
-                trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
-                modifier = Modifier.clickable { onNavigateToAbout() }
+                    headlineContent = { Text("关于 Phi Tracker") },
+                    supportingContent = { Text("了解有关本应用的更多信息，包括作者、版权和第三方组件") },
+                    leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
+                    trailingContent = {
+                        Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                    },
+                    modifier = Modifier.clickable { onNavigateToAbout() }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
-                onClick = { showLogoutDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
-                )
-            ) {
-                Text("退出登录")
-            }
+                    onClick = { showLogoutDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors =
+                            ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                            )
+            ) { Text("退出登录") }
 
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -562,219 +752,208 @@ fun SettingsTab(
 
     if (showLogoutDialog) {
         AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
-            title = { Text("退出登录") },
-            text = { Text("确定要退出当前账号吗？所有同步进度将会重置。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showLogoutDialog = false
-                        onLogout()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("退出")
+                onDismissRequest = { showLogoutDialog = false },
+                title = { Text("退出登录") },
+                text = { Text("确定要退出当前账号吗？所有同步进度将会重置。") },
+                confirmButton = {
+                    TextButton(
+                            onClick = {
+                                showLogoutDialog = false
+                                onLogout()
+                            },
+                            colors =
+                                    ButtonDefaults.textButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                    )
+                    ) { Text("退出") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showLogoutDialog = false }) { Text("取消") }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("取消")
-                }
-            }
         )
     }
 
     if (showApiRiskDialog) {
         AlertDialog(
-            onDismissRequest = { showApiRiskDialog = false },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null) },
-            title = { Text("启用查分 API") },
-            text = {
-                Text(
-                    "启用查分 API 将通过第三方接口获取额外统计数据。您的平台名称和平台 ID 会通过加密通道发送至 API 服务器。请确认您了解并接受该风险。"
-                )
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showApiRiskDialog = false
-                    onApiEnabledChange(true)
-                }) {
-                    Text("我已了解并同意")
+                onDismissRequest = { showApiRiskDialog = false },
+                icon = { Icon(Icons.Default.Warning, contentDescription = null) },
+                title = { Text("启用查分 API") },
+                text = {
+                    Text("启用查分 API 将通过第三方接口获取额外统计数据。您的平台名称和平台 ID 会通过加密通道发送至 API 服务器。请确认您了解并接受该风险。")
+                },
+                confirmButton = {
+                    TextButton(
+                            onClick = {
+                                showApiRiskDialog = false
+                                onApiEnabledChange(true)
+                            }
+                    ) { Text("我已了解并同意") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showApiRiskDialog = false }) { Text("取消") }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showApiRiskDialog = false }) {
-                    Text("取消")
-                }
-            }
         )
     }
 
     if (showClearCacheDialog) {
         AlertDialog(
-            onDismissRequest = { showClearCacheDialog = false },
-            title = { Text("清理缓存") },
-            text = { Text("确定要清理所有高清曲绘缓存吗？已下载的曲绘缩略图将不会被清理。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showClearCacheDialog = false
-                    onClearHighResCache { result ->
-                        if (result.isSuccess) {
-                            showPlatformMessage("清理完成")
-                        } else {
-                            showPlatformMessage("清理失败: ${result.exceptionOrNull()?.message ?: "未知错误"}")
-                        }
-                    }
-                }) {
-                    Text("确定")
+                onDismissRequest = { showClearCacheDialog = false },
+                title = { Text("清理缓存") },
+                text = { Text("确定要清理所有高清曲绘缓存吗？已下载的曲绘缩略图将不会被清理。") },
+                confirmButton = {
+                    TextButton(
+                            onClick = {
+                                showClearCacheDialog = false
+                                onClearHighResCache { result ->
+                                    if (result.isSuccess) {
+                                        showPlatformMessage("清理完成")
+                                    } else {
+                                        showPlatformMessage(
+                                                "清理失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                        )
+                                    }
+                                }
+                            }
+                    ) { Text("确定") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearCacheDialog = false }) { Text("取消") }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearCacheDialog = false }) {
-                    Text("取消")
-                }
-            }
         )
     }
 
     if (showRedownloadDialog) {
         AlertDialog(
-            onDismissRequest = { showRedownloadDialog = false },
-            title = { Text("重新下载") },
-            text = { Text("确定要删除本地所有曲绘信息吗？如点击确定，本应用将自动退出，下次进入应用时将自动重新唤起预加载窗口。") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showRedownloadDialog = false
-                        onRedownloadIllustrations()
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("确定")
+                onDismissRequest = { showRedownloadDialog = false },
+                title = { Text("重新下载") },
+                text = { Text("确定要删除本地所有曲绘信息吗？如点击确定，本应用将自动退出，下次进入应用时将自动重新唤起预加载窗口。") },
+                confirmButton = {
+                    TextButton(
+                            onClick = {
+                                showRedownloadDialog = false
+                                onRedownloadIllustrations()
+                            },
+                            colors =
+                                    ButtonDefaults.textButtonColors(
+                                            contentColor = MaterialTheme.colorScheme.error
+                                    )
+                    ) { Text("确定") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showRedownloadDialog = false }) { Text("取消") }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRedownloadDialog = false }) {
-                    Text("取消")
-                }
-            }
         )
     }
 
     if (showUpdateDataDialog) {
         AlertDialog(
-            onDismissRequest = { showUpdateDataDialog = false },
-            title = { Text("更新曲目数据") },
-            text = { Text("将从远程仓库下载最新的曲目数据，之后将自动刷新本地曲目数据。\n下载完毕后，推荐重新下载所有曲绘。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showUpdateDataDialog = false
-                    onUpdateSongData()
-                }) {
-                    Text("确定")
+                onDismissRequest = { showUpdateDataDialog = false },
+                title = { Text("更新曲目数据") },
+                text = { Text("将从远程仓库下载最新的曲目数据，之后将自动刷新本地曲目数据。\n下载完毕后，推荐重新下载所有曲绘。") },
+                confirmButton = {
+                    TextButton(
+                            onClick = {
+                                showUpdateDataDialog = false
+                                onUpdateSongData()
+                            }
+                    ) { Text("确定") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showUpdateDataDialog = false }) { Text("取消") }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUpdateDataDialog = false }) {
-                    Text("取消")
-                }
-            }
         )
     }
 
     if (isUpdatingData) {
         AlertDialog(
-            onDismissRequest = { },
-            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
-            title = { Text("更新曲目数据") },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "正在下载: $updateDataFileName ($updateDataProgress/$updateDataTotal)",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    val progress = if (updateDataTotal > 0) updateDataProgress.toFloat() / updateDataTotal else 0f
-                    LinearProgressIndicator(
-                        progress = { progress },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "${(progress * 100).toInt()}%",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {}
+                onDismissRequest = {},
+                properties =
+                        DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+                title = { Text("更新曲目数据") },
+                text = {
+                    Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                                text =
+                                        "正在下载: $updateDataFileName ($updateDataProgress/$updateDataTotal)",
+                                style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        val progress =
+                                if (updateDataTotal > 0)
+                                        updateDataProgress.toFloat() / updateDataTotal
+                                else 0f
+                        LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                                text = "${(progress * 100).toInt()}%",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                confirmButton = {}
         )
     }
 
     if (updateDataError != null) {
         AlertDialog(
-            onDismissRequest = onDismissUpdateError,
-            title = { Text("更新失败") },
-            text = { Text("发生了错误：\n$updateDataError") },
-            confirmButton = {
-                TextButton(onClick = onDismissUpdateError) {
-                    Text("确定")
-                }
-            }
+                onDismissRequest = onDismissUpdateError,
+                title = { Text("更新失败") },
+                text = { Text("发生了错误：\n$updateDataError") },
+                confirmButton = { TextButton(onClick = onDismissUpdateError) { Text("确定") } }
         )
     }
 
     if (showNotificationGuideDialog) {
         AlertDialog(
-            onDismissRequest = {
-                showNotificationGuideDialog = false
-                onCrashNotificationGuideShown()
-            },
-            title = { Text("开启崩溃通知") },
-            text = {
-                Text("为确保应用崩溃后能及时提醒并引导反馈，建议开启通知权限。")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        showNotificationGuideDialog = false
-                        onCrashNotificationGuideShown()
-                        requestCrashNotificationPermission { granted ->
-                            notificationPermissionGranted = granted
-                            if (!granted) {
-                                showPlatformMessage("通知权限未开启，崩溃提示可能无法显示")
-                            }
-                        }
-                    }
-                ) {
-                    Text("立即开启")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
+                onDismissRequest = {
                     showNotificationGuideDialog = false
                     onCrashNotificationGuideShown()
-                }) {
-                    Text("稍后")
+                },
+                title = { Text("开启崩溃通知") },
+                text = { Text("为确保应用崩溃后能及时提醒并引导反馈，建议开启通知权限。") },
+                confirmButton = {
+                    TextButton(
+                            onClick = {
+                                showNotificationGuideDialog = false
+                                onCrashNotificationGuideShown()
+                                requestCrashNotificationPermission { granted ->
+                                    notificationPermissionGranted = granted
+                                    if (!granted) {
+                                        showPlatformMessage("通知权限未开启，崩溃提示可能无法显示")
+                                    }
+                                }
+                            }
+                    ) { Text("立即开启") }
+                },
+                dismissButton = {
+                    TextButton(
+                            onClick = {
+                                showNotificationGuideDialog = false
+                                onCrashNotificationGuideShown()
+                            }
+                    ) { Text("稍后") }
                 }
-            }
         )
     }
 
     val updateState = updateCheckState
     if (updateState is UpdateCheckState.Available) {
         UpdateResultDialog(
-            version = updateState.version,
-            body = updateState.body,
-            htmlUrl = updateState.htmlUrl,
-            onDismiss = onDismissUpdateResult,
-            onDownload = { uriHandler ->
-                onDismissUpdateResult()
-                uriHandler.openUri(updateState.htmlUrl)
-            }
+                version = updateState.version,
+                body = updateState.body,
+                htmlUrl = updateState.htmlUrl,
+                onDismiss = onDismissUpdateResult,
+                onDownload = { uriHandler ->
+                    onDismissUpdateResult()
+                    uriHandler.openUri(updateState.htmlUrl)
+                }
         )
     }
 }
@@ -782,15 +961,15 @@ fun SettingsTab(
 @Composable
 private fun CategoryTitle(title: String) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(vertical = 8.dp)
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(vertical = 8.dp)
     )
 }
 
 internal fun shouldShowCrashNotificationGuide(
-    isDebugBuild: Boolean,
-    permissionGranted: Boolean,
-    alreadyShown: Boolean
+        isDebugBuild: Boolean,
+        permissionGranted: Boolean,
+        alreadyShown: Boolean
 ): Boolean = isDebugBuild && !permissionGranted && !alreadyShown

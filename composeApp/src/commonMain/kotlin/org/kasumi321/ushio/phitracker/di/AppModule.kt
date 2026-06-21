@@ -39,6 +39,7 @@ val appModule = module {
             illustrationProvider = get(),
             tipsProvider = get(),
             settingsRepository = get(),
+            artworkFileCache = get(),
             syncSnapshotDao = get(),
             recordDao = get(),
             songSyncHistoryDao = get(),

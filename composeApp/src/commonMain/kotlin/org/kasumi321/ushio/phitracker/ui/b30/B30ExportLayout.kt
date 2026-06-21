@@ -59,7 +59,7 @@ fun B30ExportLayout(data: B30ExportData, allowHardwareImages: Boolean = true) {
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(Color.White.copy(alpha = 0.65f))
+                .background((if (data.darkTheme) Color.Black else Color.White).copy(alpha = 0.65f))
         )
 
         Column(

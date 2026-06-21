@@ -7,8 +7,8 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
  * Phigros 难度颜色
  */
 object DifficultyColors {
-    val EZ = Color(0xFF70D866)
-    val HD = Color(0xFF58B4E3)
+    val EZ = Color(0xFF58B4E3)
+    val HD = Color(0xFF70D866)
     val IN = Color(0xFFE34D4D)
     val AT = Color(0xFFA855F7)
 

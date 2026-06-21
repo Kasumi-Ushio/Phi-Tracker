@@ -20,6 +20,7 @@ kotlinx-serialization = "1.9.0"
 kotlinx-datetime = "0.7.1"
 ktor = "3.3.3"
 material3 = "1.9.0"
+materialKolor = "4.1.1"
 room = "2.8.4"
 sqlite = "2.6.2"
 ksp = "2.3.7"
@@ -50,6 +51,7 @@ androidx-lifecycle-runtimeCompose = { module = "org.jetbrains.androidx.lifecycle
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "composeMultiplatform" }
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "composeMultiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "material3" }
+material-kolor = { module = "com.materialkolor:material-kolor", version.ref = "materialKolor" }
 compose-material-icons-extended = { module = "org.jetbrains.compose.material:material-icons-extended", version = "1.7.3" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }

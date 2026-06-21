@@ -4,10 +4,20 @@ import kotlinx.coroutines.flow.Flow
 
 interface SettingsRepository {
     val themeMode: Flow<Int>
+    val themeColorSource: Flow<String>
+    val seedColorArgb: Flow<Int>
+    val themeImageSeedColorArgb: Flow<Int?>
+    val themeImageUri: Flow<String?>
+    val paletteStyleName: Flow<String>
     val showB30Overflow: Flow<Boolean>
     val overflowCount: Flow<Int>
 
     suspend fun setThemeMode(mode: Int)
+    suspend fun setThemeColorSource(source: String)
+    suspend fun setSeedColorArgb(argb: Int)
+    suspend fun setThemeImageColor(uri: String?, seedColorArgb: Int)
+    suspend fun clearThemeImageColor()
+    suspend fun setPaletteStyleName(name: String)
     suspend fun setShowB30Overflow(show: Boolean)
     suspend fun setOverflowCount(count: Int)
     suspend fun getPreloadDone(): Boolean

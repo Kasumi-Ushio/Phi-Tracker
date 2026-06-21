@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,7 +63,8 @@ fun B30Tab(
                             text = tip,
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.fillMaxWidth()
+                            maxLines = 1,
+                            modifier = Modifier.fillMaxWidth(0.75f).basicMarquee()
                         )
                     }
                 }

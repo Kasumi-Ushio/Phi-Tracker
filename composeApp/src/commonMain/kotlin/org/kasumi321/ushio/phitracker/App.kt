@@ -11,6 +11,7 @@ import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.ui.PhiTrackerNavHost
 import org.kasumi321.ushio.phitracker.ui.components.PlatformAlertHost
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerTheme
+import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.koin.compose.koinInject
 
 @Composable
@@ -22,6 +23,11 @@ fun App() {
     val settingsRepository: SettingsRepository = koinInject()
     AppLogger.event("startup", "App.afterSettingsInject")
     val themeMode by settingsRepository.themeMode.collectAsState(initial = 0)
+    val themeColorSource by settingsRepository.themeColorSource.collectAsState(initial = "system")
+    val seedColorArgb by settingsRepository.seedColorArgb.collectAsState(initial = -10011977)
+    val imageSeedColorArgb by settingsRepository.themeImageSeedColorArgb.collectAsState(initial = null)
+    val imageUri by settingsRepository.themeImageUri.collectAsState(initial = null)
+    val paletteStyleName by settingsRepository.paletteStyleName.collectAsState(initial = "TonalSpot")
 
     val darkTheme = when (themeMode) {
         1 -> false
@@ -29,8 +35,16 @@ fun App() {
         else -> isSystemInDarkTheme()
     }
     val isAmoled = themeMode == 3
+    val themeSettings = PhiTrackerThemeSettings(
+        themeMode = themeMode,
+        colorSource = themeColorSource,
+        seedColorArgb = seedColorArgb,
+        imageSeedColorArgb = imageSeedColorArgb,
+        imageUri = imageUri,
+        paletteStyleName = paletteStyleName
+    )
 
-    PhiTrackerTheme(darkTheme = darkTheme, isAmoled = isAmoled) {
+    PhiTrackerTheme(darkTheme = darkTheme, isAmoled = isAmoled, settings = themeSettings) {
         PhiTrackerNavHost()
         PlatformAlertHost()
     }

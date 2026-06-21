@@ -2,6 +2,7 @@ package org.kasumi321.ushio.phitracker.ui.b30
 
 import androidx.compose.ui.graphics.ImageBitmap
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 
 /** Stats table data for the B30 export header. */
 data class B30StatsTable(
@@ -29,7 +30,10 @@ data class B30ExportData(
     val bestRecords: List<ExportCardData>,
     val overflowRecords: List<ExportCardData>,
     val backgroundUri: String?,
-    val backgroundBitmap: ImageBitmap? = null
+    val backgroundBitmap: ImageBitmap? = null,
+    val darkTheme: Boolean = false,
+    val isAmoled: Boolean = false,
+    val themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings()
 )
 
 /** Pure builder that splits a B30 list into Phi / Best 27 / Overflow sections. */
@@ -63,7 +67,10 @@ object B30ExportDataBuilder {
         phiCount: Int,
         avatarUri: String?,
         backgroundUri: String?,
-        dateText: String
+        dateText: String,
+        darkTheme: Boolean = false,
+        isAmoled: Boolean = false,
+        themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings()
     ): B30ExportData {
         val phi3 = b30.filter { it.isPhi }
         val b36 = b30.filter { !it.isPhi }
@@ -93,7 +100,10 @@ object B30ExportDataBuilder {
             phiRecords = phiCards,
             bestRecords = bestCards,
             overflowRecords = overflowCards,
-            backgroundUri = backgroundUri
+            backgroundUri = backgroundUri,
+            darkTheme = darkTheme,
+            isAmoled = isAmoled,
+            themeSettings = themeSettings
         )
     }
 }

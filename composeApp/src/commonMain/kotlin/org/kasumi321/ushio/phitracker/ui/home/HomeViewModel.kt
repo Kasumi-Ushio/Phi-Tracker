@@ -38,6 +38,8 @@ import org.kasumi321.ushio.phitracker.data.logging.CrashReportExporter
 import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
 import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
+import org.kasumi321.ushio.phitracker.data.platform.NoOpStandardArtworkCache
+import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.clearAllImageCache
 import org.kasumi321.ushio.phitracker.data.platform.clearImageCacheUrls
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
@@ -56,7 +58,9 @@ import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
+import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 
 sealed class UpdateCheckState {
     data object Idle : UpdateCheckState()
@@ -107,8 +111,8 @@ data class HomeUiState(
     val minLevel: Int = 1,
     val maxLevel: Int = 17,
     val showFilterSheet: Boolean = false,
-    // Illustration preload — blocking flow
-    val illustrationReady: Boolean = false,
+    // Illustration preload. This must not block home rendering.
+    val illustrationReady: Boolean = true,
     val showPreloadDialog: Boolean = false,
     val preloadProgress: Float = 0f,
     val preloadTotal: Int = 0,
@@ -117,6 +121,11 @@ data class HomeUiState(
 
     // Settings
     val themeMode: Int = 0,
+    val themeColorSource: String = "system",
+    val seedColorArgb: Int = -10011977,
+    val themeImageSeedColorArgb: Int? = null,
+    val themeImageUri: String? = null,
+    val paletteStyleName: String = "TonalSpot",
     val showB30Overflow: Boolean = false,
     val overflowCount: Int = 9,
 
@@ -136,6 +145,10 @@ data class HomeUiState(
     val updateDataTotal: Int = 0,
     val updateDataFileName: String = "",
     val updateDataError: String? = null,
+    val isCachingB30Artwork: Boolean = false,
+    val b30ArtworkCacheTotal: Int = 0,
+    val b30ArtworkCacheCompleted: Int = 0,
+    val b30ArtworkCacheError: String? = null,
 
     // Tool tab (sync snapshots)
     val syncSnapshots: List<SyncSnapshotEntity> = emptyList(),
@@ -159,11 +172,24 @@ data class HomeUiState(
     val apiRankByUser: ApiToolResult = ApiToolResult(),
     val apiRankByPosition: ApiToolResult = ApiToolResult(),
     val apiRksRankResult: ApiToolResult = ApiToolResult(),
+    val suggestTargetMode: SuggestTargetMode = SuggestTargetMode.PlayerDisplayRks,
+    val suggestTargetInput: String = "",
+    val suggestTargetError: String? = null,
     val suggestItems: List<SuggestItem> = emptyList(),
     val songApiDetailMap: Map<String, SongApiDetailState> = emptyMap(),
 
     val crashNotificationGuideShown: Boolean = false
-)
+) {
+    val themeSettings: PhiTrackerThemeSettings
+        get() = PhiTrackerThemeSettings(
+            themeMode = themeMode,
+            colorSource = themeColorSource,
+            seedColorArgb = seedColorArgb,
+            imageSeedColorArgb = themeImageSeedColorArgb,
+            imageUri = themeImageUri,
+            paletteStyleName = paletteStyleName
+        )
+}
 
 class HomeViewModel(
     private val repository: PhigrosRepository,
@@ -175,6 +201,7 @@ class HomeViewModel(
     private val illustrationProvider: IllustrationProvider,
     private val tipsProvider: TipsProvider,
     private val settingsRepository: SettingsRepository,
+    private val artworkFileCache: StandardArtworkCache = NoOpStandardArtworkCache,
     private val thumbnailPreloader: IllustrationThumbnailPreloader = CoilIllustrationThumbnailPreloader,
     private val clearCacheUrlsFn: suspend (List<String>) -> Unit = ::clearImageCacheUrls,
     private val clearAllCacheFn: suspend () -> Unit = ::clearAllImageCache,
@@ -201,6 +228,31 @@ class HomeViewModel(
         viewModelScope.launch {
             settingsRepository.themeMode.collect { mode ->
                 _uiState.update { it.copy(themeMode = mode) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.themeColorSource.collect { source ->
+                _uiState.update { it.copy(themeColorSource = source) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.seedColorArgb.collect { argb ->
+                _uiState.update { it.copy(seedColorArgb = argb) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.themeImageSeedColorArgb.collect { argb ->
+                _uiState.update { it.copy(themeImageSeedColorArgb = argb) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.themeImageUri.collect { uri ->
+                _uiState.update { it.copy(themeImageUri = uri) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.paletteStyleName.collect { style ->
+                _uiState.update { it.copy(paletteStyleName = style) }
             }
         }
 
@@ -334,25 +386,115 @@ class HomeViewModel(
                 .collect { (b30, allRecords) ->
                     val computedRks = RksCalculator.calculateDisplayRks(b30)
                     val cachedSave = repository.getCachedSave().first()
-                    val suggestItems = cachedSave?.let {
-                        getSuggestUseCase(
+                    val suggestResult = cachedSave?.let {
+                        buildSuggestItems(
                             currentB30 = b30,
                             records = it.gameRecord,
                             difficulties = diffMap,
                             songNames = nameMap,
-                            limit = 30
+                            mode = _uiState.value.suggestTargetMode,
+                            input = _uiState.value.suggestTargetInput
                         )
-                    }.orEmpty()
+                    } ?: SuggestBuildResult(emptyList(), null)
                     _uiState.update {
                         it.copy(
                             b30 = b30,
                             allRecords = allRecords,
                             displayRks = if (it.displayRks == 0f) computedRks else it.displayRks,
-                            suggestItems = suggestItems,
+                            suggestItems = suggestResult.items,
+                            suggestTargetError = suggestResult.error,
                             isLoading = false
                         )
                     }
                 }
+        }
+    }
+
+    private data class SuggestBuildResult(
+        val items: List<SuggestItem>,
+        val error: String?
+    )
+
+    private fun buildSuggestItems(
+        currentB30: List<BestRecord>,
+        records: Map<String, org.kasumi321.ushio.phitracker.domain.model.SongRecord>,
+        difficulties: Map<String, Map<Difficulty, Float>>,
+        songNames: Map<String, String>,
+        mode: SuggestTargetMode,
+        input: String
+    ): SuggestBuildResult {
+        val normalizedInput = input.trim()
+        if (normalizedInput.isEmpty()) {
+            return SuggestBuildResult(
+                items = getSuggestUseCase(
+                    currentB30 = currentB30,
+                    records = records,
+                    difficulties = difficulties,
+                    songNames = songNames,
+                    limit = 30
+                ),
+                error = null
+            )
+        }
+
+        val targetInputPattern = Regex("""\d+(\.\d{0,2})?""")
+        if (!targetInputPattern.matches(normalizedInput)) {
+            return SuggestBuildResult(emptyList(), "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数")
+        }
+
+        val targetRks = normalizedInput.toFloatOrNull()
+        if (targetRks == null || targetRks !in 0f..17f) {
+            return SuggestBuildResult(emptyList(), "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数")
+        }
+
+        val items = getSuggestUseCase(
+            currentB30 = currentB30,
+            records = records,
+            difficulties = difficulties,
+            songNames = songNames,
+            targetMode = mode,
+            targetRks = targetRks,
+            limit = 30
+        )
+        val error = if (mode == SuggestTargetMode.PlayerDisplayRks && items.isEmpty()) {
+            "当前数据下已达到目标，或没有单张谱面可独立推到该目标"
+        } else null
+        return SuggestBuildResult(items, error)
+    }
+
+    fun setSuggestTargetMode(mode: SuggestTargetMode) {
+        _uiState.update { it.copy(suggestTargetMode = mode) }
+        recalculateSuggestItems()
+    }
+
+    fun setSuggestTargetInput(input: String) {
+        val normalized = input.replace('，', '.')
+        _uiState.update { it.copy(suggestTargetInput = normalized) }
+        recalculateSuggestItems()
+    }
+
+    private fun recalculateSuggestItems() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            val diffMap = songDataProvider.getDifficultyMap()
+            val nameMap = songDataProvider.getSongNameMap()
+            val cachedSave = repository.getCachedSave().first()
+            val result = cachedSave?.let {
+                buildSuggestItems(
+                    currentB30 = state.b30,
+                    records = it.gameRecord,
+                    difficulties = diffMap,
+                    songNames = nameMap,
+                    mode = state.suggestTargetMode,
+                    input = state.suggestTargetInput
+                )
+            } ?: SuggestBuildResult(emptyList(), null)
+            _uiState.update {
+                it.copy(
+                    suggestItems = result.items,
+                    suggestTargetError = result.error
+                )
+            }
         }
     }
 
@@ -375,7 +517,7 @@ class HomeViewModel(
     /**
      * Check illustration preload state:
      * - If SharedPreferences records completion → illustrationReady = true directly
-     * - Otherwise → show preload dialog, block content display
+     * - Otherwise → show preload dialog without blocking content display
      */
     private fun checkIllustrationState() {
         viewModelScope.launch {
@@ -383,7 +525,7 @@ class HomeViewModel(
             if (alreadyDone) {
                 _uiState.update { it.copy(illustrationReady = true) }
             } else {
-                _uiState.update { it.copy(showPreloadDialog = true, illustrationReady = false) }
+                _uiState.update { it.copy(showPreloadDialog = true, illustrationReady = true) }
             }
         }
     }
@@ -448,8 +590,8 @@ class HomeViewModel(
             _uiState.update {
                 it.copy(
                     isPreloading = false,
-                    showPreloadDialog = hasChildError,
-                    illustrationReady = !hasChildError,
+                    showPreloadDialog = false,
+                    illustrationReady = true,
                     error = errorMessage
                 )
             }
@@ -617,17 +759,17 @@ class HomeViewModel(
     private suspend fun loadRecentEffectiveSyncHistory(limit: Int = 3) {
         val songs = songDataProvider.getSongs()
         val snapshots = syncSnapshotDao.getAllOnce()
-        val effectiveEntries = mutableListOf<Pair<SyncSnapshotEntity, SongSyncHistoryEntity>>()
+        val effectiveSnapshots = mutableListOf<Pair<SyncSnapshotEntity, List<SongSyncHistoryEntity>>>()
 
         for (snapshot in snapshots) {
             val entries = songSyncHistoryDao.getBySnapshotId(snapshot.id)
             if (entries.isNotEmpty()) {
-                effectiveEntries.add(snapshot to entries.first())
+                effectiveSnapshots.add(snapshot to entries)
             }
-            if (effectiveEntries.size >= limit) break
+            if (effectiveSnapshots.size >= limit) break
         }
 
-        val recentRecords = effectiveEntries.mapNotNull { (_, entry) ->
+        val recentRecords = effectiveSnapshots.flatMap { (_, entries) -> entries }.mapNotNull { entry ->
             val difficulty = runCatching { Difficulty.valueOf(entry.difficulty) }.getOrNull()
                 ?: return@mapNotNull null
             val song = songs[entry.songId]
@@ -647,8 +789,10 @@ class HomeViewModel(
         }
 
         _uiState.update {
+            // Home summary uses the first entry of the newest effective sync snapshot,
+            // while the history list keeps every entry from the latest three effective snapshots.
             it.copy(
-                lastSyncTime = effectiveEntries.firstOrNull()?.first?.timestamp,
+                lastSyncTime = effectiveSnapshots.firstOrNull()?.first?.timestamp,
                 recentSyncedRecords = recentRecords,
                 lastSyncedRecord = recentRecords.firstOrNull()
             )
@@ -659,6 +803,12 @@ class HomeViewModel(
         if (_uiState.value.isUpdatingData) return
         viewModelScope.launch {
             val totalFiles = SongDataUpdater.FILE_NAMES.size
+            val oldSongIds = _uiState.value.allSongs
+                .map { it.id }
+                .toSet()
+                .ifEmpty {
+                    runCatching { songDataProvider.getSongs().keys.toSet() }.getOrDefault(emptySet())
+                }
             _uiState.update {
                 it.copy(
                     isUpdatingData = true,
@@ -679,14 +829,23 @@ class HomeViewModel(
                 }
             }
             if (result.isSuccess) {
+                val cacheResult = runCatching {
+                    val newSongIds = songDataProvider.getSongs().keys.toSet()
+                    reconcileSongDataIllustrationCache(oldSongIds, newSongIds)
+                }
                 _uiState.update {
                     it.copy(
                         isUpdatingData = false,
                         updateDataProgress = totalFiles,
-                        updateDataFileName = ""
+                        updateDataFileName = "",
+                        updateDataError = cacheResult.exceptionOrNull()?.message
                     )
                 }
-                AppLogger.event("data", "update_song_data_success")
+                AppLogger.event(
+                    "data",
+                    "update_song_data_success",
+                    mapOf("cacheReconcile" to cacheResult.isSuccess.toString())
+                )
                 // Reload songs and B30
                 loadSongs()
                 observeB30()
@@ -699,6 +858,60 @@ class HomeViewModel(
                 }
                 AppLogger.event("data", "update_song_data_failed", mapOf("error" to (result.exceptionOrNull()?.message ?: "unknown")))
             }
+        }
+    }
+
+    private suspend fun reconcileSongDataIllustrationCache(
+        oldSongIds: Set<String>,
+        newSongIds: Set<String>
+    ) {
+        val added = (newSongIds - oldSongIds).sorted()
+        val removed = (oldSongIds - newSongIds).sorted()
+        var addedSuccess = 0
+        var addedFailure = 0
+
+        if (added.isNotEmpty()) {
+            val semaphore = Semaphore(6)
+            val mutex = Mutex()
+            val jobs = added.map { songId ->
+                viewModelScope.launch {
+                    semaphore.withPermit {
+                        val result = runCatching { illustrationProvider.getLowUrl(songId) }
+                            .mapCatching { url -> thumbnailPreloader.preload(url).getOrThrow() }
+                        mutex.withLock {
+                            if (result.isSuccess) addedSuccess++ else addedFailure++
+                        }
+                    }
+                }
+            }
+            jobs.forEach { it.join() }
+        }
+
+        if (removed.isNotEmpty()) {
+            val urls = removed.flatMap { songId ->
+                listOf(
+                    illustrationProvider.getLowUrl(songId),
+                    illustrationProvider.getStandardUrl(songId),
+                    illustrationProvider.getBlurUrl(songId)
+                )
+            }
+            clearCacheUrlsFn(urls)
+            artworkFileCache.clearStandard(removed)
+        }
+
+        AppLogger.event(
+            "cache",
+            "song_data_illustration_reconcile",
+            mapOf(
+                "added" to added.size.toString(),
+                "addedSuccess" to addedSuccess.toString(),
+                "addedFailure" to addedFailure.toString(),
+                "removed" to removed.size.toString()
+            )
+        )
+
+        if (addedFailure > 0) {
+            throw IllegalStateException("曲目数据已更新，但 $addedFailure 个新增曲绘缩略图缓存失败")
         }
     }
 
@@ -790,6 +1003,11 @@ class HomeViewModel(
         return illustrationProvider.getStandardUrl(songId)
     }
 
+    fun getCachedOrStandardIllustrationUri(songId: String): String {
+        return artworkFileCache.getStandardIfPresent(songId)
+            ?: illustrationProvider.getStandardUrl(songId)
+    }
+
     fun getRandomTip(): String {
         return tipsProvider.getRandomTip()
     }
@@ -810,16 +1028,60 @@ class HomeViewModel(
         viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
 
+    fun setThemeColorSource(source: String) {
+        viewModelScope.launch {
+            AppLogger.event("settings", "theme_color_source_changed", mapOf("source" to source))
+            settingsRepository.setThemeColorSource(source)
+        }
+    }
+
+    fun setSeedColorArgb(argb: Int) {
+        viewModelScope.launch {
+            AppLogger.event("settings", "theme_seed_color_changed")
+            settingsRepository.setSeedColorArgb(argb)
+        }
+    }
+
+    fun setThemeImageColor(uri: String?, seedColorArgb: Int) {
+        viewModelScope.launch {
+            AppLogger.event("settings", "theme_image_color_selected", mapOf("uriPresent" to (uri != null).toString()))
+            settingsRepository.setThemeImageColor(uri, seedColorArgb)
+        }
+    }
+
+    fun clearThemeImageColor() {
+        viewModelScope.launch {
+            AppLogger.event("settings", "theme_image_color_cleared")
+            settingsRepository.clearThemeImageColor()
+        }
+    }
+
+    fun setPaletteStyleName(name: String) {
+        viewModelScope.launch {
+            AppLogger.event("settings", "palette_style_changed", mapOf("style" to name))
+            settingsRepository.setPaletteStyleName(name)
+        }
+    }
+
     fun setShowB30Overflow(show: Boolean) {
-        viewModelScope.launch { settingsRepository.setShowB30Overflow(show) }
+        viewModelScope.launch {
+            AppLogger.event("settings", "b30_overflow_changed", mapOf("enabled" to show.toString()))
+            settingsRepository.setShowB30Overflow(show)
+        }
     }
 
     fun setOverflowCount(count: Int) {
-        viewModelScope.launch { settingsRepository.setOverflowCount(count) }
+        viewModelScope.launch {
+            AppLogger.event("settings", "b30_overflow_count_changed", mapOf("count" to count.toString()))
+            settingsRepository.setOverflowCount(count)
+        }
     }
 
     fun setAvatarUri(uri: String?) {
-        viewModelScope.launch { settingsRepository.setAvatarUri(uri) }
+        viewModelScope.launch {
+            AppLogger.event("settings", "avatar_changed", mapOf("uriPresent" to (uri != null).toString()))
+            settingsRepository.setAvatarUri(uri)
+        }
     }
 
     fun setIncludePreRelease(enabled: Boolean) {
@@ -831,11 +1093,17 @@ class HomeViewModel(
     }
 
     fun setApiEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setApiEnabled(enabled) }
+        viewModelScope.launch {
+            AppLogger.event("settings", "api_enabled_changed", mapOf("enabled" to enabled.toString()))
+            settingsRepository.setApiEnabled(enabled)
+        }
     }
 
     fun setUseApiData(useApiData: Boolean) {
-        viewModelScope.launch { settingsRepository.setUseApiData(useApiData) }
+        viewModelScope.launch {
+            AppLogger.event("settings", "use_api_data_changed", mapOf("enabled" to useApiData.toString()))
+            settingsRepository.setUseApiData(useApiData)
+        }
     }
 
     fun setApiPlatform(platform: String) {
@@ -853,10 +1121,79 @@ class HomeViewModel(
     fun clearHighResCache(onComplete: (Result<Unit>) -> Unit = {}) {
         viewModelScope.launch {
             val result = runCatching {
+                artworkFileCache.clearAllStandard()
                 val songs = songDataProvider.getSongs()
-                val urls = songs.keys.map { illustrationProvider.getStandardUrl(it) }
-                clearCacheUrlsFn(urls)
+                clearCacheUrlsFn(songs.keys.map { illustrationProvider.getStandardUrl(it) })
             }
+            AppLogger.event(
+                "cache",
+                if (result.isSuccess) "high_res_clear_success" else "high_res_clear_failed",
+                mapOf("error" to (result.exceptionOrNull()?.message ?: ""))
+            )
+            onComplete(result)
+        }
+    }
+
+    fun cacheB30StandardArtwork(onComplete: (Result<Unit>) -> Unit = {}) {
+        if (_uiState.value.isCachingB30Artwork) return
+        viewModelScope.launch {
+            val songIds = _uiState.value.b30.map { it.songId }.distinct()
+            if (songIds.isEmpty()) {
+                val failure = Result.failure<Unit>(IllegalStateException("当前没有可缓存的 B30 曲目"))
+                onComplete(failure)
+                return@launch
+            }
+
+            _uiState.update {
+                it.copy(
+                    isCachingB30Artwork = true,
+                    b30ArtworkCacheTotal = songIds.size,
+                    b30ArtworkCacheCompleted = 0,
+                    b30ArtworkCacheError = null
+                )
+            }
+            AppLogger.event("cache", "b30_standard_artwork_started", mapOf("count" to songIds.size.toString()))
+
+            val semaphore = Semaphore(4)
+            val mutex = Mutex()
+            var completed = 0
+            var failures = 0
+            val jobs = songIds.map { songId ->
+                launch {
+                    semaphore.withPermit {
+                        val result = runCatching {
+                            val url = illustrationProvider.getStandardUrl(songId)
+                            artworkFileCache.getOrDownloadStandard(songId, url)
+                            thumbnailPreloader.preload(url).getOrThrow()
+                        }
+                        mutex.withLock {
+                            if (result.isFailure) failures++
+                            completed++
+                            _uiState.update {
+                                it.copy(b30ArtworkCacheCompleted = completed)
+                            }
+                        }
+                    }
+                }
+            }
+            jobs.forEach { it.join() }
+
+            val result = if (failures == 0) {
+                Result.success(Unit)
+            } else {
+                Result.failure(IllegalStateException("$failures 个 B30 高清曲绘缓存失败"))
+            }
+            _uiState.update {
+                it.copy(
+                    isCachingB30Artwork = false,
+                    b30ArtworkCacheError = result.exceptionOrNull()?.message
+                )
+            }
+            AppLogger.event(
+                "cache",
+                "b30_standard_artwork_finished",
+                mapOf("count" to songIds.size.toString(), "failures" to failures.toString())
+            )
             onComplete(result)
         }
     }
@@ -868,9 +1205,11 @@ class HomeViewModel(
                 clearAllCacheFn()
             }
             if (result.isSuccess) {
+                AppLogger.event("cache", "redownload_reset_success")
                 triggerAppRestart()
             } else {
                 val message = result.exceptionOrNull()?.message ?: "未知错误"
+                AppLogger.event("cache", "redownload_reset_failed", mapOf("error" to message))
                 showPlatformMessage("重新下载曲绘失败: $message")
                 _uiState.update { it.copy(error = "重新下载曲绘失败: $message") }
             }

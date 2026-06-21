@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.request.parameter
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.kasumi321.ushio.phitracker.domain.model.Server
@@ -24,14 +25,20 @@ class TapTapApiClient(
         }.body()
     }
 
-    suspend fun getGameSaves(sessionToken: String, server: Server): GameSaveListResponse {
+    suspend fun getGameSaves(sessionToken: String, server: Server, userObjectId: String): GameSaveListResponse {
         val baseUrl = TapTapConstants.baseUrl(server)
         return httpClient.get(baseUrl + TapTapConstants.Endpoints.GAME_SAVE) {
             buildHeaders(sessionToken, server).forEach { (key, value) -> header(key, value) }
+            parameter("where", userPointerWhere(userObjectId))
+            parameter("order", "-updatedAt")
+            parameter("limit", 1)
         }.body()
     }
 
     suspend fun downloadSave(url: String): ByteArray = httpClient.get(url).body()
+
+    private fun userPointerWhere(userObjectId: String): String =
+        """{"user":{"__type":"Pointer","className":"_User","objectId":"$userObjectId"}}"""
 }
 
 @Serializable
@@ -50,11 +57,19 @@ data class GameSaveItem(
     val objectId: String,
     val summary: String,
     val updatedAt: String,
-    val gameFile: GameFileRef
+    val gameFile: GameFileRef,
+    val user: LeanCloudPointer? = null
 )
 
 @Serializable
 data class GameFileRef(
     @SerialName("objectId") val id: String,
     val url: String
+)
+
+@Serializable
+data class LeanCloudPointer(
+    @SerialName("__type") val type: String,
+    val className: String,
+    val objectId: String
 )

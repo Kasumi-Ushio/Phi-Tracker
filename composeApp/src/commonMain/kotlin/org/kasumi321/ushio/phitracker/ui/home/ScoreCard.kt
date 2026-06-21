@@ -40,11 +40,9 @@ import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.b30.B30ImageSpec
 import org.kasumi321.ushio.phitracker.ui.b30.setImageRequestAllowHardware
+import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
+import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
-
-private val FcColor = Color(0xFF4FC3F7)
-private val ApColor = Color(0xFFFFD54F)
-private val ApTextColor = Color(0xFF5D4037)
 
 internal fun Float.formatScoreCardRks(): String = B30ImageSpec.formatRks(this)
 
@@ -91,7 +89,9 @@ fun ScoreCardContent(
     allowHardwareImages: Boolean = true
 ) {
     val diffColor = DifficultyColors.forDifficulty(record.difficulty)
-    val isAp = record.accuracy >= 100f
+    val rating = remember(record.score, record.isFullCombo) {
+        ScoreRating.fromScore(record.score, record.isFullCombo)
+    }
 
     val ccText = remember(record.chartConstant, record.difficulty) {
         "${DifficultyColors.labelFor(record.difficulty)} ${record.chartConstant.formatScoreCardLevel()}"
@@ -213,40 +213,7 @@ fun ScoreCardContent(
                         )
                     }
 
-                    when {
-                        isAp -> {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(ApColor)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "\u03C6",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = ApTextColor,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = tagFontSize
-                                )
-                            }
-                        }
-                        record.isFullCombo -> {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(FcColor)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "FC",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = tagFontSize
-                                )
-                            }
-                        }
-                    }
+                    ScoreRatingTag(rating = rating, fontSize = tagFontSize)
                 }
             }
 

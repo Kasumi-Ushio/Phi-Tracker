@@ -71,6 +71,8 @@ import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.ui.common.SpringPagerIndicator
+import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
+import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.home.SongApiDetailState
 import kotlin.math.roundToInt
 import kotlin.time.Instant
@@ -395,11 +397,10 @@ private fun DifficultyContent(
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            if (record.accuracy >= 100f) {
-                                StatusChip("\u03C6", Color(0xFFFFD54F), Color(0xFF5D4037))
-                            } else if (record.isFullCombo) {
-                                StatusChip("FC", Color(0xFF4FC3F7), Color.White)
-                            }
+                            ScoreRatingTag(
+                                rating = ScoreRating.fromScore(record.score, record.isFullCombo),
+                                fontSize = 10.sp
+                            )
                         }
                     }
                     Column(horizontalAlignment = Alignment.End) {
@@ -593,24 +594,6 @@ private fun NoteStatItem(label: String, count: Int) {
 }
 
 @Composable
-private fun StatusChip(text: String, bgColor: Color, contentColor: Color) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(bgColor)
-            .padding(horizontal = 6.dp, vertical = 2.dp)
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = contentColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 10.sp
-        )
-    }
-}
-
-@Composable
 private fun SyncHistoryCard(entry: SongSyncHistoryEntity) {
     val formattedTime = remember(entry.timestamp) {
         entry.timestamp.formatSyncTime()
@@ -645,11 +628,10 @@ private fun SyncHistoryCard(entry: SongSyncHistoryEntity) {
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    if (entry.accuracy >= 100f) {
-                        StatusChip("\u03C6", Color(0xFFFFD54F), Color(0xFF5D4037))
-                    } else if (entry.isFullCombo) {
-                        StatusChip("FC", Color(0xFF4FC3F7), Color.White)
-                    }
+                    ScoreRatingTag(
+                        rating = ScoreRating.fromScore(entry.score, entry.isFullCombo),
+                        fontSize = 10.sp
+                    )
                 }
             }
             Text(

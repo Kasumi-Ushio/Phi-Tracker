@@ -29,6 +29,7 @@ import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
 import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
+import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
@@ -104,7 +105,7 @@ class HomeViewModelPreloadTest {
     }
 
     @Test
-    fun failedPreloadDoesNotPersistDoneAndKeepsDialogRetryable(): Unit = runTest(dispatcher) {
+    fun failedPreloadDoesNotPersistDoneOrBlockHome(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = false)
         val preloader = RecordingPreloader(failOnUrl = "https://example.test/illLow/song-b.png")
         val viewModel = createViewModel(settings, preloader)
@@ -114,8 +115,8 @@ class HomeViewModelPreloadTest {
         advanceUntilIdle()
 
         assertFalse(settings.preloadDone)
-        assertFalse(viewModel.uiState.value.illustrationReady)
-        assertTrue(viewModel.uiState.value.showPreloadDialog)
+        assertTrue(viewModel.uiState.value.illustrationReady)
+        assertFalse(viewModel.uiState.value.showPreloadDialog)
         assertEquals("部分预览图加载失败", viewModel.uiState.value.error)
         assertEquals(2, viewModel.uiState.value.preloadCompleted)
         assertEquals(1f, viewModel.uiState.value.preloadProgress)
@@ -163,6 +164,53 @@ class HomeViewModelPreloadTest {
     }
 
     @Test
+    fun cacheB30StandardArtworkDownloadsDistinctStandardArtwork(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        val artworkCache = RecordingStandardArtworkCache()
+        val cachedSave = emptySave().copy(
+            gameRecord = mapOf(
+                "song-a.0" to SongRecord("song-a.0", mapOf(Difficulty.IN to LevelRecord(990_000, 99f, false))),
+                "song-b.0" to SongRecord("song-b.0", mapOf(Difficulty.IN to LevelRecord(980_000, 98f, false)))
+            )
+        )
+        val repository = FakePhigrosRepositoryForSync(
+            syncResult = Result.success(saveWithRks(15.5f)),
+            recordDao = StatefulRecordDao(emptyList(), emptyList()),
+            cachedSave = cachedSave
+        )
+        val viewModel = createViewModel(
+            settingsRepository = settings,
+            preloader = preloader,
+            artworkFileCache = artworkCache,
+            repository = repository
+        )
+        advanceUntilIdle()
+
+        var completion: Result<Unit>? = null
+        viewModel.cacheB30StandardArtwork { result -> completion = result }
+        advanceUntilIdle()
+
+        assertTrue((completion ?: error("Completion missing")).isSuccess)
+        assertEquals(
+            setOf(
+                "song-a.0" to "https://example.test/ill/song-a.png",
+                "song-b.0" to "https://example.test/ill/song-b.png"
+            ),
+            artworkCache.downloaded.toSet()
+        )
+        assertEquals(
+            setOf(
+                "https://example.test/ill/song-a.png",
+                "https://example.test/ill/song-b.png"
+            ),
+            preloader.urls.toSet(),
+            "B30 standard artwork caching also warms display cache with standard URLs"
+        )
+        assertFalse(viewModel.uiState.value.isCachingB30Artwork)
+    }
+
+    @Test
     fun updateSongDataSetsUpdatingStateAndClearsAfterSuccess(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = true)
         val preloader = RecordingPreloader()
@@ -177,6 +225,88 @@ class HomeViewModelPreloadTest {
         assertFalse(viewModel.uiState.value.isUpdatingData)
         assertEquals(SongDataUpdater.FILE_NAMES.size, viewModel.uiState.value.updateDataTotal)
         assertEquals(SongDataUpdater.FILE_NAMES.size, viewModel.uiState.value.updateDataProgress)
+    }
+
+    @Test
+    fun updateSongDataReconcilesAddedAndRemovedIllustrationCaches(): Unit = runTest(dispatcher) {
+        val reader = MutableSongDataReader(listOf("song-a", "song-b"))
+        val provider = SongDataProvider(reader)
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        val artworkCache = RecordingStandardArtworkCache()
+        var clearedUrls: List<String> = emptyList()
+        val updater = FakeSongDataUpdater(
+            paths = testPlatformPaths,
+            songDataProvider = provider,
+            onUpdate = { onProgress ->
+                onProgress(SongDataUpdater.FILE_NAMES.size, SongDataUpdater.FILE_NAMES.size, "完成")
+                reader.replaceSongs(listOf("song-b", "song-c"))
+                provider.invalidateCache()
+                Result.success(Unit)
+            }
+        )
+        val viewModel = createViewModel(
+            settingsRepository = settings,
+            preloader = preloader,
+            cacheClearFn = { urls -> clearedUrls = urls },
+            artworkFileCache = artworkCache,
+            songDataProvider = provider,
+            songDataUpdater = updater
+        )
+        advanceUntilIdle()
+
+        viewModel.updateSongData()
+        advanceUntilIdle()
+
+        assertTrue(updater.updateCalled, "Fake updater must be invoked")
+        assertEquals(
+            listOf("https://example.test/illLow/song-c.png"),
+            preloader.urls.filter { it.contains("song-c") },
+            "Only the newly added song thumbnail should be preloaded; keys=${provider.getSongs().keys} urls=${preloader.urls} error=${viewModel.uiState.value.updateDataError}"
+        )
+        assertEquals(
+            setOf(
+                "https://example.test/illLow/song-a.png",
+                "https://example.test/ill/song-a.png",
+                "https://example.test/illBlur/song-a.png"
+            ),
+            clearedUrls.toSet(),
+            "Removed songs must clear low, standard and blur Coil cache URLs"
+        )
+        assertEquals(listOf("song-a.0"), artworkCache.cleared)
+        assertEquals(null, viewModel.uiState.value.updateDataError)
+    }
+
+    @Test
+    fun updateSongDataReportsThumbnailFailureWithoutRollingBackSongData(): Unit = runTest(dispatcher) {
+        val reader = MutableSongDataReader(listOf("song-a"))
+        val provider = SongDataProvider(reader)
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader(failOnUrl = "https://example.test/illLow/song-b.png")
+        val updater = FakeSongDataUpdater(
+            paths = testPlatformPaths,
+            songDataProvider = provider,
+            onUpdate = { onProgress ->
+                onProgress(SongDataUpdater.FILE_NAMES.size, SongDataUpdater.FILE_NAMES.size, "完成")
+                reader.replaceSongs(listOf("song-a", "song-b"))
+                provider.invalidateCache()
+                Result.success(Unit)
+            }
+        )
+        val viewModel = createViewModel(
+            settingsRepository = settings,
+            preloader = preloader,
+            songDataProvider = provider,
+            songDataUpdater = updater
+        )
+        advanceUntilIdle()
+
+        viewModel.updateSongData()
+        advanceUntilIdle()
+
+        assertTrue(updater.updateCalled, "Fake updater must be invoked")
+        assertTrue(provider.getSongs().containsKey("song-b.0"), "Song data update must remain committed")
+        assertEquals("曲目数据已更新，但 1 个新增曲绘缩略图缓存失败", viewModel.uiState.value.updateDataError)
     }
 
     @Test
@@ -243,6 +373,41 @@ class HomeViewModelPreloadTest {
         val preloader = RecordingPreloader()
         val viewModel = createViewModel(settings, preloader)
         assertEquals(emptyList(), viewModel.getSyncHistory("song-a").first())
+    }
+
+    @Test
+    fun recentEffectiveSyncHistoryLoadsAllEntriesFromLatestThreeEffectiveSnapshots(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val snapshots = listOf(
+            syncSnapshot(id = 4L, timestamp = 4_000L, dataCount = 2),
+            syncSnapshot(id = 3L, timestamp = 3_000L, dataCount = 0),
+            syncSnapshot(id = 2L, timestamp = 2_000L, dataCount = 1),
+            syncSnapshot(id = 1L, timestamp = 1_000L, dataCount = 1)
+        )
+        val history = mapOf(
+            4L to listOf(
+                syncHistory(snapshotId = 4L, songId = "song-a.0", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, timestamp = 4_001L),
+                syncHistory(snapshotId = 4L, songId = "song-b.0", difficulty = "HD", score = 940_000, accuracy = 94f, isFullCombo = true, timestamp = 4_002L)
+            ),
+            3L to emptyList(),
+            2L to listOf(syncHistory(snapshotId = 2L, songId = "song-a.0", difficulty = "EZ", score = 900_000, accuracy = 90f, isFullCombo = false, timestamp = 2_001L)),
+            1L to listOf(syncHistory(snapshotId = 1L, songId = "song-b.0", difficulty = "IN", score = 910_000, accuracy = 91f, isFullCombo = false, timestamp = 1_001L))
+        )
+        val viewModel = createViewModel(
+            settingsRepository = settings,
+            syncSnapshotDao = FakeSyncSnapshotDao(snapshots),
+            songSyncHistoryDao = FakeSongSyncHistoryDao(history)
+        )
+        advanceUntilIdle()
+
+        assertEquals(4_000L, viewModel.uiState.value.lastSyncTime)
+        assertEquals(
+            listOf("song-a.0", "song-b.0", "song-a.0", "song-b.0"),
+            viewModel.uiState.value.recentSyncedRecords.map { it.songId },
+            "History should include every entry from the latest three effective snapshots"
+        )
+        assertEquals("song-a.0", viewModel.uiState.value.lastSyncedRecord?.songId)
+        assertEquals(Difficulty.IN, viewModel.uiState.value.lastSyncedRecord?.difficulty)
     }
 
     @Test
@@ -374,9 +539,14 @@ class HomeViewModelPreloadTest {
         settingsRepository: FakeSettingsRepository,
         preloader: IllustrationThumbnailPreloader = RecordingPreloader(),
         cacheClearFn: suspend (List<String>) -> Unit = {},
+        artworkFileCache: StandardArtworkCache = RecordingStandardArtworkCache(),
+        songDataProvider: SongDataProvider = testSongDataProvider,
+        syncSnapshotDao: SyncSnapshotDao = FakeSyncSnapshotDao(),
+        recordDao: RecordDao = FakeRecordDao(),
+        songSyncHistoryDao: SongSyncHistoryDao = FakeSongSyncHistoryDao(),
         songDataUpdater: FakeSongDataUpdater = FakeSongDataUpdater(
             paths = testPlatformPaths,
-            songDataProvider = testSongDataProvider
+            songDataProvider = songDataProvider
         ),
         appVersionName: String = "",
         repository: PhigrosRepository = FakePhigrosRepository()
@@ -389,15 +559,16 @@ class HomeViewModelPreloadTest {
             getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
-            songDataProvider = testSongDataProvider,
+            songDataProvider = songDataProvider,
             illustrationProvider = illustrationProvider,
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settingsRepository,
+            artworkFileCache = artworkFileCache,
             thumbnailPreloader = preloader,
             clearCacheUrlsFn = cacheClearFn,
-            syncSnapshotDao = FakeSyncSnapshotDao(),
-            recordDao = FakeRecordDao(),
-            songSyncHistoryDao = FakeSongSyncHistoryDao(),
+            syncSnapshotDao = syncSnapshotDao,
+            recordDao = recordDao,
+            songSyncHistoryDao = songSyncHistoryDao,
             songDataUpdater = songDataUpdater,
             runtimeLogExporter = RuntimeLogExporter(logFileStore),
             crashReportExporter = CrashReportExporter(logFileStore),
@@ -417,18 +588,49 @@ class HomeViewModelPreloadTest {
         }
     }
 
+    private class RecordingStandardArtworkCache : StandardArtworkCache {
+        val downloaded: MutableList<Pair<String, String>> = mutableListOf()
+        val cleared: MutableList<String> = mutableListOf()
+        var clearAllCalled: Boolean = false
+
+        override suspend fun getOrDownloadStandard(songId: String, url: String): String {
+            downloaded += songId to url
+            return "/cache/standard/$songId.png"
+        }
+
+        override fun getStandardIfPresent(songId: String): String? = null
+
+        override fun clearStandard(songIds: Iterable<String>) {
+            cleared += songIds
+        }
+
+        override fun clearAllStandard() {
+            clearAllCalled = true
+        }
+    }
+
     private class FakeSettingsRepository(
         preloadDone: Boolean,
         autoCheckUpdate: Boolean = true,
         includePreRelease: Boolean = false
     ) : SettingsRepository {
         override val themeMode: Flow<Int> = flowOf(0)
+        override val themeColorSource: Flow<String> = flowOf("system")
+        override val seedColorArgb: Flow<Int> = flowOf(-10011977)
+        override val themeImageSeedColorArgb: Flow<Int?> = flowOf(null)
+        override val themeImageUri: Flow<String?> = flowOf(null)
+        override val paletteStyleName: Flow<String> = flowOf("TonalSpot")
         override val showB30Overflow: Flow<Boolean> = flowOf(false)
         override val overflowCount: Flow<Int> = flowOf(9)
         var preloadDone = preloadDone
             private set
 
         override suspend fun setThemeMode(mode: Int) = Unit
+        override suspend fun setThemeColorSource(source: String) = Unit
+        override suspend fun setSeedColorArgb(argb: Int) = Unit
+        override suspend fun setThemeImageColor(uri: String?, seedColorArgb: Int) = Unit
+        override suspend fun clearThemeImageColor() = Unit
+        override suspend fun setPaletteStyleName(name: String) = Unit
         override suspend fun setShowB30Overflow(show: Boolean) = Unit
         override suspend fun setOverflowCount(count: Int) = Unit
         override suspend fun getPreloadDone(): Boolean = preloadDone
@@ -530,12 +732,14 @@ class HomeViewModelPreloadTest {
         }
     }
 
-    private class FakeSyncSnapshotDao : SyncSnapshotDao {
+    private class FakeSyncSnapshotDao(
+        private val snapshots: List<SyncSnapshotEntity> = emptyList()
+    ) : SyncSnapshotDao {
         override suspend fun insert(snapshot: SyncSnapshotEntity) = Unit
         override suspend fun insertAndGetId(snapshot: SyncSnapshotEntity): Long = 1L
-        override fun getAll(): Flow<List<SyncSnapshotEntity>> = flowOf(emptyList())
-        override suspend fun getAllOnce(): List<SyncSnapshotEntity> = emptyList()
-        override suspend fun getLatest(): SyncSnapshotEntity? = null
+        override fun getAll(): Flow<List<SyncSnapshotEntity>> = flowOf(snapshots)
+        override suspend fun getAllOnce(): List<SyncSnapshotEntity> = snapshots
+        override suspend fun getLatest(): SyncSnapshotEntity? = snapshots.firstOrNull()
     }
 
     private class FakeRecordDao : RecordDao {
@@ -551,12 +755,14 @@ class HomeViewModelPreloadTest {
         override suspend fun getTotalPhiCount(): Int = 0
     }
 
-    private class FakeSongSyncHistoryDao : SongSyncHistoryDao {
+    private class FakeSongSyncHistoryDao(
+        private val bySnapshotId: Map<Long, List<SongSyncHistoryEntity>> = emptyMap()
+    ) : SongSyncHistoryDao {
         override suspend fun insertAll(entries: List<SongSyncHistoryEntity>) = Unit
         override fun getBySongId(songId: String): Flow<List<SongSyncHistoryEntity>> = flowOf(emptyList())
         override suspend fun getRecentBySongId(songId: String, limit: Int): List<SongSyncHistoryEntity> = emptyList()
-        override suspend fun getBySnapshotId(snapshotId: Long): List<SongSyncHistoryEntity> = emptyList()
-        override suspend fun getRecent(limit: Int): List<SongSyncHistoryEntity> = emptyList()
+        override suspend fun getBySnapshotId(snapshotId: Long): List<SongSyncHistoryEntity> = bySnapshotId[snapshotId].orEmpty()
+        override suspend fun getRecent(limit: Int): List<SongSyncHistoryEntity> = bySnapshotId.values.flatten().take(limit)
     }
 
     private class FakeSongDataUpdater(
@@ -662,6 +868,29 @@ class HomeViewModelPreloadTest {
             "tips.txt" -> "Tip: test"
             "difficulty.csv" -> "songId,EZ,HD,IN,AT\nsong-a,1.0,2.0,3.0,4.0\nsong-b,1.0,2.0,3.0,4.0"
             "info.csv" -> "songId,name,composer,illustrator,EZCharter,HDCharter,INCharter,ATCharter\nsong-a,Song A,Composer,Illustrator,,,,\nsong-b,Song B,Composer,Illustrator,,,,"
+            "infolist.json" -> "{}"
+            "notesInfo.json" -> "{}"
+            else -> error("Test asset not found: $name")
+        }
+    }
+
+    private class MutableSongDataReader(
+        private var songIds: List<String>
+    ) : TextAssetReader {
+        fun replaceSongs(newSongIds: List<String>) {
+            songIds = newSongIds
+        }
+
+        override fun readText(name: String): String = when (name) {
+            "tips.txt" -> "Tip: test"
+            "difficulty.csv" -> buildString {
+                appendLine("songId,EZ,HD,IN,AT")
+                songIds.forEach { songId -> appendLine("$songId,1.0,2.0,3.0,4.0") }
+            }.trimEnd()
+            "info.csv" -> buildString {
+                appendLine("songId,name,composer,illustrator,EZCharter,HDCharter,INCharter,ATCharter")
+                songIds.forEach { songId -> appendLine("$songId,Song $songId,Composer,Illustrator,,,,") }
+            }.trimEnd()
             "infolist.json" -> "{}"
             "notesInfo.json" -> "{}"
             else -> error("Test asset not found: $name")
@@ -988,6 +1217,31 @@ class HomeViewModelPreloadTest {
             "song-b IN should NOT be suggested (currentRks >= threshold)")
     }
 
+    @Test
+    fun suggestTargetInputKeepsIllegalTextAndReportsExplicitError(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createViewModel(settingsRepository = settings)
+        advanceUntilIdle()
+
+        viewModel.setSuggestTargetInput("16.123")
+        advanceUntilIdle()
+
+        assertEquals("16.123", viewModel.uiState.value.suggestTargetInput)
+        assertEquals(
+            "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数",
+            viewModel.uiState.value.suggestTargetError
+        )
+
+        viewModel.setSuggestTargetInput("abc")
+        advanceUntilIdle()
+
+        assertEquals("abc", viewModel.uiState.value.suggestTargetInput)
+        assertEquals(
+            "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数",
+            viewModel.uiState.value.suggestTargetError
+        )
+    }
+
     private fun createChapterFilterViewModel(
         settingsRepository: FakeSettingsRepository
     ): HomeViewModel {
@@ -1222,6 +1476,42 @@ class HomeViewModelPreloadTest {
                     levels = mapOf(difficulty to LevelRecord(score, accuracy, isFullCombo))
                 )
             )
+        )
+
+        fun syncSnapshot(
+            id: Long,
+            timestamp: Long,
+            dataCount: Int,
+            rks: Float = 15f,
+            nickname: String = "N"
+        ): SyncSnapshotEntity = SyncSnapshotEntity(
+            id = id,
+            timestamp = timestamp,
+            rks = rks,
+            nickname = nickname,
+            dataCount = dataCount,
+            lastSyncedSongId = null,
+            lastSyncedDifficulty = null,
+            lastSyncedScore = null,
+            lastSyncedAccuracy = null
+        )
+
+        fun syncHistory(
+            snapshotId: Long,
+            songId: String,
+            difficulty: String,
+            score: Int,
+            accuracy: Float,
+            isFullCombo: Boolean,
+            timestamp: Long
+        ): SongSyncHistoryEntity = SongSyncHistoryEntity(
+            snapshotId = snapshotId,
+            songId = songId,
+            difficulty = difficulty,
+            score = score,
+            accuracy = accuracy,
+            isFullCombo = isFullCombo,
+            timestamp = timestamp
         )
     }
 }

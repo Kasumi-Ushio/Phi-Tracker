@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -123,7 +124,8 @@ fun MainScreen(
         phiCount: Int,
         avatarUri: String?,
         showB30Overflow: Boolean,
-        overflowCount: Int
+        overflowCount: Int,
+        themeSettings: PhiTrackerThemeSettings
     ) -> Unit,
     onNavigateToSongDetail: (String) -> Unit,
     onNavigateToSongDetailWithDifficulty: (String, org.kasumi321.ushio.phitracker.domain.model.Difficulty?) -> Unit,
@@ -191,37 +193,6 @@ fun MainScreen(
             onStartDownload = { viewModel.startPreloadIllustrations() },
             onDismiss = { viewModel.dismissPreload() }
         )
-
-        Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            bottomBar = {
-                MainBottomBar(
-                    navItems = navItems,
-                    selectedTab = selectedTab,
-                    reducedMotionEnabled = reducedMotionEnabled,
-                    onTabSelected = { selectedTab = it }
-                )
-            }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                if (state.isPreloading) {
-                    CircularProgressIndicator()
-                }
-            }
-        }
-        return
-    }
-
-    if (!state.illustrationReady) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        return
     }
 
     Scaffold(
@@ -272,7 +243,8 @@ fun MainScreen(
                         state.b30, state.displayRks, state.nickname,
                         state.challengeModeRank, state.moneyString,
                         state.clearCounts, state.fcCount, state.phiCount,
-                        state.avatarUri, state.showB30Overflow, state.overflowCount
+                        state.avatarUri, state.showB30Overflow, state.overflowCount,
+                        state.themeSettings
                     )
                 },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
@@ -318,7 +290,12 @@ fun MainScreen(
                 apiRankByUser = state.apiRankByUser,
                 apiRankByPosition = state.apiRankByPosition,
                 apiRksRankResult = state.apiRksRankResult,
+                suggestTargetMode = state.suggestTargetMode,
+                suggestTargetInput = state.suggestTargetInput,
+                suggestTargetError = state.suggestTargetError,
                 suggestItems = state.suggestItems,
+                onSuggestTargetModeChange = { viewModel.setSuggestTargetMode(it) },
+                onSuggestTargetInputChange = { viewModel.setSuggestTargetInput(it) },
                 onFetchRankByUser = { viewModel.fetchApiRankByUser() },
                 onFetchRankByPosition = { viewModel.fetchApiRankByPosition(it) },
                 onFetchRksRank = { viewModel.fetchApiRksRankForValue(it) },
