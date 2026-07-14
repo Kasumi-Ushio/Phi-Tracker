@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      App window theme. Keeps the platform Material.Light.NoActionBar behaviour
+      the app shipped with, but swaps the hardcoded-white windowBackground for a
+      night-aware colour so dark-mode launches (and Activity transitions) no
+      longer flash white. All in-app surfaces are themed by Compose/Material3 at
+      runtime; this only governs the pre-composition window.
+    -->
+    <style name="Theme.PhiTracker" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>

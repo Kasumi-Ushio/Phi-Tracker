@@ -2,6 +2,7 @@ package org.kasumi321.ushio.phitracker.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -22,7 +24,6 @@ import kotlin.math.roundToLong
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -88,7 +89,6 @@ data class SongApiDetailState(
     val totalUsers: Int? = null,
     val avgAcc: Float? = null,
     val avgAccCount: Int? = null,
-    val fittedDifficulty: Float? = null,
     val history: List<SongSyncHistoryEntity> = emptyList()
 )
 
@@ -217,6 +217,7 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var b30Job: Job? = null
+    private var suggestJob: Job? = null
 
     init {
         loadSongs()
@@ -415,7 +416,7 @@ class HomeViewModel(
         val error: String?
     )
 
-    private fun buildSuggestItems(
+    private suspend fun buildSuggestItems(
         currentB30: List<BestRecord>,
         records: Map<String, org.kasumi321.ushio.phitracker.domain.model.SongRecord>,
         difficulties: Map<String, Map<Difficulty, Float>>,
@@ -425,16 +426,18 @@ class HomeViewModel(
     ): SuggestBuildResult {
         val normalizedInput = input.trim()
         if (normalizedInput.isEmpty()) {
-            return SuggestBuildResult(
-                items = getSuggestUseCase(
+            // Sweeping every game chart (and, for the final-RKS mode, binary-searching
+            // each) is heavy enough to jank the UI thread, so keep it on Default.
+            val items = withContext(Dispatchers.Default) {
+                getSuggestUseCase(
                     currentB30 = currentB30,
                     records = records,
                     difficulties = difficulties,
                     songNames = songNames,
                     limit = 30
-                ),
-                error = null
-            )
+                )
+            }
+            return SuggestBuildResult(items = items, error = null)
         }
 
         val targetInputPattern = Regex("""\d+(\.\d{0,2})?""")
@@ -447,17 +450,19 @@ class HomeViewModel(
             return SuggestBuildResult(emptyList(), "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数")
         }
 
-        val items = getSuggestUseCase(
-            currentB30 = currentB30,
-            records = records,
-            difficulties = difficulties,
-            songNames = songNames,
-            targetMode = mode,
-            targetRks = targetRks,
-            limit = 30
-        )
+        val items = withContext(Dispatchers.Default) {
+            getSuggestUseCase(
+                currentB30 = currentB30,
+                records = records,
+                difficulties = difficulties,
+                songNames = songNames,
+                targetMode = mode,
+                targetRks = targetRks,
+                limit = 30
+            )
+        }
         val error = if (mode == SuggestTargetMode.PlayerDisplayRks && items.isEmpty()) {
-            "当前数据下已达到目标，或没有单张谱面可独立推到该目标"
+            "当前数据下已达到目标，或没有可提升的谱面能帮助达成该目标"
         } else null
         return SuggestBuildResult(items, error)
     }
@@ -474,7 +479,10 @@ class HomeViewModel(
     }
 
     private fun recalculateSuggestItems() {
-        viewModelScope.launch {
+        // Target input can change on every keystroke; cancel the in-flight (heavy)
+        // recomputation so rapid edits don't pile up overlapping background work.
+        suggestJob?.cancel()
+        suggestJob = viewModelScope.launch {
             val state = _uiState.value
             val diffMap = songDataProvider.getDifficultyMap()
             val nameMap = songDataProvider.getSongNameMap()
@@ -1440,11 +1448,10 @@ class HomeViewModel(
 
             val rankResult = repository.apiGetRank(platform, platformId, songId, difficulty.name)
             val avgResult = repository.apiGetAvgAcc(songId, difficulty.name, minRks, maxRks)
-            val fitResult = repository.apiGetFittedDifficulty(songId, difficulty.name)
             val historyResult = repository.apiGetScoreHistory(platform, platformId, songId, difficulty.name)
 
-            if (rankResult.isFailure || avgResult.isFailure || fitResult.isFailure || historyResult.isFailure) {
-                val firstError = listOf(rankResult, avgResult, fitResult, historyResult)
+            if (rankResult.isFailure || avgResult.isFailure || historyResult.isFailure) {
+                val firstError = listOf(rankResult, avgResult, historyResult)
                     .firstOrNull { it.isFailure }?.exceptionOrNull()?.message ?: "未知错误"
                 _uiState.update {
                     val updated = it.songApiDetailMap.toMutableMap()
@@ -1463,7 +1470,6 @@ class HomeViewModel(
             val avgData = avgResult.getOrNull()?.get("data")?.asObject()
             val avgAcc = avgData?.get("accAvg")?.asFloat()
             val avgCount = avgData?.get("count")?.asInt()
-            val fitted = parseFittedDifficulty(fitResult.getOrNull(), songId, difficulty.name)
             val historyData = historyResult.getOrNull()?.get("data")
             val apiHistory = parseSongHistory(historyData, songId, difficulty.name)
 
@@ -1476,7 +1482,6 @@ class HomeViewModel(
                     totalUsers = totalUsers,
                     avgAcc = avgAcc,
                     avgAccCount = avgCount,
-                    fittedDifficulty = fitted,
                     history = apiHistory
                 )
                 it.copy(songApiDetailMap = updated)
@@ -1573,34 +1578,6 @@ class HomeViewModel(
                 timestamp = parseIsoToEpoch(date)
             )
         }
-    }
-
-    private fun parseFittedDifficulty(json: JsonObject?, songId: String, difficulty: String): Float? {
-        val data = json?.get("data")
-        val songMapped = data?.asObject()?.get(songId)?.asObject()?.get(difficulty)?.asFloat()
-        if (songMapped != null) return songMapped
-        val firstNumber = findFirstNumber(data)
-        return firstNumber
-    }
-
-    private fun findFirstNumber(element: JsonElement?): Float? {
-        when (element) {
-            null -> return null
-            is JsonPrimitive -> return element.contentOrNull?.toFloatOrNull()
-            is JsonObject -> {
-                element.values.forEach { value ->
-                    val parsed = findFirstNumber(value)
-                    if (parsed != null) return parsed
-                }
-            }
-            is JsonArray -> {
-                element.forEach { value ->
-                    val parsed = findFirstNumber(value)
-                    if (parsed != null) return parsed
-                }
-            }
-        }
-        return null
     }
 
     private fun parseIsoToEpoch(iso: String): Long {

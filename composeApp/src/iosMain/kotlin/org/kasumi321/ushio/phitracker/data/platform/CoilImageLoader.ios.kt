@@ -10,11 +10,13 @@ import okio.Path.Companion.toPath
 
 actual fun coilCacheDirectory(context: PlatformContext): Path = "${createPlatformPaths().cacheDir}/coil_cache".toPath()
 
-actual suspend fun preloadIllustrationThumbnail(url: String): Result<Unit> = runCatching {
+actual suspend fun preloadIllustrationThumbnail(url: String, size: Int, allowHardware: Boolean): Result<Unit> = runCatching {
+    // allowHardware has no iOS analogue (Skia software bitmaps); size still governs
+    // the Coil memory-cache key, so it must match the on-screen request.
     val context = PlatformContext.INSTANCE
     val request = ImageRequest.Builder(context)
         .data(url)
-        .size(168)
+        .size(size)
         .crossfade(200)
         .build()
     val result = SingletonImageLoader.get(context).execute(request)

@@ -117,7 +117,7 @@ class HomeViewModelPreloadTest {
         assertFalse(settings.preloadDone)
         assertTrue(viewModel.uiState.value.illustrationReady)
         assertFalse(viewModel.uiState.value.showPreloadDialog)
-        assertEquals("部分预览图加载失败", viewModel.uiState.value.error)
+        assertEquals("部分曲绘图片未能加载", viewModel.uiState.value.error)
         assertEquals(2, viewModel.uiState.value.preloadCompleted)
         assertEquals(1f, viewModel.uiState.value.preloadProgress)
     }
@@ -306,7 +306,7 @@ class HomeViewModelPreloadTest {
 
         assertTrue(updater.updateCalled, "Fake updater must be invoked")
         assertTrue(provider.getSongs().containsKey("song-b.0"), "Song data update must remain committed")
-        assertEquals("曲目数据已更新，但 1 个新增曲绘缩略图缓存失败", viewModel.uiState.value.updateDataError)
+        assertEquals("曲目数据已更新，但部分曲绘未能下载，可稍后在设置中重试", viewModel.uiState.value.updateDataError)
     }
 
     @Test
@@ -704,8 +704,6 @@ class HomeViewModelPreloadTest {
         override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
         override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-        override suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
         override suspend fun apiGetRksStats(): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))

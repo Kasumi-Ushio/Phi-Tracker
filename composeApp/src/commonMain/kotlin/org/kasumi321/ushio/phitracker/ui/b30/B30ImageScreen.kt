@@ -63,10 +63,16 @@ import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
+import org.kasumi321.ushio.phitracker.data.platform.preloadIllustrationThumbnail
+import org.kasumi321.ushio.phitracker.ui.home.scoreCardThumbnailSizePx
 import org.kasumi321.ushio.phitracker.data.platform.rememberB30BackgroundPicker
 import org.kasumi321.ushio.phitracker.data.platform.saveB30ImageToPictures
 import org.kasumi321.ushio.phitracker.data.platform.shareB30Image
@@ -202,6 +208,7 @@ fun B30ImageScreen(
         )
         val result = runCatching {
             withContext(Dispatchers.Default) {
+                preloadB30ExportImages(exportData)
                 B30ImageGenerator.generate(exportData)
             }
         }
@@ -373,6 +380,64 @@ fun B30ImageScreen(
             },
             onDismiss = { showBackgroundDialog = false }
         )
+    }
+}
+
+private suspend fun preloadB30ExportImages(exportData: B30ExportData) {
+    // The off-screen capture waits only a short beat after composition, so every
+    // illustration must resolve from Coil's memory cache synchronously on the
+    // first frame. That only happens when the warmed entry's key matches the
+    // consumer's request exactly: the export cards request
+    // scoreCardThumbnailSizePx(0.9) px with software bitmaps (allowHardware=false,
+    // because the layout is drawn onto a software Canvas). Preloading with a
+    // different size — or a hardware bitmap — leaves the cache "warm" on disk yet
+    // misses in memory, and the thumbnails still capture blank.
+    val cardThumbnailPx = scoreCardThumbnailSizePx(B30_EXPORT_CARD_THUMBNAIL_SCALE)
+    val cardUris = buildList {
+        exportData.phiRecords.forEach { add(it.illustrationUri) }
+        exportData.bestRecords.forEach { add(it.illustrationUri) }
+        exportData.overflowRecords.forEach { add(it.illustrationUri) }
+    }
+        .mapNotNull { it?.takeIf(String::isNotBlank) }
+        .distinct()
+
+    // Avatar/background are consumed differently (natural-size avatar; the
+    // background is re-decoded and blurred by the platform generator), so an
+    // exact memory-cache hit isn't achievable — warming them as software bitmaps
+    // still spares the capture a network round-trip.
+    val auxiliaryUris = listOfNotNull(
+        exportData.avatarUri?.takeIf(String::isNotBlank),
+        exportData.backgroundUri?.takeIf(String::isNotBlank)
+    ).distinct()
+
+    if (cardUris.isEmpty() && auxiliaryUris.isEmpty()) return
+
+    coroutineScope {
+        val semaphore = Semaphore(6)
+        val tasks = buildList {
+            cardUris.forEach { uri ->
+                add(uri to async {
+                    semaphore.withPermit {
+                        preloadIllustrationThumbnail(uri, size = cardThumbnailPx, allowHardware = false)
+                    }
+                })
+            }
+            auxiliaryUris.forEach { uri ->
+                add(uri to async {
+                    semaphore.withPermit {
+                        preloadIllustrationThumbnail(uri, allowHardware = false)
+                    }
+                })
+            }
+        }
+        tasks.forEach { (uri, task) ->
+            task.await().onFailure { throwable ->
+                AppLogger.w(
+                    "B30ImageScreen",
+                    "B30 export image preload failed: uri=$uri error=${throwable.message ?: throwable::class.simpleName}"
+                )
+            }
+        }
     }
 }
 

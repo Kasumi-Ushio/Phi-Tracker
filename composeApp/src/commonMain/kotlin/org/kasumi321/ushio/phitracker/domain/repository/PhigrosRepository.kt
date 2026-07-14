@@ -27,7 +27,6 @@ interface PhigrosRepository {
     suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float? = null, maxRks: Float? = null): Result<JsonObject>
     suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject>
     suspend fun apiGetApFcTotal(songId: String): Result<JsonObject>
-    suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject>
     suspend fun apiGetRksStats(): Result<JsonObject>
     suspend fun apiGetRksAbove(rks: Float): Result<JsonObject>
     suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String> = emptyList()): Result<JsonObject>

@@ -186,9 +186,6 @@ class PhigrosRepositoryImpl(
     override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
         runCatching { phiPluginApi.getApFcTotal(songId.trim()) }
 
-    override suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject> =
-        runCatching { phiPluginApi.getFittedDifficulty(songId.trim(), difficulty.trim()) }
-
     override suspend fun apiGetRksStats(): Result<JsonObject> =
         runCatching { phiPluginApi.getRksStats() }
 

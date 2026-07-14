@@ -758,17 +758,17 @@ private fun SuggestionContent(
     }
 
     val pageSize = 5
-    val cappedItems = remember(suggestItems) { suggestItems.take(30) }
+    val pagedItems = remember(suggestItems) { suggestItems }
     val totalPages =
-            remember(cappedItems) {
-                ceil(cappedItems.size / pageSize.toFloat()).toInt().coerceAtLeast(1)
+            remember(pagedItems) {
+                ceil(pagedItems.size / pageSize.toFloat()).toInt().coerceAtLeast(1)
             }
-    var currentPage by rememberSaveable(cappedItems.size) { mutableStateOf(0) }
+    var currentPage by rememberSaveable(pagedItems.size) { mutableStateOf(0) }
     currentPage = currentPage.coerceIn(0, totalPages - 1)
 
     val start = currentPage * pageSize
-    val end = (start + pageSize).coerceAtMost(cappedItems.size)
-    val pageItems = cappedItems.subList(start, end)
+    val end = (start + pageSize).coerceAtMost(pagedItems.size)
+    val pageItems = pagedItems.subList(start, end)
 
     pageItems.forEach { item ->
         SuggestScoreCard(

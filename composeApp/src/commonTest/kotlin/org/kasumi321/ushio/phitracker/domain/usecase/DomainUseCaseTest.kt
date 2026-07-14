@@ -269,6 +269,67 @@ class DomainUseCaseTest {
     }
 
     @Test
+    fun suggestPlayerTargetReturnsAllHelpfulCharts() {
+        val useCase = GetSuggestUseCase()
+        val currentB30 = (0 until 20).map { i ->
+            BestRecord("b-$i", "B $i", Difficulty.IN, 900_000, 90f, false, 10f, 0f)
+        }
+        val difficulties = (0 until 40).associate { i ->
+            "candidate-$i" to mapOf(Difficulty.IN to 17f)
+        }
+        val names = (0 until 40).associate { i -> "candidate-$i" to "Candidate $i" }
+
+        val result = useCase(
+            currentB30 = currentB30,
+            records = emptyMap(),
+            difficulties = difficulties,
+            songNames = names,
+            targetMode = SuggestTargetMode.PlayerDisplayRks,
+            targetRks = 0.5f,
+            limit = 30
+        )
+
+        assertEquals(40, result.size)
+    }
+
+    @Test
+    fun suggestPlayerTargetIncludesChartsThatHelpButCannotSoloReachTarget() {
+        val useCase = GetSuggestUseCase()
+        // 30 AP'd charts at chart-constant 10 → displayed RKS 10, contribution 300.
+        val records = mutableMapOf<String, SongRecord>()
+        val difficulties = mutableMapOf<String, Map<Difficulty, Float>>()
+        val names = mutableMapOf<String, String>()
+        repeat(30) { i ->
+            val id = "base-$i"
+            records[id] = SongRecord(id, mapOf(Difficulty.IN to LevelRecord(1_000_000, 100f, true)))
+            difficulties[id] = mapOf(Difficulty.IN to 10f)
+            names[id] = "Base $i"
+        }
+        // Unplayed chart-constant 12 chart: AP'ing it lifts the contribution to 304 (a
+        // real step toward the target) but cannot by itself reach 10.4 * 30 = 312. The
+        // old "must close the whole gap alone" gate hid it; it must now be suggested.
+        difficulties["candidate"] = mapOf(Difficulty.IN to 12f)
+        names["candidate"] = "Candidate"
+
+        val result = useCase(
+            currentB30 = emptyList(),
+            records = records,
+            difficulties = difficulties,
+            songNames = names,
+            targetMode = SuggestTargetMode.PlayerDisplayRks,
+            targetRks = 10.4f
+        )
+
+        val candidate = result.firstOrNull { it.songId == "candidate" }
+            ?: error("A chart that helps but can't alone reach the target must be suggested")
+        assertClose(100f, candidate.targetAcc, tolerance = 0.001f)
+        assertTrue(
+            result.none { it.songId.startsWith("base-") },
+            "Already-maxed (AP) charts must not be suggested"
+        )
+    }
+
+    @Test
     fun suggestBeta5ThresholdBehavior() {
         val useCase = GetSuggestUseCase()
         val diffs = mapOf("candidate" to mapOf(Difficulty.IN to 10f))
@@ -432,9 +493,6 @@ class DomainUseCaseTest {
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetFittedDifficulty(songId: String, difficulty: String): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetRksStats(): Result<JsonObject> =

@@ -372,7 +372,7 @@ private fun DifficultyContent(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             ) {
                 Row(
@@ -386,7 +386,7 @@ private fun DifficultyContent(
                         Text(
                             text = "单曲成绩",
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -394,7 +394,7 @@ private fun DifficultyContent(
                                 text = record.score.formatScore(),
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             ScoreRatingTag(
@@ -408,12 +408,12 @@ private fun DifficultyContent(
                             text = "${record.accuracy.formatFourDecimals()}%",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "RKS: ${record.rks.formatFourDecimals()}",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -427,7 +427,7 @@ private fun DifficultyContent(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                 )
             ) {
                 Column(
@@ -439,7 +439,8 @@ private fun DifficultyContent(
                     Text(
                         text = "社区统计数据",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                     if (songApiDetail.isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
@@ -455,11 +456,6 @@ private fun DifficultyContent(
                             text = "平均 ACC: ${
                                 songApiDetail.avgAcc?.let { "${it.formatFourDecimals()}%" } ?: "—"
                             }（由 ${songApiDetail.avgAccCount ?: 0} 个样本取得）"
-                        )
-                        Text(
-                            text = "拟合定数: ${
-                                songApiDetail.fittedDifficulty?.let { it.formatFourDecimals() } ?: "—"
-                            }"
                         )
                     }
                 }

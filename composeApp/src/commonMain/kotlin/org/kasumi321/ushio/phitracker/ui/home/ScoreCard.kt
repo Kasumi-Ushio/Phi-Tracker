@@ -48,6 +48,15 @@ internal fun Float.formatScoreCardRks(): String = B30ImageSpec.formatRks(this)
 
 internal fun Float.formatScoreCardLevel(): String = B30ImageSpec.formatChartConstant(this)
 
+/**
+ * Pixel size requested from Coil for a score card's illustration thumbnail.
+ *
+ * Single source of truth shared with the B30 export preloader so the warmed
+ * memory-cache entry matches this request's key exactly (see
+ * B30ImageScreen.preloadB30ExportImages).
+ */
+internal fun scoreCardThumbnailSizePx(thumbnailScale: Float): Int = (168 * thumbnailScale).toInt()
+
 private fun Int.formatScore(): String {
     return this.toString().reversed().chunked(3).joinToString(",").reversed()
 }
@@ -105,7 +114,7 @@ fun ScoreCardContent(
         illustrationUri?.takeIf { it.isNotBlank() }?.let { url ->
             ImageRequest.Builder(platformContext).apply {
                 data(url)
-                size((168 * thumbnailScale).toInt())
+                size(scoreCardThumbnailSizePx(thumbnailScale))
                 networkCachePolicy(CachePolicy.READ_ONLY)
                 crossfade(200)
                 setImageRequestAllowHardware(allowHardwareImages)

@@ -8,7 +8,6 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -93,16 +92,6 @@ class PhiPluginApi(
             put("songId", songId)
         })
     }.body()
-
-    suspend fun getFittedDifficulty(songId: String, difficulty: String): JsonObject =
-        httpClient.post("$BASE_URL/get/scoreList/difficultyFit") {
-            setJsonBody(buildJsonObject {
-                put("charts", JsonArray(listOf(buildJsonObject {
-                    put("songId", songId)
-                    put("rank", JsonArray(listOf(JsonPrimitive(difficulty))))
-                })))
-            })
-        }.body()
 
     suspend fun getRksStats(): JsonObject = httpClient.post("$BASE_URL/get/ranklist/stats").body()
 

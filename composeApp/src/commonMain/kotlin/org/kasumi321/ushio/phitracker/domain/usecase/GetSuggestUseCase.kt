@@ -47,8 +47,7 @@ class GetSuggestUseCase {
                     targetDisplayRks = targetRks,
                     records = records,
                     difficulties = difficulties,
-                    songNames = songNames,
-                    limit = limit
+                    songNames = songNames
                 )
                 SuggestTargetMode.Default -> emptyList()
             }
@@ -88,7 +87,8 @@ class GetSuggestUseCase {
             records = records,
             difficulties = difficulties,
             songNames = songNames,
-            limit = limit
+            limit = limit,
+            enforceAchievableAccWindow = false
         )
     }
 
@@ -97,7 +97,11 @@ class GetSuggestUseCase {
         records: Map<String, SongRecord>,
         difficulties: Map<String, Map<Difficulty, Float>>,
         songNames: Map<String, String>,
-        limit: Int
+        limit: Int,
+        // The no-input Default view keeps the "within +15% accuracy" achievability
+        // window so it stays a short, realistic shortlist; the user-driven target
+        // modes disable it to surface every qualifying chart.
+        enforceAchievableAccWindow: Boolean = true
     ): List<SuggestItem> {
         val suggestions = mutableListOf<SuggestItem>()
 
@@ -114,7 +118,7 @@ class GetSuggestUseCase {
                 }
                 if (currentRks >= targetRks) continue
                 val targetAcc = RksCalculator.calculateTargetAcc(targetRks, chartConstant) ?: continue
-                if (currentAcc != null && (targetAcc - currentAcc) > 15f) continue
+                if (enforceAchievableAccWindow && currentAcc != null && (targetAcc - currentAcc) > 15f) continue
                 val potentialRks = RksCalculator.calculateSingleRks(targetAcc, chartConstant)
                 suggestions.add(
                     SuggestItem(
@@ -140,8 +144,7 @@ class GetSuggestUseCase {
         targetDisplayRks: Float,
         records: Map<String, SongRecord>,
         difficulties: Map<String, Map<Difficulty, Float>>,
-        songNames: Map<String, String>,
-        limit: Int
+        songNames: Map<String, String>
     ): List<SuggestItem> {
         if (targetDisplayRks !in 0f..17f) return emptyList()
 
@@ -174,7 +177,15 @@ class GetSuggestUseCase {
                     ),
                     candidateRks = chartConstant
                 )
-                if (maxContribution < targetContribution) continue
+                // Surface every chart that can *help* reach the target, not only
+                // charts able to close the whole gap single-handedly. Because the
+                // displayed RKS averages 30 charts, one chart alone rarely covers a
+                // meaningful gap, so the old `< targetContribution` gate left the list
+                // nearly empty. A chart helps whenever pushing it to its ceiling raises
+                // the player's B30 contribution at all; charts that cannot reach the
+                // target on their own fall through to the `chartConstant` (AP) goal
+                // below and are kept only when that goal is realistically achievable.
+                if (maxContribution <= currentContribution) continue
 
                 var low = currentRks.coerceIn(0f, chartConstant)
                 var high = chartConstant
@@ -202,7 +213,6 @@ class GetSuggestUseCase {
 
                 val targetAcc = RksCalculator.calculateTargetAcc(neededRks, chartConstant) ?: continue
                 if (currentAcc != null && targetAcc <= currentAcc) continue
-                if (currentAcc != null && (targetAcc - currentAcc) > 15f) continue
 
                 suggestions.add(
                     SuggestItem(
@@ -223,7 +233,6 @@ class GetSuggestUseCase {
 
         return suggestions
             .sortedWith(compareBy<SuggestItem> { it.targetAcc - (it.currentAcc ?: 0f) }.thenByDescending { it.potentialRks })
-            .take(limit)
     }
 
     private data class ContributionRecord(

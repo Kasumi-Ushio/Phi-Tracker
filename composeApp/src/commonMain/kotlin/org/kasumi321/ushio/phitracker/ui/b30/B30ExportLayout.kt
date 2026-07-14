@@ -29,6 +29,12 @@ import org.kasumi321.ushio.phitracker.ui.home.ProfileHeaderCard
 import org.kasumi321.ushio.phitracker.ui.home.ScoreCardContent
 import org.kasumi321.ushio.phitracker.ui.home.StatsTableCard
 
+/**
+ * Thumbnail down-scale applied to every export score card. Shared with the B30
+ * preloader so it can warm the exact Coil request key the cards consume.
+ */
+internal const val B30_EXPORT_CARD_THUMBNAIL_SCALE = 0.9f
+
 @Composable
 fun B30ExportLayout(data: B30ExportData, allowHardwareImages: Boolean = true) {
     Box(
@@ -194,7 +200,7 @@ private fun ExportCardGrid(
                     contentHorizontalPadding = 9.dp,
                     contentVerticalPadding = 5.dp,
                     compactText = true,
-                    thumbnailScale = 0.9f,
+                    thumbnailScale = B30_EXPORT_CARD_THUMBNAIL_SCALE,
                     onClick = null,
                     modifier = Modifier
                         .width(cardWidth)
