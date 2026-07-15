@@ -104,18 +104,12 @@ class ResourceDecodingTest {
                 |Tip: もぺもぺで遊ぼう！
                 |Tip: 混乱Confusionは難しい
             """.trimMargin(),
-            "difficulty.csv" to """
-                |songId,EZ,HD,IN,AT
-                |光.姜米條,1.0,2.0,3.0,4.0
-                |もぺもぺ.LeaF,2.0,3.0,4.0,
-                |混乱Confusion.OnlyMyBlackScore,3.0,4.0,5.0,
-            """.trimMargin(),
-            "info.csv" to """
-                |songId,name,composer,illustrator,EZCharter,HDCharter,INCharter,ATCharter
-                |光.姜米條,光,姜米條,Illustrator1,C1,C2,C3,C4
-                |もぺもぺ.LeaF,もぺもぺ,LeaF,Illustrator2,C1,C2,C3,
-                |混乱Confusion.OnlyMyBlackScore,混乱Confusion,OnlyMyBlackScore,Illustrator3,C1,C2,C3,
-            """.trimMargin(),
+            "info.csv" to (
+                "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
+                    "光.姜米條\t光\t姜米條\tIllustrator1\tC1\tC2\tC3\tC4\t1.0\t2.0\t3.0\t4.0\n" +
+                    "もぺもぺ.LeaF\tもぺもぺ\tLeaF\tIllustrator2\tC1\tC2\tC3\t\t2.0\t3.0\t4.0\t\n" +
+                    "混乱Confusion.OnlyMyBlackScore\t混乱Confusion\tOnlyMyBlackScore\tIllustrator3\tC1\tC2\tC3\t\t3.0\t4.0\t5.0\t"
+            ),
             "infolist.json" to """{"光.姜米條":{"bpm":"180","length":"120","chapter":"C1"},"もぺもぺ.LeaF":{"bpm":"200","length":"130","chapter":"C2"},"混乱Confusion.OnlyMyBlackScore":{"bpm":"150","length":"140","chapter":"C3"}}""",
             "notesInfo.json" to """{"光.姜米條":{"EZ":{"t":[1,2,3,4]},"HD":{"t":[5,6,7,8]},"IN":{"t":[9,10,11,12]},"AT":{"t":[13,14,15,16]}},"もぺもぺ.LeaF":{"EZ":{"t":[1,1,1,1]},"HD":{"t":[2,2,2,2]},"IN":{"t":[3,3,3,3]}},"混乱Confusion.OnlyMyBlackScore":{"EZ":{"t":[4,4,4,4]},"HD":{"t":[5,5,5,5]},"IN":{"t":[6,6,6,6]}}}"""
         )

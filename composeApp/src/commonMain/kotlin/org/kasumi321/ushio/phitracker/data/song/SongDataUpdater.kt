@@ -11,23 +11,19 @@ import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.platformFileSystem
 
 open class SongDataUpdater(
-    private val httpClient: HttpClient,
-    private val paths: PlatformPaths,
-    private val songDataProvider: SongDataProvider
+        private val httpClient: HttpClient,
+        private val paths: PlatformPaths,
+        private val songDataProvider: SongDataProvider
 ) {
     companion object {
         private const val BASE_URL =
-            "https://gh-proxy.com/https://raw.githubusercontent.com/Catrong/phi-plugin/main/resources/info/"
-        val FILE_NAMES = listOf(
-            "difficulty.csv",
-            "info.csv",
-            "infolist.json",
-            "notesInfo.json"
-        )
+                "https://gh-proxy.org/https://raw.githubusercontent.com/Catrong/phi-plugin/main/resources/info/"
+        // Upstream merged difficulty constants into info.csv and removed difficulty.csv.
+        val FILE_NAMES = listOf("info.csv", "infolist.json", "notesInfo.json")
     }
 
     open suspend fun updateAll(
-        onProgress: (Int, Int, String) -> Unit = { _, _, _ -> }
+            onProgress: (Int, Int, String) -> Unit = { _, _, _ -> }
     ): Result<Unit> {
         val fs = platformFileSystem()
         val songDataDir = paths.filesDir.toPath() / "song_data"
@@ -80,11 +76,12 @@ open class SongDataUpdater(
             // Invalidate cache only after persistent files are fully updated
             songDataProvider.invalidateCache()
             onProgress(FILE_NAMES.size, FILE_NAMES.size, "完成")
-        }.also {
-            // Best-effort cleanup — must not hide the primary failure
-            fs.deleteRecursivelyBestEffort(stagingDir)
-            fs.deleteRecursivelyBestEffort(backupDir)
         }
+                .also {
+                    // Best-effort cleanup — must not hide the primary failure
+                    fs.deleteRecursivelyBestEffort(stagingDir)
+                    fs.deleteRecursivelyBestEffort(backupDir)
+                }
     }
 }
 

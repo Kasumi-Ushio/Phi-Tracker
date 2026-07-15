@@ -49,8 +49,7 @@ class SongDataUpdaterTest {
     private fun fakeProvider(): SongDataProvider {
         val reader = object : TextAssetReader {
             override fun readText(name: String): String = when (name) {
-                "difficulty.csv" -> "id,EZ,HD,IN,AT\n"
-                "info.csv" -> "id,name,composer,illustrator,ez_charter,hd_charter,in_charter,at_charter\n"
+                "info.csv" -> "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n"
                 "infolist.json" -> "{}"
                 "notesInfo.json" -> "{}"
                 else -> error("Unexpected: $name")
@@ -76,7 +75,7 @@ class SongDataUpdaterTest {
     }
 
     @Test
-    fun updateAllDownloadsAllFourFilesAndInvalidatesCache() = runTest {
+    fun updateAllDownloadsAllFilesAndInvalidatesCache() = runTest {
         val mockEngine = MockEngine { request ->
             val fileName = request.url.encodedPath.substringAfterLast('/')
             when (fileName) {
@@ -99,15 +98,15 @@ class SongDataUpdaterTest {
             assertFileWritten(fileName)
         }
 
-        val fileContent = fs.read(songDataDir() / "difficulty.csv") { readUtf8() }
-        assertEquals("mock-content-difficulty.csv", fileContent)
+        val fileContent = fs.read(songDataDir() / "info.csv") { readUtf8() }
+        assertEquals("mock-content-info.csv", fileContent)
     }
 
     @Test
     fun updateAllReturnsFailureOnHttpError() = runTest {
         val mockEngine = MockEngine { request ->
             val fileName = request.url.encodedPath.substringAfterLast('/')
-            if (fileName == "difficulty.csv") {
+            if (fileName == "info.csv") {
                 respondError(HttpStatusCode.NotFound)
             } else {
                 respond(
@@ -147,8 +146,7 @@ class SongDataUpdaterTest {
             respond(
                 content = ByteReadChannel(
                     when (fileName) {
-                        "difficulty.csv" -> "id,EZ,HD,IN,AT\ntest,9.0,9.5,10.0,\n"
-                        "info.csv" -> "id,name,composer,illustrator,ez_charter,hd_charter,in_charter,at_charter\ntest,Updated,Comp,Ill,,,,\n"
+                        "info.csv" -> "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\ntest\tUpdated\tComp\tIll\t\t\t\t\t9.0\t9.5\t10.0\t\n"
                         else -> "{}"
                     }
                 ),

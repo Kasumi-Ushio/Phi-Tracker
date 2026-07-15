@@ -6,11 +6,4 @@
       device never flashes white during the launch and between-Activity handoffs.
     -->
     <color name="window_background">#FFFFFBFE</color>
-
-    <!--
-      Adaptive-icon background layer. The foreground (mipmap/ic_launcher_foreground)
-      is full-bleed, so this shows only in the sliver the launcher mask might reveal
-      behind the art's rounded corners; kept on-brand (Deep Purple) as a safety fill.
-    -->
-    <color name="ic_launcher_background">#673AB7</color>
 </resources>

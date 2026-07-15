@@ -61,16 +61,19 @@ class SongDataProvider(
 
     private fun loadDifficulties(): Map<String, Map<Difficulty, Float>> {
         val result = mutableMapOf<String, Map<Difficulty, Float>>()
-        reader.readText("difficulty.csv").lineSequence().forEachIndexed { index, line ->
+        // Upstream folded the difficulty constants into info.csv (removing the
+        // separate difficulty.csv). info.csv is TAB-separated with columns:
+        // id, song, composer, illustrator, EZC, HDC, INC, ATC (charters), EZ, HD, IN, AT (constants).
+        reader.readText("info.csv").lineSequence().forEachIndexed { index, line ->
             if (index == 0 || line.isBlank()) return@forEachIndexed
-            val parts = parseCsvLine(line)
-            if (parts.size < 4) return@forEachIndexed
+            val parts = line.split('\t')
+            if (parts.size < 8) return@forEachIndexed
             val songId = parts[0] + ".0"
             val diffs = mutableMapOf<Difficulty, Float>()
-            parts.getOrNull(1)?.toFloatOrNull()?.let { diffs[Difficulty.EZ] = it }
-            parts.getOrNull(2)?.toFloatOrNull()?.let { diffs[Difficulty.HD] = it }
-            parts.getOrNull(3)?.toFloatOrNull()?.let { diffs[Difficulty.IN] = it }
-            parts.getOrNull(4)?.toFloatOrNull()?.let { diffs[Difficulty.AT] = it }
+            parts.getOrNull(8)?.trim()?.toFloatOrNull()?.let { diffs[Difficulty.EZ] = it }
+            parts.getOrNull(9)?.trim()?.toFloatOrNull()?.let { diffs[Difficulty.HD] = it }
+            parts.getOrNull(10)?.trim()?.toFloatOrNull()?.let { diffs[Difficulty.IN] = it }
+            parts.getOrNull(11)?.trim()?.toFloatOrNull()?.let { diffs[Difficulty.AT] = it }
             if (diffs.isNotEmpty()) result[songId] = diffs
         }
         return result
@@ -78,10 +81,11 @@ class SongDataProvider(
 
     private fun loadInfos(): Map<String, InfoCsvModel> {
         val result = mutableMapOf<String, InfoCsvModel>()
+        // TAB-separated; per-difficulty charters live in columns EZC/HDC/INC/ATC (4..7).
         reader.readText("info.csv").lineSequence().forEachIndexed { index, line ->
             if (index == 0 || line.isBlank()) return@forEachIndexed
-            val parts = parseCsvLine(line)
-            if (parts.size < 4) return@forEachIndexed
+            val parts = line.split('\t')
+            if (parts.size < 8) return@forEachIndexed
             val charters = mutableMapOf<Difficulty, String>()
             parts.getOrNull(4)?.takeIf { it.isNotBlank() }?.let { charters[Difficulty.EZ] = it }
             parts.getOrNull(5)?.takeIf { it.isNotBlank() }?.let { charters[Difficulty.HD] = it }
@@ -94,33 +98,6 @@ class SongDataProvider(
 
     private fun loadAdditionalInfo(): Map<String, InfoListEntry> = json.decodeFromString(reader.readText("infolist.json"))
     private fun loadNotesInfo(): Map<String, Map<String, NotesInfoDifficulty>> = json.decodeFromString(reader.readText("notesInfo.json"))
-
-    private fun parseCsvLine(line: String): List<String> {
-        val fields = mutableListOf<String>()
-        val current = StringBuilder()
-        var inQuotes = false
-        var i = 0
-        while (i < line.length) {
-            val c = line[i]
-            when {
-                inQuotes && c == '"' && i + 1 < line.length && line[i + 1] == '"' -> {
-                    current.append('"')
-                    i++
-                }
-                inQuotes && c == '"' -> inQuotes = false
-                inQuotes -> current.append(c)
-                c == '"' -> inQuotes = true
-                c == ',' -> {
-                    fields.add(current.toString())
-                    current.clear()
-                }
-                else -> current.append(c)
-            }
-            i++
-        }
-        fields.add(current.toString())
-        return fields
-    }
 
     private data class InfoCsvModel(
         val name: String,

@@ -317,7 +317,7 @@ class HomeViewModelPreloadTest {
         val continueUpdate = CompletableDeferred<Unit>()
         val updater = FakeSongDataUpdater(
             onUpdate = { onProgress ->
-                onProgress(1, SongDataUpdater.FILE_NAMES.size, "difficulty.csv")
+                onProgress(1, SongDataUpdater.FILE_NAMES.size, "info.csv")
                 progressReached.complete(Unit)
                 continueUpdate.await()
                 Result.success(Unit)
@@ -333,7 +333,7 @@ class HomeViewModelPreloadTest {
         assertTrue(viewModel.uiState.value.isUpdatingData)
         assertEquals(1, viewModel.uiState.value.updateDataProgress)
         assertEquals(SongDataUpdater.FILE_NAMES.size, viewModel.uiState.value.updateDataTotal)
-        assertEquals("difficulty.csv", viewModel.uiState.value.updateDataFileName)
+        assertEquals("info.csv", viewModel.uiState.value.updateDataFileName)
 
         continueUpdate.complete(Unit)
         advanceUntilIdle()
@@ -864,8 +864,7 @@ class HomeViewModelPreloadTest {
     private object FakeTextAssetReader : TextAssetReader {
         override fun readText(name: String): String = when (name) {
             "tips.txt" -> "Tip: test"
-            "difficulty.csv" -> "songId,EZ,HD,IN,AT\nsong-a,1.0,2.0,3.0,4.0\nsong-b,1.0,2.0,3.0,4.0"
-            "info.csv" -> "songId,name,composer,illustrator,EZCharter,HDCharter,INCharter,ATCharter\nsong-a,Song A,Composer,Illustrator,,,,\nsong-b,Song B,Composer,Illustrator,,,,"
+            "info.csv" -> "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\nsong-a\tSong A\tComposer\tIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t4.0\nsong-b\tSong B\tComposer\tIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t4.0"
             "infolist.json" -> "{}"
             "notesInfo.json" -> "{}"
             else -> error("Test asset not found: $name")
@@ -881,13 +880,9 @@ class HomeViewModelPreloadTest {
 
         override fun readText(name: String): String = when (name) {
             "tips.txt" -> "Tip: test"
-            "difficulty.csv" -> buildString {
-                appendLine("songId,EZ,HD,IN,AT")
-                songIds.forEach { songId -> appendLine("$songId,1.0,2.0,3.0,4.0") }
-            }.trimEnd()
             "info.csv" -> buildString {
-                appendLine("songId,name,composer,illustrator,EZCharter,HDCharter,INCharter,ATCharter")
-                songIds.forEach { songId -> appendLine("$songId,Song $songId,Composer,Illustrator,,,,") }
+                appendLine("id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT")
+                songIds.forEach { songId -> appendLine("$songId\tSong $songId\tComposer\tIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t4.0") }
             }.trimEnd()
             "infolist.json" -> "{}"
             "notesInfo.json" -> "{}"
@@ -1274,8 +1269,7 @@ class HomeViewModelPreloadTest {
     private object ChapterTestAssetReader : TextAssetReader {
         override fun readText(name: String): String = when (name) {
             "tips.txt" -> "Tip: test"
-            "difficulty.csv" -> "songId,EZ,HD,IN,AT\nsong-a,1.0,2.0,3.0,4.0\nsong-b,1.0,2.0,3.0,4.0\nsong-c,1.0,2.0,3.0,4.0"
-            "info.csv" -> "songId,name,composer,illustrator,EZCharter,HDCharter,INCharter,ATCharter\nsong-a,Song A,Composer,Illus,,,,\nsong-b,Song B,Composer,Illus,,,,\nsong-c,Song C,Composer,Illus,,,,"
+            "info.csv" -> "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\nsong-a\tSong A\tComposer\tIllus\t\t\t\t\t1.0\t2.0\t3.0\t4.0\nsong-b\tSong B\tComposer\tIllus\t\t\t\t\t1.0\t2.0\t3.0\t4.0\nsong-c\tSong C\tComposer\tIllus\t\t\t\t\t1.0\t2.0\t3.0\t4.0"
             "infolist.json" -> """{"song-a":{"chapter":"Single"},"song-b":{"chapter":"Collection"},"song-c":{"chapter":"Single"}}"""
             "notesInfo.json" -> "{}"
             else -> error("Test asset not found: $name")

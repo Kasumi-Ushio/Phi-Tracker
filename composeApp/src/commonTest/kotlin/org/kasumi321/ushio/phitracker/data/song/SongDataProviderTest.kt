@@ -32,14 +32,11 @@ class SongDataProviderTest {
         )
 
         bundledAssets = mapOf(
-            "difficulty.csv" to """
-                |id,EZ,HD,IN,AT
-                |test,1.0,2.0,3.0,
-            """.trimMargin(),
-            "info.csv" to """
-                |id,name,composer,illustrator,ez_charter,hd_charter,in_charter,at_charter
-                |test,BundledName,BundledComposer,BundledIllustrator,,,,
-            """.trimMargin(),
+            // TAB-separated: id, song, composer, illustrator, EZC..ATC (charters), EZ..AT (constants)
+            "info.csv" to (
+                "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
+                    "test\tBundledName\tBundledComposer\tBundledIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t"
+            ),
             "infolist.json" to """{}""",
             "notesInfo.json" to """{}"""
         )
@@ -78,11 +75,9 @@ class SongDataProviderTest {
     @Test
     fun readsFromFileOverrideWhenItExists() {
         writeSongDataFile(
-            "difficulty.csv",
-            """
-                |id,EZ,HD,IN,AT
-                |test,9.0,9.5,10.0,10.5
-            """.trimMargin()
+            "info.csv",
+            "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
+                "test\tName\tComposer\tIllustrator\t\t\t\t\t9.0\t9.5\t10.0\t10.5"
         )
 
         val provider = SongDataProvider(
@@ -101,12 +96,12 @@ class SongDataProviderTest {
 
     @Test
     fun bundledFallbackStillWorksAfterOverrideForDifferentFile() {
+        // Overriding info.csv must still let the untouched bundled files (infolist/notesInfo)
+        // fall back to the asset reader without error.
         writeSongDataFile(
             "info.csv",
-            """
-                |id,name,composer,illustrator,ez_charter,hd_charter,in_charter,at_charter
-                |test,OverriddenName,OverriddenComposer,OverriddenIllustrator,,,,
-            """.trimMargin()
+            "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
+                "test\tOverriddenName\tOverriddenComposer\tOverriddenIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t"
         )
 
         val provider = SongDataProvider(
@@ -132,10 +127,8 @@ class SongDataProviderTest {
 
         writeSongDataFile(
             "info.csv",
-            """
-                |id,name,composer,illustrator,ez_charter,hd_charter,in_charter,at_charter
-                |test,UpdatedName,UpdatedComposer,UpdatedIllustrator,,,,
-            """.trimMargin()
+            "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
+                "test\tUpdatedName\tUpdatedComposer\tUpdatedIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t"
         )
 
         provider.invalidateCache()
@@ -156,8 +149,8 @@ class SongDataProviderTest {
     @Test
     fun createFileThenAssetReaderFallsBackToAsset() {
         val reader = createFileThenAssetReader(fakeReader(), paths)
-        val result = reader.readText("difficulty.csv")
+        val result = reader.readText("info.csv")
 
-        assertEquals(bundledAssets["difficulty.csv"], result)
+        assertEquals(bundledAssets["info.csv"], result)
     }
 }
