@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
@@ -67,33 +68,36 @@ class LoginViewModel(
 
             val (token, server) = saved
 
+            // Try to refresh the session and save from the network.
             val validateResult = repository.validateToken(token, server)
-            if (validateResult.isFailure) {
+            val syncResult = if (validateResult.isSuccess) syncSaveUseCase(token, server) else null
+            val onlineRefreshOk = validateResult.isSuccess && syncResult?.isSuccess == true
+
+            if (onlineRefreshOk) {
                 _uiState.update {
-                    it.copy(
-                        token = token,
-                        server = server,
-                        isCheckingToken = false,
-                        isLoggedIn = false,
-                        error = "登录凭据已失效，请重新登录"
-                    )
+                    it.copy(token = token, server = server, isCheckingToken = false, isLoggedIn = true)
                 }
-                AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "false"))
+                AppLogger.event(
+                    "login",
+                    "state_checked",
+                    mapOf("tokenPresent" to "true", "loggedIn" to "true", "source" to "online")
+                )
                 return@launch
             }
 
-            val syncResult = syncSaveUseCase(token, server)
-            if (syncResult.isFailure) {
+            // The network refresh failed (offline, or the server rejected the call). Instead of
+            // forcing a logout, stay signed in with the local session + cached save when one is
+            // available — only the total absence of local data sends the user back to login.
+            val cachedSave = repository.getCachedSave().first()
+            if (cachedSave != null) {
                 _uiState.update {
-                    it.copy(
-                        token = token,
-                        server = server,
-                        isCheckingToken = false,
-                        isLoggedIn = false,
-                        error = "同步失败，请检查网络后重试"
-                    )
+                    it.copy(token = token, server = server, isCheckingToken = false, isLoggedIn = true)
                 }
-                AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "false"))
+                AppLogger.event(
+                    "login",
+                    "state_checked",
+                    mapOf("tokenPresent" to "true", "loggedIn" to "true", "source" to "local")
+                )
                 return@launch
             }
 
@@ -102,10 +106,11 @@ class LoginViewModel(
                     token = token,
                     server = server,
                     isCheckingToken = false,
-                    isLoggedIn = true
+                    isLoggedIn = false,
+                    error = "登录已失效或网络不可用，且无本地存档，请重新登录"
                 )
             }
-            AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "true"))
+            AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "false"))
         }
     }
 
