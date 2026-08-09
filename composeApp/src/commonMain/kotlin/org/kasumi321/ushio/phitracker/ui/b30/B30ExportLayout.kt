@@ -36,7 +36,11 @@ import org.kasumi321.ushio.phitracker.ui.home.StatsTableCard
 internal const val B30_EXPORT_CARD_THUMBNAIL_SCALE = 0.9f
 
 @Composable
-fun B30ExportLayout(data: B30ExportData, allowHardwareImages: Boolean = true) {
+internal fun B30ExportLayout(
+    data: B30ExportData,
+    allowHardwareImages: Boolean = true,
+    imageLoadTracker: B30ExportImageLoadTracker? = null
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -119,7 +123,9 @@ fun B30ExportLayout(data: B30ExportData, allowHardwareImages: Boolean = true) {
                 cardHeight = B30ExportSpec.cardHeightDp.dp,
                 horizontalGap = B30ExportSpec.cardHorizontalGapDp.dp,
                 verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
-                allowHardwareImages = allowHardwareImages
+                allowHardwareImages = allowHardwareImages,
+                sectionId = "phi",
+                imageLoadTracker = imageLoadTracker
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -132,7 +138,9 @@ fun B30ExportLayout(data: B30ExportData, allowHardwareImages: Boolean = true) {
                 cardHeight = B30ExportSpec.cardHeightDp.dp,
                 horizontalGap = B30ExportSpec.cardHorizontalGapDp.dp,
                 verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
-                allowHardwareImages = allowHardwareImages
+                allowHardwareImages = allowHardwareImages,
+                sectionId = "best",
+                imageLoadTracker = imageLoadTracker
             )
 
             if (data.overflowRecords.isNotEmpty()) {
@@ -146,7 +154,9 @@ fun B30ExportLayout(data: B30ExportData, allowHardwareImages: Boolean = true) {
                     cardHeight = B30ExportSpec.cardHeightDp.dp,
                     horizontalGap = B30ExportSpec.cardHorizontalGapDp.dp,
                     verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
-                    allowHardwareImages = allowHardwareImages
+                    allowHardwareImages = allowHardwareImages,
+                    sectionId = "overflow",
+                    imageLoadTracker = imageLoadTracker
                 )
             }
 
@@ -183,7 +193,9 @@ private fun ExportCardGrid(
     cardHeight: Dp,
     horizontalGap: Dp,
     verticalGap: Dp,
-    allowHardwareImages: Boolean = true
+    allowHardwareImages: Boolean = true,
+    sectionId: String,
+    imageLoadTracker: B30ExportImageLoadTracker?
 ) {
     val rows = cards.chunked(3)
     rows.forEachIndexed { rowIndex, row ->
@@ -205,7 +217,11 @@ private fun ExportCardGrid(
                     modifier = Modifier
                         .width(cardWidth)
                         .height(cardHeight),
-                    allowHardwareImages = allowHardwareImages
+                    allowHardwareImages = allowHardwareImages,
+                    imageSlotId = "$sectionId:${rowIndex * 3 + colIndex}",
+                    onIllustrationSettled = imageLoadTracker?.let { tracker ->
+                        { slotId, error -> tracker.onIllustrationSettled(slotId, error) }
+                    }
                 )
             }
         }

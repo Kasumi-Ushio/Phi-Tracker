@@ -115,6 +115,7 @@ actual object B30ImageGenerator {
         val widthPt = exportWidthPoints(scale)
         val heightPt = exportHeightPoints(exportData, scale)
         val presenter = UIViewController()
+        val imageLoadTracker = B30ExportImageLoadTracker(exportData.illustrationSlotIds())
         val captureWindow = UIWindow(windowScene = windowScene).apply {
             setFrame(CGRectMake(-widthPt - 100.0, 0.0, widthPt, heightPt))
             setContentScaleFactor(scale)
@@ -132,7 +133,11 @@ actual object B30ImageGenerator {
                     isAmoled = exportData.isAmoled,
                     settings = exportData.themeSettings
                 ) {
-                    B30ExportLayout(exportData, allowHardwareImages = false)
+                    B30ExportLayout(
+                        data = exportData,
+                        allowHardwareImages = false,
+                        imageLoadTracker = imageLoadTracker
+                    )
                 }
             }
         }
@@ -157,6 +162,10 @@ actual object B30ImageGenerator {
             presenter.view.layoutIfNeeded()
             view.setNeedsLayout()
             view.layoutIfNeeded()
+            waitForUIKitFrame()
+            imageLoadTracker.awaitAll()
+            // State.Success reaches AsyncImage before its recomposition has
+            // necessarily been drawn into UIKit's hierarchy.
             waitForUIKitFrame()
             return captureViewHierarchy(view, widthPt, heightPt, scale)
         } finally {

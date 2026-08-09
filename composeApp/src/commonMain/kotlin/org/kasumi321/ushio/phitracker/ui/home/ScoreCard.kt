@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -95,7 +96,9 @@ fun ScoreCardContent(
     thumbnailScale: Float,
     onClick: ((String, Difficulty?) -> Unit)?,
     modifier: Modifier = Modifier,
-    allowHardwareImages: Boolean = true
+    allowHardwareImages: Boolean = true,
+    imageSlotId: String? = null,
+    onIllustrationSettled: ((slotId: String, error: Throwable?) -> Unit)? = null
 ) {
     val diffColor = DifficultyColors.forDifficulty(record.difficulty)
     val rating = remember(record.score, record.isFullCombo) {
@@ -182,7 +185,19 @@ fun ScoreCardContent(
                     modifier = Modifier
                         .size(scaledThumbnailSize)
                         .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    onState = { state ->
+                        val slotId = imageSlotId ?: return@AsyncImage
+                        when (state) {
+                            is AsyncImagePainter.State.Success -> {
+                                onIllustrationSettled?.invoke(slotId, null)
+                            }
+                            is AsyncImagePainter.State.Error -> {
+                                onIllustrationSettled?.invoke(slotId, state.result.throwable)
+                            }
+                            else -> Unit
+                        }
+                    }
                 )
                 Spacer(modifier = Modifier.width(10.dp))
             }

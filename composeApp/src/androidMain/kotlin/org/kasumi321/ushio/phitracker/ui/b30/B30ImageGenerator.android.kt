@@ -90,6 +90,7 @@ actual object B30ImageGenerator {
         } else {
             data
         }
+        val imageLoadTracker = B30ExportImageLoadTracker(augmentedData.illustrationSlotIds())
 
         val container = FrameLayout(activity).apply {
             alpha = 0f
@@ -110,7 +111,11 @@ actual object B30ImageGenerator {
                         isAmoled = augmentedData.isAmoled,
                         settings = augmentedData.themeSettings
                     ) {
-                        B30ExportLayout(augmentedData, allowHardwareImages = false)
+                        B30ExportLayout(
+                            data = augmentedData,
+                            allowHardwareImages = false,
+                            imageLoadTracker = imageLoadTracker
+                        )
                     }
                 }
             }
@@ -127,6 +132,11 @@ actual object B30ImageGenerator {
         root.addView(container)
         try {
             waitForLayout(composeView)
+            imageLoadTracker.awaitAll()
+            // Painter state changes are applied through a recomposition. Wait
+            // for the following frame so View.draw observes the successful
+            // image state rather than the previous loading placeholder.
+            waitForNextPreDraw(composeView)
 
             val widthSpec = MeasureSpec.makeMeasureSpec(B30ExportSpec.WIDTH_PX, MeasureSpec.EXACTLY)
             val heightSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
@@ -208,6 +218,24 @@ actual object B30ImageGenerator {
             obs.removeOnPreDrawListener(listener)
             deferred.complete(Unit)
         }
+        deferred.await()
+    }
+
+    private suspend fun waitForNextPreDraw(target: View) {
+        val deferred = CompletableDeferred<Unit>()
+        val observer = target.viewTreeObserver
+        val listener = object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                if (observer.isAlive) observer.removeOnPreDrawListener(this)
+                deferred.complete(Unit)
+                return true
+            }
+        }
+        observer.addOnPreDrawListener(listener)
+        // The image-success recomposition may already have completed by the
+        // time this listener is registered. Explicitly schedule one draw so
+        // the renderer never waits indefinitely for an otherwise idle view.
+        target.invalidate()
         deferred.await()
     }
 }

@@ -430,14 +430,22 @@ private suspend fun preloadB30ExportImages(exportData: B30ExportData) {
                 })
             }
         }
-        tasks.forEach { (uri, task) ->
-            task.await().onFailure { throwable ->
+        val failures = tasks.mapNotNull { (uri, task) ->
+            task.await().exceptionOrNull()?.also { throwable ->
                 AppLogger.w(
                     "B30ImageScreen",
                     "B30 export image preload failed: uri=$uri error=${throwable.message ?: throwable::class.simpleName}"
                 )
             }
         }
+        check(failures.isEmpty()) {
+            "B30 export preparation failed for ${failures.size} image(s); refusing to capture incomplete artwork"
+        }
+        AppLogger.event(
+            "b30_export",
+            "image_preload_finished",
+            mapOf("cardImages" to cardUris.size.toString(), "auxiliaryImages" to auxiliaryUris.size.toString())
+        )
     }
 }
 

@@ -82,7 +82,8 @@ class HomeViewModelPreloadTest {
     fun preloadAttemptsEveryLowUrlBeforePersistingDone(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = false)
         val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
+        val artworkCache = RecordingStandardArtworkCache()
+        val viewModel = createViewModel(settings, preloader, artworkFileCache = artworkCache)
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.showPreloadDialog)
@@ -102,6 +103,22 @@ class HomeViewModelPreloadTest {
         assertFalse(viewModel.uiState.value.showPreloadDialog)
         assertEquals(2, viewModel.uiState.value.preloadCompleted)
         assertEquals(1f, viewModel.uiState.value.preloadProgress)
+        assertEquals(listOf("song-a.0", "song-b.0"), artworkCache.downloadedThumbnails.map { it.first }.sorted())
+    }
+
+    @Test
+    fun completedMarkerWithMissingThumbnailsRequestsResync(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val artworkCache = RecordingStandardArtworkCache(thumbnailsPresent = false)
+        val viewModel = createViewModel(
+            settingsRepository = settings,
+            preloader = RecordingPreloader(),
+            artworkFileCache = artworkCache
+        )
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.showPreloadDialog)
+        assertTrue(viewModel.uiState.value.illustrationReady)
     }
 
     @Test
@@ -273,7 +290,8 @@ class HomeViewModelPreloadTest {
             clearedUrls.toSet(),
             "Removed songs must clear low, standard and blur Coil cache URLs"
         )
-        assertEquals(listOf("song-a.0"), artworkCache.cleared)
+        assertEquals(listOf("song-a.0"), artworkCache.clearedThumbnails)
+        assertEquals(listOf("song-a.0"), artworkCache.clearedStandard)
         assertEquals(null, viewModel.uiState.value.updateDataError)
     }
 
@@ -588,10 +606,32 @@ class HomeViewModelPreloadTest {
         }
     }
 
-    private class RecordingStandardArtworkCache : StandardArtworkCache {
+    private class RecordingStandardArtworkCache(
+        private var thumbnailsPresent: Boolean = true
+    ) : StandardArtworkCache {
         val downloaded: MutableList<Pair<String, String>> = mutableListOf()
-        val cleared: MutableList<String> = mutableListOf()
+        val downloadedThumbnails: MutableList<Pair<String, String>> = mutableListOf()
+        val clearedThumbnails: MutableList<String> = mutableListOf()
+        val clearedStandard: MutableList<String> = mutableListOf()
         var clearAllCalled: Boolean = false
+
+        override suspend fun getOrDownloadThumbnail(songId: String, url: String): String {
+            downloadedThumbnails += songId to url
+            // Keep existing preloader assertions focused on request coverage.
+            return url
+        }
+
+        override fun getThumbnailIfPresent(songId: String): String? = null
+
+        override fun hasAllThumbnails(songIds: Iterable<String>): Boolean = thumbnailsPresent
+
+        override fun clearThumbnails(songIds: Iterable<String>) {
+            clearedThumbnails += songIds
+        }
+
+        override fun clearAllThumbnails() {
+            clearAllCalled = true
+        }
 
         override suspend fun getOrDownloadStandard(songId: String, url: String): String {
             downloaded += songId to url
@@ -601,7 +641,7 @@ class HomeViewModelPreloadTest {
         override fun getStandardIfPresent(songId: String): String? = null
 
         override fun clearStandard(songIds: Iterable<String>) {
-            cleared += songIds
+            clearedStandard += songIds
         }
 
         override fun clearAllStandard() {

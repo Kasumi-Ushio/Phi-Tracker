@@ -523,22 +523,34 @@ class HomeViewModel(
     }
 
     /**
-     * Check illustration preload state:
-     * - If SharedPreferences records completion → illustrationReady = true directly
-     * - Otherwise → show preload dialog without blocking content display
+     * Check both the completion marker and the durable thumbnail set. The old
+     * implementation trusted the marker alone even though it only warmed
+     * Coil's evictable cache, which made later launches randomly re-download
+     * individual illustrations.
      */
     private fun checkIllustrationState() {
         viewModelScope.launch {
             val alreadyDone = settingsRepository.getPreloadDone()
-            if (alreadyDone) {
+            val songIds = songDataProvider.getSongs().keys
+            val thumbnailsPresent = artworkFileCache.hasAllThumbnails(songIds)
+            if (alreadyDone && thumbnailsPresent) {
                 _uiState.update { it.copy(illustrationReady = true) }
             } else {
+                AppLogger.event(
+                    "cache",
+                    "thumbnail_sync_required",
+                    mapOf(
+                        "completionMarker" to alreadyDone.toString(),
+                        "assetsPresent" to thumbnailsPresent.toString(),
+                        "songCount" to songIds.size.toString()
+                    )
+                )
                 _uiState.update { it.copy(showPreloadDialog = true, illustrationReady = true) }
             }
         }
     }
 
-    /** Start preload illustrations (low-res versions) by warming the shared Coil cache. */
+    /** Download low-res illustrations to persistent storage, then warm Coil for the current UI. */
     fun startPreloadIllustrations() {
         viewModelScope.launch {
             val songs = songDataProvider.getSongs()
@@ -570,8 +582,13 @@ class HomeViewModel(
             val jobs = songs.keys.map { songId ->
                 launch {
                     semaphore.withPermit {
-                        val result = runCatching { illustrationProvider.getLowUrl(songId) }
-                            .mapCatching { url -> thumbnailPreloader.preload(url).getOrThrow() }
+                        val result = runCatching {
+                            val remoteUrl = illustrationProvider.getLowUrl(songId)
+                            val localUri = artworkFileCache.getOrDownloadThumbnail(songId, remoteUrl)
+                            // Decode once now so a corrupt/unsupported file does not receive
+                            // the durable completion marker.
+                            thumbnailPreloader.preload(localUri).getOrThrow()
+                        }
                         mutex.withLock {
                             if (result.isFailure) hasChildError = true
                             completed++
@@ -884,8 +901,11 @@ class HomeViewModel(
             val jobs = added.map { songId ->
                 viewModelScope.launch {
                     semaphore.withPermit {
-                        val result = runCatching { illustrationProvider.getLowUrl(songId) }
-                            .mapCatching { url -> thumbnailPreloader.preload(url).getOrThrow() }
+                        val result = runCatching {
+                            val remoteUrl = illustrationProvider.getLowUrl(songId)
+                            val localUri = artworkFileCache.getOrDownloadThumbnail(songId, remoteUrl)
+                            thumbnailPreloader.preload(localUri).getOrThrow()
+                        }
                         mutex.withLock {
                             if (result.isSuccess) addedSuccess++ else addedFailure++
                         }
@@ -904,6 +924,7 @@ class HomeViewModel(
                 )
             }
             clearCacheUrlsFn(urls)
+            artworkFileCache.clearThumbnails(removed)
             artworkFileCache.clearStandard(removed)
         }
 
@@ -1004,7 +1025,8 @@ class HomeViewModel(
     }
 
     fun getLowIllustrationUrl(songId: String): String? {
-        return illustrationProvider.getLowUrl(songId)
+        return artworkFileCache.getThumbnailIfPresent(songId)
+            ?: illustrationProvider.getLowUrl(songId)
     }
 
     fun getStandardIllustrationUrl(songId: String): String {
@@ -1211,6 +1233,8 @@ class HomeViewModel(
             val result = runCatching {
                 settingsRepository.setPreloadDone(false)
                 clearAllCacheFn()
+                artworkFileCache.clearAllThumbnails()
+                artworkFileCache.clearAllStandard()
             }
             if (result.isSuccess) {
                 AppLogger.event("cache", "redownload_reset_success")
