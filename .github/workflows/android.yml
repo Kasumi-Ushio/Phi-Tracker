@@ -45,6 +45,9 @@ jobs:
             :composeApp:compileDebugKotlinAndroid \
             :composeApp:compileReleaseKotlinAndroid
 
+      - name: Shared/Android tests
+        run: ./gradlew :composeApp:allTests --no-daemon
+
       - name: Build debug APK from compiled outputs
         run: ./gradlew :composeApp:assembleDebug
 
