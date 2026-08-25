@@ -14,7 +14,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
 import org.kasumi321.ushio.phitracker.data.TipsProvider
 import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
@@ -143,9 +145,30 @@ class HomeViewModelPreloadTest {
     fun getLowIllustrationUrlReturnsIllLowPath(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = true)
         val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
+        val artworkCache = RecordingStandardArtworkCache()
+        val viewModel = createViewModel(settings, preloader, artworkFileCache = artworkCache)
         val url = viewModel.getLowIllustrationUrl("song-a")
         assertEquals("https://example.test/illLow/song-a.png", url)
+        assertTrue(
+            artworkCache.downloadedThumbnails.isEmpty(),
+            "A thumbnail cache miss must only return the remote fallback; it must not start a download"
+        )
+    }
+
+    @Test
+    fun illustrationUrisPreferLocalThumbnailAndStandardArtworkCaches(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        val artworkCache = RecordingStandardArtworkCache(
+            cachedThumbnails = mapOf("song-a" to "/cache/thumbnail/song-a.png"),
+            cachedStandard = mapOf("song-a" to "/cache/standard/song-a.png")
+        )
+        val viewModel = createViewModel(settings, preloader, artworkFileCache = artworkCache)
+
+        assertEquals("/cache/thumbnail/song-a.png", viewModel.getLowIllustrationUrl("song-a"))
+        assertEquals("/cache/standard/song-a.png", viewModel.getCachedOrStandardIllustrationUri("song-a"))
+        assertTrue(artworkCache.downloadedThumbnails.isEmpty())
+        assertTrue(artworkCache.downloaded.isEmpty())
     }
 
     @Test
@@ -394,6 +417,43 @@ class HomeViewModelPreloadTest {
     }
 
     @Test
+    fun songApiDetailPresentsSingleSongDataAndReusesSuccessfulSameKeyResult(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(
+            preloadDone = true,
+            apiEnabled = true,
+            useApiData = true,
+            apiPlatform = "taptap",
+            apiPlatformId = "player-id"
+        )
+        val repository = FakePhigrosRepository().apply {
+            songRankResult = Result.success(Json.parseToJsonElement(
+                """{"data":{"userRank":7,"totDataNum":12}}"""
+            ).jsonObject)
+            songAverageResult = Result.success(Json.parseToJsonElement(
+                """{"data":{"accAvg":98.5,"count":6}}"""
+            ).jsonObject)
+            songHistoryResult = Result.success(Json.parseToJsonElement("""{"data":[]}""").jsonObject)
+        }
+        val viewModel = createViewModel(settingsRepository = settings, repository = repository)
+        advanceUntilIdle()
+
+        viewModel.loadSongApiDetail("song-a.0", Difficulty.IN)
+        advanceUntilIdle()
+        val detail = viewModel.getSongApiDetail("song-a.0", Difficulty.IN)
+        assertEquals(7, detail.userRank)
+        assertEquals(12, detail.totalUsers)
+        assertEquals(98.5f, detail.avgAcc)
+        assertEquals(6, detail.avgAccCount)
+        assertTrue(detail.history.isEmpty())
+
+        val repeatedDetail = viewModel.getSongApiDetail("song-a.0", Difficulty.IN)
+        assertEquals(detail, repeatedDetail)
+        assertEquals(1, repository.songRankCalls)
+        assertEquals(1, repository.songAverageCalls)
+        assertEquals(1, repository.songHistoryCalls)
+    }
+
+    @Test
     fun recentEffectiveSyncHistoryLoadsAllEntriesFromLatestThreeEffectiveSnapshots(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = true)
         val snapshots = listOf(
@@ -533,7 +593,13 @@ class HomeViewModelPreloadTest {
         assertEquals(null, viewModel.uiState.value.error, "Sync should have no error")
         // Snapshot must be inserted
         assertNotNull(snapshotDao.lastInserted, "Snapshot should be inserted on changed sync")
-        assertEquals(viewModel.uiState.value.displayRks, snapshotDao.lastInserted!!.rks, "Snapshot rks should come from UI state")
+        val synchronizedB30 = RksCalculator.getB30AndAllRecords(
+            cachedSave.gameRecord,
+            testSongDataProvider.getDifficultyMap(),
+            testSongDataProvider.getSongNameMap()
+        ).first
+        val expectedSnapshotRks = RksCalculator.calculateDisplayRks(synchronizedB30)
+        assertEquals(expectedSnapshotRks, snapshotDao.lastInserted!!.rks)
         // History rows must be inserted
         assertTrue(historyDao.insertedEntries.isNotEmpty(), "History should be inserted when records changed")
         assertEquals(1, historyDao.insertedEntries.size, "One changed record = one history entry")
@@ -607,7 +673,9 @@ class HomeViewModelPreloadTest {
     }
 
     private class RecordingStandardArtworkCache(
-        private var thumbnailsPresent: Boolean = true
+        private var thumbnailsPresent: Boolean = true,
+        private val cachedThumbnails: Map<String, String> = emptyMap(),
+        private val cachedStandard: Map<String, String> = emptyMap()
     ) : StandardArtworkCache {
         val downloaded: MutableList<Pair<String, String>> = mutableListOf()
         val downloadedThumbnails: MutableList<Pair<String, String>> = mutableListOf()
@@ -621,7 +689,7 @@ class HomeViewModelPreloadTest {
             return url
         }
 
-        override fun getThumbnailIfPresent(songId: String): String? = null
+        override fun getThumbnailIfPresent(songId: String): String? = cachedThumbnails[songId]
 
         override fun hasAllThumbnails(songIds: Iterable<String>): Boolean = thumbnailsPresent
 
@@ -638,7 +706,7 @@ class HomeViewModelPreloadTest {
             return "/cache/standard/$songId.png"
         }
 
-        override fun getStandardIfPresent(songId: String): String? = null
+        override fun getStandardIfPresent(songId: String): String? = cachedStandard[songId]
 
         override fun clearStandard(songIds: Iterable<String>) {
             clearedStandard += songIds
@@ -652,7 +720,11 @@ class HomeViewModelPreloadTest {
     private class FakeSettingsRepository(
         preloadDone: Boolean,
         autoCheckUpdate: Boolean = true,
-        includePreRelease: Boolean = false
+        includePreRelease: Boolean = false,
+        apiEnabled: Boolean = false,
+        useApiData: Boolean = false,
+        apiPlatform: String = "",
+        apiPlatformId: String = ""
     ) : SettingsRepository {
         override val themeMode: Flow<Int> = flowOf(0)
         override val themeColorSource: Flow<String> = flowOf("system")
@@ -695,21 +767,27 @@ class HomeViewModelPreloadTest {
             autoCheckUpdateSetValue = enabled
             _autoCheckUpdate.value = enabled
         }
-        override val apiEnabled: Flow<Boolean> = flowOf(false)
+        override val apiEnabled: Flow<Boolean> = flowOf(apiEnabled)
         override suspend fun setApiEnabled(enabled: Boolean) = Unit
-        override val useApiData: Flow<Boolean> = flowOf(false)
+        override val useApiData: Flow<Boolean> = flowOf(useApiData)
         override suspend fun setUseApiData(useApiData: Boolean) = Unit
         override val apiId: Flow<String> = flowOf("")
         override suspend fun setApiId(apiId: String) = Unit
-        override val apiPlatform: Flow<String> = flowOf("")
+        override val apiPlatform: Flow<String> = flowOf(apiPlatform)
         override suspend fun setApiPlatform(platform: String) = Unit
-        override val apiPlatformId: Flow<String> = flowOf("")
+        override val apiPlatformId: Flow<String> = flowOf(apiPlatformId)
         override suspend fun setApiPlatformId(platformId: String) = Unit
         override val crashNotificationGuideShown: Flow<Boolean> = flowOf(false)
         override suspend fun setCrashNotificationGuideShown(shown: Boolean) = Unit
     }
 
     private open class FakePhigrosRepository : PhigrosRepository {
+        var songRankResult: Result<JsonObject> = Result.failure(IllegalStateException("Not configured"))
+        var songAverageResult: Result<JsonObject> = Result.failure(IllegalStateException("Not configured"))
+        var songHistoryResult: Result<JsonObject> = Result.failure(IllegalStateException("Not configured"))
+        var songRankCalls: Int = 0
+        var songAverageCalls: Int = 0
+        var songHistoryCalls: Int = 0
         override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> {
             error("Not needed for this test")
         }
@@ -737,10 +815,14 @@ class HomeViewModelPreloadTest {
             Result.failure(IllegalStateException("Not implemented in Phase B"))
         override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
-        override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-        override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> {
+            songRankCalls++
+            return songRankResult
+        }
+        override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> {
+            songAverageCalls++
+            return songAverageResult
+        }
         override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
         override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
@@ -751,8 +833,10 @@ class HomeViewModelPreloadTest {
             Result.failure(IllegalStateException("Not implemented in Phase B"))
         override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
-        override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+        override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> {
+            songHistoryCalls++
+            return songHistoryResult
+        }
         override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
