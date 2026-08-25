@@ -52,6 +52,7 @@ import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
+import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
@@ -646,13 +647,10 @@ class HomeViewModel(
                     return@launch
                 }
 
-                // Snapshot: old records for diff calculation
-                val oldRecords = recordDao.getAllRecordsOnce()
-                val oldRecordMap = oldRecords.associateBy { "${it.songId}:${it.difficulty}" }
-
-                val result = syncSaveUseCase(tokenPair.first, tokenPair.second)
+                val result = syncSaveUseCase(tokenPair.first, tokenPair.second, SyncMode.Refresh)
                 if (result.isSuccess) {
-                    val save = result.getOrThrow()
+                    val syncResult = result.getOrThrow()
+                    val save = syncResult.save
                     // Format Data currency
                     val money = save.gameProgress.money.let { m ->
                         if (m.isEmpty()) emptyList() else m
@@ -664,60 +662,27 @@ class HomeViewModel(
                         .joinToString(" ") { "${it.value}${units.getOrElse(it.index) { "" }}" }
                     settingsRepository.setMoneyString(moneyStr)
 
-                    val now = currentTimeMillis()
-
-                    // Calculate sync diff (changed records)
-                    val newRecords = recordDao.getAllRecordsOnce()
-                    val changedEntries = mutableListOf<SongSyncHistoryEntity>()
-                    for (newRec in newRecords) {
-                        val key = "${newRec.songId}:${newRec.difficulty}"
-                        val oldRec = oldRecordMap[key]
-                        if (oldRec == null ||
-                            oldRec.score != newRec.score ||
-                            oldRec.accuracy != newRec.accuracy
-                        ) {
-                            changedEntries.add(
-                                SongSyncHistoryEntity(
-                                    snapshotId = 0,
-                                    songId = newRec.songId,
-                                    difficulty = newRec.difficulty,
-                                    score = newRec.score,
-                                    accuracy = newRec.accuracy,
-                                    isFullCombo = newRec.isFullCombo,
-                                    timestamp = now
-                                )
-                            )
-                        }
-                    }
-
-                    if (changedEntries.isNotEmpty()) {
-                        val state = _uiState.value
-                        val snapshot = SyncSnapshotEntity(
-                            timestamp = now,
-                            rks = state.displayRks,
-                            nickname = state.nickname,
-                            dataCount = recordDao.getDistinctSongCount(),
-                            lastSyncedSongId = state.b30.firstOrNull()?.songId,
-                            lastSyncedDifficulty = state.b30.firstOrNull()?.difficulty?.name,
-                            lastSyncedScore = state.b30.firstOrNull()?.score,
-                            lastSyncedAccuracy = state.b30.firstOrNull()?.accuracy
-                        )
-                        val snapshotId = syncSnapshotDao.insertAndGetId(snapshot)
-                        val entriesWithSnapshot = changedEntries.map { it.copy(snapshotId = snapshotId) }
-                        songSyncHistoryDao.insertAll(entriesWithSnapshot)
+                    if (syncResult.snapshotCreated) {
                         _uiState.update {
                             it.copy(
                                 isSyncing = false,
-                                lastSyncTime = snapshot.timestamp
+                                lastSyncTime = syncResult.committedAt
                             )
                         }
                         loadRecentEffectiveSyncHistory()
-                        AppLogger.event("sync", "refresh_success", mapOf("changedEntries" to changedEntries.size.toString(), "displayRks" to state.displayRks.toString()))
+                        AppLogger.event(
+                            "sync",
+                            "refresh_success",
+                            mapOf(
+                                "changedEntries" to syncResult.changedEntryCount.toString(),
+                                "displayRks" to _uiState.value.displayRks.toString()
+                            )
+                        )
                     } else {
                         _uiState.update {
                             it.copy(
                                 isSyncing = false,
-                                lastSyncTime = now,
+                                lastSyncTime = syncResult.committedAt,
                                 recentSyncedRecords = emptyList(),
                                 lastSyncedRecord = null
                             )

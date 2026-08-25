@@ -40,6 +40,8 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.LevelRecord
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SyncMode
+import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.SongRecord
 import org.kasumi321.ushio.phitracker.domain.model.Summary
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
@@ -225,7 +227,8 @@ class HomeViewModelPreloadTest {
             artworkFileCache = artworkCache,
             repository = repository
         )
-        advanceUntilIdle()
+        val b30 = viewModel.uiState.first { it.b30.size == 2 }.b30
+        assertEquals(2, b30.size, "B30 fixture must be ready before artwork caching")
 
         var completion: Result<Unit>? = null
         viewModel.cacheB30StandardArtwork { result -> completion = result }
@@ -532,18 +535,30 @@ class HomeViewModelPreloadTest {
         assertEquals(null, viewModel.uiState.value.error, "Sync should have no error")
         assertNull(snapshotDao.lastInserted, "Snapshot should not be inserted when records are unchanged")
         assertTrue(historyDao.insertedEntries.isEmpty(), "No history should be inserted when records unchanged")
-        assertTrue(viewModel.uiState.value.lastSyncTime != null, "lastSyncTime should be updated")
+        assertEquals(2_000L, viewModel.uiState.value.lastSyncTime)
+        assertEquals(listOf(SyncMode.Refresh), repository.syncModes)
+        assertEquals(0, recordDao.getAllRecordsOnceCallCount, "Home must not re-read records after sync")
         assertEquals(emptyList(), viewModel.uiState.value.recentSyncedRecords)
         assertNull(viewModel.uiState.value.lastSyncedRecord)
         assertTrue(snapshotDao.getAllOnceCallCount > 0, "getAllOnce should be called for preload/recent sync history")
     }
 
     @Test
-    fun changedSyncInsertsSnapshotAndHistoryWithBeta4Metadata(): Unit = runTest(dispatcher) {
+    fun changedSyncConsumesAtomicResultWithoutWritingPersistence(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = true)
         val preloader = RecordingPreloader()
-        val snapshotDao = TrackingSyncSnapshotDao()
-        val historyDao = TrackingSongSyncHistoryDao()
+        val committedSnapshot = syncSnapshot(id = 1L, timestamp = 2_000L, dataCount = 1)
+        val committedHistory = syncHistory(
+            snapshotId = 1L,
+            songId = "song-a.0",
+            difficulty = "IN",
+            score = 950_000,
+            accuracy = 95f,
+            isFullCombo = true,
+            timestamp = 2_000L
+        )
+        val snapshotDao = TrackingSyncSnapshotDao(listOf(committedSnapshot))
+        val historyDao = TrackingSongSyncHistoryDao(mapOf(1L to listOf(committedHistory)))
         val initialRecords = listOf(
             RecordEntity(songId = "song-a", difficulty = "IN", score = 900_000, accuracy = 90f, isFullCombo = false, updatedAt = 1_000L)
         )
@@ -561,7 +576,9 @@ class HomeViewModelPreloadTest {
         val repository = FakePhigrosRepositoryForSync(
             syncResult = Result.success(saveWithRks(15.5f)),
             recordDao = recordDao,
-            cachedSave = cachedSave
+            cachedSave = cachedSave,
+            changedEntryCount = 1,
+            snapshotCreated = true
         )
         val logFileStore = createTestLogFileStore()
 
@@ -591,31 +608,11 @@ class HomeViewModelPreloadTest {
 
         assertFalse(viewModel.uiState.value.isSyncing, "Sync should be complete")
         assertEquals(null, viewModel.uiState.value.error, "Sync should have no error")
-        // Snapshot must be inserted
-        assertNotNull(snapshotDao.lastInserted, "Snapshot should be inserted on changed sync")
-        val synchronizedB30 = RksCalculator.getB30AndAllRecords(
-            cachedSave.gameRecord,
-            testSongDataProvider.getDifficultyMap(),
-            testSongDataProvider.getSongNameMap()
-        ).first
-        val expectedSnapshotRks = RksCalculator.calculateDisplayRks(synchronizedB30)
-        assertEquals(expectedSnapshotRks, snapshotDao.lastInserted!!.rks)
-        // History rows must be inserted
-        assertTrue(historyDao.insertedEntries.isNotEmpty(), "History should be inserted when records changed")
-        assertEquals(1, historyDao.insertedEntries.size, "One changed record = one history entry")
-        val history = historyDao.insertedEntries.first()
-        assertEquals("song-a", history.songId)
-        assertEquals(950_000, history.score)
-        assertEquals(95f, history.accuracy)
-        assertTrue(history.isFullCombo)
-        val expectedB30Top = assertNotNull(viewModel.uiState.value.b30.firstOrNull(), "Test must prove non-null B30 metadata")
-        assertEquals("song-a.0", expectedB30Top.songId)
-        assertEquals(990_000, expectedB30Top.score)
-        assertEquals(expectedB30Top.songId, snapshotDao.lastInserted!!.lastSyncedSongId)
-        assertEquals(expectedB30Top.difficulty.name, snapshotDao.lastInserted!!.lastSyncedDifficulty)
-        assertEquals(expectedB30Top.score, snapshotDao.lastInserted!!.lastSyncedScore)
-        assertEquals(expectedB30Top.accuracy, snapshotDao.lastInserted!!.lastSyncedAccuracy)
-        assertEquals(1, snapshotDao.lastInserted!!.dataCount)
+        assertEquals(listOf(SyncMode.Refresh), repository.syncModes)
+        assertNull(snapshotDao.lastInserted, "Home must not insert a second snapshot")
+        assertTrue(historyDao.insertedEntries.isEmpty(), "Home must not insert duplicate history")
+        assertEquals(2_000L, viewModel.uiState.value.lastSyncTime)
+        assertEquals(listOf("song-a.0"), viewModel.uiState.value.recentSyncedRecords.map { it.songId })
         assertTrue(snapshotDao.getAllOnceCallCount > 0, "getAllOnce should be called for preload/recent sync history")
     }
 
@@ -792,7 +789,11 @@ class HomeViewModelPreloadTest {
             error("Not needed for this test")
         }
 
-        override suspend fun syncSave(sessionToken: String, server: Server): Result<Save> {
+        override suspend fun syncSave(
+            sessionToken: String,
+            server: Server,
+            mode: SyncMode
+        ): Result<SyncSaveResult> {
             error("Not needed for this test")
         }
 
@@ -909,7 +910,9 @@ class HomeViewModelPreloadTest {
         }
     }
 
-    private class TrackingSyncSnapshotDao : SyncSnapshotDao {
+    private class TrackingSyncSnapshotDao(
+        private val snapshots: List<SyncSnapshotEntity> = emptyList()
+    ) : SyncSnapshotDao {
         var lastInserted: SyncSnapshotEntity? = null
             private set
         var getAllOnceCallCount: Int = 0
@@ -924,15 +927,17 @@ class HomeViewModelPreloadTest {
             return 1L
         }
 
-        override fun getAll(): Flow<List<SyncSnapshotEntity>> = flowOf(emptyList())
+        override fun getAll(): Flow<List<SyncSnapshotEntity>> = flowOf(snapshots)
         override suspend fun getAllOnce(): List<SyncSnapshotEntity> {
             getAllOnceCallCount++
-            return emptyList()
+            return snapshots
         }
-        override suspend fun getLatest(): SyncSnapshotEntity? = null
+        override suspend fun getLatest(): SyncSnapshotEntity? = snapshots.firstOrNull()
     }
 
-    private class TrackingSongSyncHistoryDao : SongSyncHistoryDao {
+    private class TrackingSongSyncHistoryDao(
+        private val bySnapshotId: Map<Long, List<SongSyncHistoryEntity>> = emptyMap()
+    ) : SongSyncHistoryDao {
         val insertedEntries: MutableList<SongSyncHistoryEntity> = mutableListOf()
 
         override suspend fun insertAll(entries: List<SongSyncHistoryEntity>) {
@@ -941,15 +946,16 @@ class HomeViewModelPreloadTest {
 
         override fun getBySongId(songId: String): Flow<List<SongSyncHistoryEntity>> = flowOf(emptyList())
         override suspend fun getRecentBySongId(songId: String, limit: Int): List<SongSyncHistoryEntity> = emptyList()
-        override suspend fun getBySnapshotId(snapshotId: Long): List<SongSyncHistoryEntity> = emptyList()
-        override suspend fun getRecent(limit: Int): List<SongSyncHistoryEntity> = emptyList()
+        override suspend fun getBySnapshotId(snapshotId: Long): List<SongSyncHistoryEntity> = bySnapshotId[snapshotId].orEmpty()
+        override suspend fun getRecent(limit: Int): List<SongSyncHistoryEntity> = bySnapshotId.values.flatten().take(limit)
     }
 
     private class StatefulRecordDao(
         initialRecords: List<RecordEntity>,
         private val postSyncRecords: List<RecordEntity>
     ) : RecordDao {
-        private var callCount = 0
+        var getAllRecordsOnceCallCount = 0
+            private set
         private var currentRecords = initialRecords.toMutableList()
 
         override suspend fun insertAll(records: List<RecordEntity>) {
@@ -959,8 +965,8 @@ class HomeViewModelPreloadTest {
 
         override fun getAllRecords(): Flow<List<RecordEntity>> = flowOf(currentRecords.toList())
         override suspend fun getAllRecordsOnce(): List<RecordEntity> {
-            val records = if (callCount == 0) currentRecords.toList() else postSyncRecords.toList()
-            callCount++
+            val records = if (getAllRecordsOnceCallCount == 0) currentRecords.toList() else postSyncRecords.toList()
+            getAllRecordsOnceCallCount++
             return records
         }
 
@@ -976,12 +982,23 @@ class HomeViewModelPreloadTest {
     private class FakePhigrosRepositoryForSync(
         private val syncResult: Result<Save>,
         private val recordDao: StatefulRecordDao,
-        private val cachedSave: Save? = emptySave()
+        private val cachedSave: Save? = emptySave(),
+        private val committedAt: Long = 2_000L,
+        private val changedEntryCount: Int = 0,
+        private val snapshotCreated: Boolean = false
     ) : FakePhigrosRepository() {
+        val syncModes = mutableListOf<SyncMode>()
         override fun getCachedSave(): Flow<Save?> = flowOf(cachedSave)
 
-        override suspend fun syncSave(sessionToken: String, server: Server): Result<Save> {
-            return syncResult
+        override suspend fun syncSave(
+            sessionToken: String,
+            server: Server,
+            mode: SyncMode
+        ): Result<SyncSaveResult> {
+            syncModes += mode
+            return syncResult.map { save ->
+                SyncSaveResult(save, committedAt, changedEntryCount, snapshotCreated)
+            }
         }
     }
 

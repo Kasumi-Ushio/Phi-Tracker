@@ -56,7 +56,7 @@ object EntityMapper {
         updatedAt = formatTimestamp(lastSyncAt)
     )
 
-    fun UserProfile.toEntity(server: Server): UserEntity = UserEntity(
+    fun UserProfile.toEntity(server: Server, lastSyncAt: Long): UserEntity = UserEntity(
         playerId = playerId,
         nickname = nickname,
         avatar = avatar,
@@ -66,7 +66,7 @@ object EntityMapper {
         challengeModeRank = challengeModeRank,
         gameVersion = gameVersion,
         server = server.name,
-        lastSyncAt = currentTimeMillis()
+        lastSyncAt = lastSyncAt
     )
 }
 

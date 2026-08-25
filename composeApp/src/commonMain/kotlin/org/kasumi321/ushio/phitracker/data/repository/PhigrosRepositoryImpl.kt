@@ -14,17 +14,21 @@ import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.data.api.PhiPluginApi
 import org.kasumi321.ushio.phitracker.data.api.TapTapApiClient
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
+import org.kasumi321.ushio.phitracker.data.database.AppDatabase
+import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryDao
+import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotDao
+import org.kasumi321.ushio.phitracker.data.database.SyncWriter
 import org.kasumi321.ushio.phitracker.data.database.UserDao
-import org.kasumi321.ushio.phitracker.data.mapper.EntityMapper.toEntity
-import org.kasumi321.ushio.phitracker.data.mapper.EntityMapper.toRecordEntities
 import org.kasumi321.ushio.phitracker.data.mapper.EntityMapper.toSongRecordMap
 import org.kasumi321.ushio.phitracker.data.mapper.EntityMapper.toUserProfile
-import org.kasumi321.ushio.phitracker.data.mapper.currentTimeMillis
 import org.kasumi321.ushio.phitracker.data.parser.SaveParser
 import org.kasumi321.ushio.phitracker.data.platform.TokenManager
+import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SyncMode
+import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
@@ -35,11 +39,18 @@ class PhigrosRepositoryImpl(
     private val phiPluginApi: PhiPluginApi,
     private val httpClient: HttpClient,
     private val saveParser: SaveParser,
+    database: AppDatabase,
     private val recordDao: RecordDao,
     private val userDao: UserDao,
+    syncSnapshotDao: SyncSnapshotDao,
+    songSyncHistoryDao: SongSyncHistoryDao,
     private val tokenManager: TokenManager,
     private val json: Json,
+    private val songDataProvider: SongDataProvider,
 ) : PhigrosRepository {
+    private val syncWriter = SyncWriter(database, recordDao, userDao, syncSnapshotDao, songSyncHistoryDao)
+    private val syncSnapshotProjector = SyncSnapshotProjector()
+
     override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> = runCatching {
         val userInfo = apiClient.getUserInfo(sessionToken, server)
         UserProfile(
@@ -55,7 +66,11 @@ class PhigrosRepositoryImpl(
         )
     }
 
-    override suspend fun syncSave(sessionToken: String, server: Server): Result<Save> = runCatching {
+    override suspend fun syncSave(
+        sessionToken: String,
+        server: Server,
+        mode: SyncMode
+    ): Result<SyncSaveResult> = runCatching {
         val userInfo = apiClient.getUserInfo(sessionToken, server)
         val saveList = apiClient.getGameSaves(sessionToken, server, userInfo.objectId)
         val latestSave = saveList.results.firstOrNull { it.user?.objectId == userInfo.objectId }
@@ -74,12 +89,14 @@ class PhigrosRepositoryImpl(
             gameVersion = summary.gameVersion,
             updatedAt = latestSave.updatedAt
         )
-        userDao.insertOrUpdate(userProfile.toEntity(server))
-        val now = currentTimeMillis()
-        val recordEntities = save.toRecordEntities(now)
-        recordDao.deleteAll()
-        recordDao.insertAll(recordEntities)
-        save
+        val commitData = syncSnapshotProjector.project(
+            save = save,
+            profile = userProfile,
+            server = server,
+            difficulties = songDataProvider.getDifficultyMap(),
+            songNames = songDataProvider.getSongNameMap()
+        )
+        syncWriter.commit(commitData, mode)
     }
 
     override fun getCachedSave(): Flow<Save?> = combine(recordDao.getAllRecords(), userDao.getUser()) { records, user ->

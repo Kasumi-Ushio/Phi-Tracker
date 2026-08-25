@@ -5,11 +5,13 @@ import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SyncMode
+import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 
 interface PhigrosRepository {
     suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile>
-    suspend fun syncSave(sessionToken: String, server: Server): Result<Save>
+    suspend fun syncSave(sessionToken: String, server: Server, mode: SyncMode): Result<SyncSaveResult>
     fun getCachedSave(): Flow<Save?>
     fun getUserProfile(): Flow<UserProfile?>
     suspend fun saveSessionToken(token: String, server: Server)

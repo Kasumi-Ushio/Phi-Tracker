@@ -58,8 +58,23 @@ val dataModule = module {
     }
     single { createPlatformPaths() }
     single<StandardArtworkCache> { ArtworkFileCache(get(), get()) }
-    single<PhigrosRepository> { PhigrosRepositoryImpl(get(), get(), get(), get(), get(), get(), get(), get()) }
     single { SongDataProvider(paths = get()) }
+    single<PhigrosRepository> {
+        PhigrosRepositoryImpl(
+            apiClient = get(),
+            phiPluginApi = get(),
+            httpClient = get(),
+            saveParser = get(),
+            database = get(),
+            recordDao = get(),
+            userDao = get(),
+            syncSnapshotDao = get(),
+            songSyncHistoryDao = get(),
+            tokenManager = get(),
+            json = get(),
+            songDataProvider = get()
+        )
+    }
     single { IllustrationProvider() }
     single { TipsProvider() }
     single { SongDataUpdater(get(), get(), get()) }

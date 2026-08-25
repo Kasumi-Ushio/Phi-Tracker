@@ -14,6 +14,7 @@ import kotlin.time.Clock
 import org.kasumi321.ushio.phitracker.data.api.TapTapQrLoginApi
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 
@@ -70,7 +71,11 @@ class LoginViewModel(
 
             // Try to refresh the session and save from the network.
             val validateResult = repository.validateToken(token, server)
-            val syncResult = if (validateResult.isSuccess) syncSaveUseCase(token, server) else null
+            val syncResult = if (validateResult.isSuccess) {
+                syncSaveUseCase(token, server, SyncMode.Bootstrap)
+            } else {
+                null
+            }
             val onlineRefreshOk = validateResult.isSuccess && syncResult?.isSuccess == true
 
             if (onlineRefreshOk) {
@@ -145,7 +150,7 @@ class LoginViewModel(
 
             repository.saveSessionToken(state.token, state.server)
 
-            val syncResult = syncSaveUseCase(state.token, state.server)
+            val syncResult = syncSaveUseCase(state.token, state.server, SyncMode.Bootstrap)
             if (syncResult.isFailure) {
                 _uiState.update {
                     it.copy(
@@ -204,7 +209,7 @@ class LoginViewModel(
                         )
 
                         repository.saveSessionToken(sessionToken, server)
-                        val syncResult = syncSaveUseCase(sessionToken, server)
+                        val syncResult = syncSaveUseCase(sessionToken, server, SyncMode.Bootstrap)
                         if (syncResult.isFailure) {
                             _uiState.update {
                                 it.copy(

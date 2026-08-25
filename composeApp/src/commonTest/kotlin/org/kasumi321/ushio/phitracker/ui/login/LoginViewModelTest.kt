@@ -27,6 +27,8 @@ import org.kasumi321.ushio.phitracker.data.platform.ApiCrypto
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SyncMode
+import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
@@ -65,10 +67,12 @@ class LoginViewModelTest {
 
     @Test
     fun onlineValidateAndSyncSuccessLogsIn() = runTest(dispatcher) {
-        val vm = viewModel(FakeRepo(savedToken = "t" to Server.CN, validateOk = true, syncOk = true))
+        val repo = FakeRepo(savedToken = "t" to Server.CN, validateOk = true, syncOk = true)
+        val vm = viewModel(repo)
         advanceUntilIdle()
         assertFalse(vm.uiState.value.isCheckingToken)
         assertTrue(vm.uiState.value.isLoggedIn)
+        assertEquals(listOf(SyncMode.Bootstrap), repo.syncModes)
         assertEquals("t", vm.uiState.value.token)
         assertEquals(Server.CN, vm.uiState.value.server)
     }
@@ -114,6 +118,7 @@ class LoginViewModelTest {
         assertFalse(vm.uiState.value.isLoading)
         assertEquals("manual-token", vm.uiState.value.token)
         assertEquals(listOf("manual-token" to Server.GLOBAL), repo.persistedTokens)
+        assertEquals(listOf(SyncMode.Bootstrap), repo.syncModes)
     }
 
     @Test
@@ -203,6 +208,7 @@ class LoginViewModelTest {
         assertTrue(vm.uiState.value.isLoggedIn)
         assertEquals("qr-session", vm.uiState.value.token)
         assertEquals(listOf("qr-session" to Server.CN), repo.persistedTokens)
+        assertEquals(listOf(SyncMode.Bootstrap), repo.syncModes)
     }
 
     @Test
@@ -379,6 +385,7 @@ class LoginViewModelTest {
         private val cachedSave: Save? = null
     ) : PhigrosRepository {
         val persistedTokens = mutableListOf<Pair<String, Server>>()
+        val syncModes = mutableListOf<SyncMode>()
         private fun offline() = Result.failure<Nothing>(RuntimeException("network unavailable"))
 
         override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> =
@@ -388,8 +395,18 @@ class LoginViewModelTest {
                 Result.failure(RuntimeException("network unavailable"))
             }
 
-        override suspend fun syncSave(sessionToken: String, server: Server): Result<Save> =
-            if (syncOk) Result.success(minimalSave()) else Result.failure(RuntimeException("network unavailable"))
+        override suspend fun syncSave(
+            sessionToken: String,
+            server: Server,
+            mode: SyncMode
+        ): Result<SyncSaveResult> {
+            syncModes += mode
+            return if (syncOk) {
+                Result.success(SyncSaveResult(minimalSave(), 1L, 0, false))
+            } else {
+                Result.failure(RuntimeException("network unavailable"))
+            }
+        }
 
         override fun getCachedSave(): Flow<Save?> = flowOf(cachedSave)
         override fun getUserProfile(): Flow<UserProfile?> = flowOf(null)

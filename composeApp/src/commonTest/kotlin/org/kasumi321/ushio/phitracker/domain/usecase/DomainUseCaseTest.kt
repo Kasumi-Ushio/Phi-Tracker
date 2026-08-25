@@ -10,6 +10,8 @@ import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.LevelRecord
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SyncMode
+import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongRecord
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
@@ -388,9 +390,12 @@ class DomainUseCaseTest {
         val save = emptySave()
         val repository = FakePhigrosRepository(save)
 
-        assertEquals(save, SyncSaveUseCase(repository)("token", Server.CN).getOrThrow())
+        assertEquals(
+            save,
+            SyncSaveUseCase(repository)("token", Server.CN, SyncMode.Refresh).getOrThrow().save
+        )
         assertEquals(Pair(emptyList(), emptyList()), GetB30UseCase(repository)(emptyMap(), emptyMap()).first())
-        assertEquals(Pair("token", Server.CN), repository.lastSyncRequest)
+        assertEquals(Triple("token", Server.CN, SyncMode.Refresh), repository.lastSyncRequest)
     }
 
     private fun emptySave(): Save = Save(
@@ -442,15 +447,19 @@ class DomainUseCaseTest {
     private class FakePhigrosRepository(
         private val save: Save
     ) : PhigrosRepository {
-        var lastSyncRequest: Pair<String, Server>? = null
+        var lastSyncRequest: Triple<String, Server, SyncMode>? = null
 
         override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> {
             error("Not needed for this test")
         }
 
-        override suspend fun syncSave(sessionToken: String, server: Server): Result<Save> {
-            lastSyncRequest = Pair(sessionToken, server)
-            return Result.success(save)
+        override suspend fun syncSave(
+            sessionToken: String,
+            server: Server,
+            mode: SyncMode
+        ): Result<SyncSaveResult> {
+            lastSyncRequest = Triple(sessionToken, server, mode)
+            return Result.success(SyncSaveResult(save, 1L, 0, false))
         }
 
         override fun getCachedSave(): Flow<Save?> = flowOf(save)
