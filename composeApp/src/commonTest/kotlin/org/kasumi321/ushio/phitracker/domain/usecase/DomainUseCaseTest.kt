@@ -14,6 +14,8 @@ import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongRecord
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
@@ -473,6 +475,14 @@ class DomainUseCaseTest {
         override suspend fun clearData() = Unit
 
         override fun clearTokenSync() = Unit
+
+        override suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int> = emptyMap()
+        override suspend fun getTotalFullComboCount(): Int = 0
+        override suspend fun getTotalPhiCount(): Int = 0
+        override fun observeSyncSnapshots(): Flow<List<SyncSnapshot>> = flowOf(emptyList())
+        override suspend fun getSyncSnapshotsOnce(): List<SyncSnapshot> = emptyList()
+        override fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> = flowOf(emptyList())
+        override suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry> = emptyList()
 
         override suspend fun apiTest(): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))

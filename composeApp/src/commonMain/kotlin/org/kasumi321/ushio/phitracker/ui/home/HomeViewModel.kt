@@ -29,12 +29,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.kasumi321.ushio.phitracker.data.TipsProvider
-import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
-import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryDao
-import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
-import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotDao
-import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
 import org.kasumi321.ushio.phitracker.data.logging.CrashReportExporter
 import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
 import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPreloader
@@ -52,7 +47,9 @@ import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SyncMode
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
@@ -90,7 +87,7 @@ data class SongApiDetailState(
     val totalUsers: Int? = null,
     val avgAcc: Float? = null,
     val avgAccCount: Int? = null,
-    val history: List<SongSyncHistoryEntity> = emptyList()
+    val history: List<SongSyncHistoryEntry> = emptyList()
 )
 
 data class HomeUiState(
@@ -152,7 +149,7 @@ data class HomeUiState(
     val b30ArtworkCacheError: String? = null,
 
     // Tool tab (sync snapshots)
-    val syncSnapshots: List<SyncSnapshotEntity> = emptyList(),
+    val syncSnapshots: List<SyncSnapshot> = emptyList(),
     val sessionToken: String? = null,
 
     // Pre-release channel and update check
@@ -169,7 +166,7 @@ data class HomeUiState(
     val apiTestMessage: String? = null,
     val apiRksRank: Int? = null,
     val apiTotalUsers: Int? = null,
-    val apiHistorySnapshots: List<SyncSnapshotEntity> = emptyList(),
+    val apiHistorySnapshots: List<SyncSnapshot> = emptyList(),
     val apiRankByUser: ApiToolResult = ApiToolResult(),
     val apiRankByPosition: ApiToolResult = ApiToolResult(),
     val apiRksRankResult: ApiToolResult = ApiToolResult(),
@@ -206,9 +203,6 @@ class HomeViewModel(
     private val thumbnailPreloader: IllustrationThumbnailPreloader = CoilIllustrationThumbnailPreloader,
     private val clearCacheUrlsFn: suspend (List<String>) -> Unit = ::clearImageCacheUrls,
     private val clearAllCacheFn: suspend () -> Unit = ::clearAllImageCache,
-    private val syncSnapshotDao: SyncSnapshotDao,
-    private val recordDao: RecordDao,
-    private val songSyncHistoryDao: SongSyncHistoryDao,
     private val songDataUpdater: SongDataUpdater,
     private val runtimeLogExporter: RuntimeLogExporter,
     private val crashReportExporter: CrashReportExporter,
@@ -280,7 +274,7 @@ class HomeViewModel(
         }
         // Tool tab: observe sync snapshots
         viewModelScope.launch {
-            syncSnapshotDao.getAll().collect { list ->
+            repository.observeSyncSnapshots().collect { list ->
                 _uiState.update { it.copy(syncSnapshots = list) }
             }
         }
@@ -344,14 +338,9 @@ class HomeViewModel(
     }
 
     private suspend fun loadStats() {
-        val clearCounts = mapOf(
-            "EZ" to recordDao.getClearCountByDifficulty("EZ"),
-            "HD" to recordDao.getClearCountByDifficulty("HD"),
-            "IN" to recordDao.getClearCountByDifficulty("IN"),
-            "AT" to recordDao.getClearCountByDifficulty("AT")
-        )
-        val fcCount = recordDao.getTotalFcCount()
-        val phiCount = recordDao.getTotalPhiCount()
+        val clearCounts = repository.getClearCountsByDifficulty().mapKeys { (difficulty, _) -> difficulty.name }
+        val fcCount = repository.getTotalFullComboCount()
+        val phiCount = repository.getTotalPhiCount()
         _uiState.update {
             it.copy(
                 clearCounts = clearCounts,
@@ -712,13 +701,13 @@ class HomeViewModel(
         }
     }
 
-    fun getSyncHistory(songId: String): Flow<List<SongSyncHistoryEntity>> {
-        return songSyncHistoryDao.getBySongId(songId)
+    fun getSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> {
+        return repository.observeSongSyncHistory(songId)
     }
 
     private suspend fun loadSyncRecordsForSnapshot(snapshotId: Long) {
         val songs = songDataProvider.getSongs()
-        val recentHistory = songSyncHistoryDao.getBySnapshotId(snapshotId)
+        val recentHistory = repository.getSyncHistoryForSnapshot(snapshotId)
         val recentRecords = recentHistory.mapNotNull { entry ->
             val difficulty = runCatching { Difficulty.valueOf(entry.difficulty) }.getOrNull()
                 ?: return@mapNotNull null
@@ -748,11 +737,11 @@ class HomeViewModel(
 
     private suspend fun loadRecentEffectiveSyncHistory(limit: Int = 3) {
         val songs = songDataProvider.getSongs()
-        val snapshots = syncSnapshotDao.getAllOnce()
-        val effectiveSnapshots = mutableListOf<Pair<SyncSnapshotEntity, List<SongSyncHistoryEntity>>>()
+        val snapshots = repository.getSyncSnapshotsOnce()
+        val effectiveSnapshots = mutableListOf<Pair<SyncSnapshot, List<SongSyncHistoryEntry>>>()
 
         for (snapshot in snapshots) {
-            val entries = songSyncHistoryDao.getBySnapshotId(snapshot.id)
+            val entries = repository.getSyncHistoryForSnapshot(snapshot.id)
             if (entries.isNotEmpty()) {
                 effectiveSnapshots.add(snapshot to entries)
             }
@@ -1258,7 +1247,7 @@ class HomeViewModel(
         }
     }
 
-    fun getToolSnapshots(): List<SyncSnapshotEntity> {
+    fun getToolSnapshots(): List<SyncSnapshot> {
         val state = _uiState.value
         return if (state.apiEnabled && state.useApiData) {
             state.apiHistorySnapshots
@@ -1519,7 +1508,7 @@ class HomeViewModel(
                 val obj = item.asObject() ?: return@mapIndexedNotNull null
                 val date = obj.get("date")?.asString() ?: return@mapIndexedNotNull null
                 val value = obj.get("value")?.asFloat() ?: return@mapIndexedNotNull null
-                SyncSnapshotEntity(
+                SyncSnapshot(
                     id = index.toLong() + 1L,
                     timestamp = parseIsoToEpoch(date),
                     rks = value,
@@ -1538,7 +1527,7 @@ class HomeViewModel(
 
     // --- JSON parsing helpers ---
 
-    private fun parseSongHistory(dataElement: JsonElement?, songId: String, difficulty: String): List<SongSyncHistoryEntity> {
+    private fun parseSongHistory(dataElement: JsonElement?, songId: String, difficulty: String): List<SongSyncHistoryEntry> {
         val directArray = dataElement?.asArray()
         val list = when {
             directArray != null -> parseRecordArray(directArray, songId, difficulty)
@@ -1549,7 +1538,7 @@ class HomeViewModel(
         return list.sortedByDescending { it.timestamp }
     }
 
-    private fun parseRecordArray(records: JsonArray, songId: String, difficulty: String): List<SongSyncHistoryEntity> {
+    private fun parseRecordArray(records: JsonArray, songId: String, difficulty: String): List<SongSyncHistoryEntry> {
         return records.mapNotNull { row ->
             val arr = row.asArray() ?: return@mapNotNull null
             if (arr.size < 4) return@mapNotNull null
@@ -1557,7 +1546,8 @@ class HomeViewModel(
             val score = arr.getOrNull(1)?.asInt() ?: return@mapNotNull null
             val date = arr.getOrNull(2)?.asString() ?: return@mapNotNull null
             val fc = arr.getOrNull(3)?.asBoolean() ?: false
-            SongSyncHistoryEntity(
+            SongSyncHistoryEntry(
+                id = 0L,
                 snapshotId = 0L,
                 songId = songId,
                 difficulty = difficulty,

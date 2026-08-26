@@ -64,12 +64,12 @@ import coil3.request.crossfade
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.launch
-import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
 import org.kasumi321.ushio.phitracker.data.platform.saveArtworkToPictures
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.ui.common.SpringPagerIndicator
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
@@ -97,7 +97,7 @@ private fun Long.formatSyncTime(): String {
 fun SongDetailScreen(
     songInfo: SongInfo,
     userRecords: List<BestRecord> = emptyList(),
-    syncHistory: List<SongSyncHistoryEntity> = emptyList(),
+    syncHistory: List<SongSyncHistoryEntry> = emptyList(),
     apiEnabled: Boolean = false,
     useApiData: Boolean = false,
     getSongApiDetail: (Difficulty) -> SongApiDetailState = { SongApiDetailState() },
@@ -354,7 +354,7 @@ private fun DifficultyContent(
     apiEnabled: Boolean,
     useApiData: Boolean,
     songApiDetail: SongApiDetailState,
-    syncHistory: List<SongSyncHistoryEntity>,
+    syncHistory: List<SongSyncHistoryEntry>,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -590,7 +590,7 @@ private fun NoteStatItem(label: String, count: Int) {
 }
 
 @Composable
-private fun SyncHistoryCard(entry: SongSyncHistoryEntity) {
+private fun SyncHistoryCard(entry: SongSyncHistoryEntry) {
     val formattedTime = remember(entry.timestamp) {
         entry.timestamp.formatSyncTime()
     }

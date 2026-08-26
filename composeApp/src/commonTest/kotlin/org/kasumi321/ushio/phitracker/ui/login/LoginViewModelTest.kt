@@ -25,10 +25,13 @@ import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.data.api.TapTapQrLoginApi
 import org.kasumi321.ushio.phitracker.data.platform.ApiCrypto
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
@@ -416,6 +419,13 @@ class LoginViewModelTest {
         override suspend fun getSessionToken(): Pair<String, Server>? = savedToken
         override suspend fun clearData() = Unit
         override fun clearTokenSync() = Unit
+        override suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int> = emptyMap()
+        override suspend fun getTotalFullComboCount(): Int = 0
+        override suspend fun getTotalPhiCount(): Int = 0
+        override fun observeSyncSnapshots(): Flow<List<SyncSnapshot>> = flowOf(emptyList())
+        override suspend fun getSyncSnapshotsOnce(): List<SyncSnapshot> = emptyList()
+        override fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> = flowOf(emptyList())
+        override suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry> = emptyList()
 
         override suspend fun apiTest(): Result<JsonObject> = offline()
         override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> = offline()

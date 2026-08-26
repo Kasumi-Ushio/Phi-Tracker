@@ -4,9 +4,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.domain.model.Save
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 
 interface PhigrosRepository {
@@ -18,6 +21,14 @@ interface PhigrosRepository {
     suspend fun getSessionToken(): Pair<String, Server>?
     suspend fun clearData()
     fun clearTokenSync()
+
+    suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int>
+    suspend fun getTotalFullComboCount(): Int
+    suspend fun getTotalPhiCount(): Int
+    fun observeSyncSnapshots(): Flow<List<SyncSnapshot>>
+    suspend fun getSyncSnapshotsOnce(): List<SyncSnapshot>
+    fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>>
+    suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry>
 
     suspend fun apiTest(): Result<JsonObject>
     suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject>

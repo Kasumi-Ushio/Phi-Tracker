@@ -81,10 +81,10 @@ import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import kotlin.math.ceil
-import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
 import org.kasumi321.ushio.phitracker.data.platform.copyToClipboard
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
@@ -95,7 +95,7 @@ import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ToolsTab(
-        syncSnapshots: List<SyncSnapshotEntity>,
+        syncSnapshots: List<SyncSnapshot>,
         sessionToken: String?,
         apiEnabled: Boolean,
         useApiData: Boolean,
@@ -343,7 +343,7 @@ private fun RksCalculatorContent() {
 }
 
 @Composable
-private fun RksHistoryChartContent(snapshots: List<SyncSnapshotEntity>) {
+private fun RksHistoryChartContent(snapshots: List<SyncSnapshot>) {
     if (snapshots.size < 2) {
         Box(
                 modifier = Modifier.fillMaxWidth().height(120.dp),

@@ -21,10 +21,6 @@ import org.kasumi321.ushio.phitracker.data.TipsProvider
 import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.database.RecordEntity
-import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryDao
-import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
-import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotDao
-import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
 import org.kasumi321.ushio.phitracker.data.logging.CrashReportExporter
 import org.kasumi321.ushio.phitracker.data.logging.LogFileStore
 import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
@@ -42,6 +38,8 @@ import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SongRecord
 import org.kasumi321.ushio.phitracker.domain.model.Summary
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
@@ -412,11 +410,82 @@ class HomeViewModelPreloadTest {
     }
 
     @Test
-    fun getSyncHistoryReturnsFlowFromDao(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
-        assertEquals(emptyList(), viewModel.getSyncHistory("song-a").first())
+    fun getSyncHistoryReturnsFlowFromRepository(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
+        val repository = FakePhigrosRepository().apply {
+            songHistory = mapOf(
+                "song-a" to listOf(syncHistory(snapshotId = 1L, songId = "song-a", difficulty = "IN"))
+            )
+        }
+        val viewModel = createViewModel(settings, repository = repository)
+
+        assertEquals(listOf(1L), viewModel.getSyncHistory("song-a").first().map { it.snapshotId })
+        assertEquals(0, repository.syncCallCount)
+        assertEquals(0, repository.networkCallCount)
+    }
+
+    @Test
+    fun repositoryPersistenceReadsPopulateStatsAndOrderedSnapshots(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
+        val repository = FakePhigrosRepository().apply {
+            clearCounts = mapOf(Difficulty.EZ to 2, Difficulty.HD to 3, Difficulty.IN to 4, Difficulty.AT to 1)
+            fullComboCount = 5
+            phiCount = 2
+            snapshots = listOf(
+                syncSnapshot(id = 2L, timestamp = 2_000L, dataCount = 1),
+                syncSnapshot(id = 1L, timestamp = 1_000L, dataCount = 1)
+            )
+            historyBySnapshot = mapOf(
+                2L to listOf(syncHistory(snapshotId = 2L, songId = "song-a.0", difficulty = "IN", timestamp = 2_001L)),
+                1L to listOf(syncHistory(snapshotId = 1L, songId = "song-b.0", difficulty = "HD", timestamp = 1_001L))
+            )
+        }
+
+        val viewModel = createViewModel(settings, repository = repository)
+        advanceUntilIdle()
+
+        assertEquals(mapOf("EZ" to 2, "HD" to 3, "IN" to 4, "AT" to 1), viewModel.uiState.value.clearCounts)
+        assertEquals(5, viewModel.uiState.value.fcCount)
+        assertEquals(2, viewModel.uiState.value.phiCount)
+        assertEquals(listOf(2L, 1L), viewModel.uiState.value.syncSnapshots.map { it.id })
+        assertEquals(listOf("song-a.0", "song-b.0"), viewModel.uiState.value.recentSyncedRecords.map { it.songId })
+        assertEquals(0, repository.syncCallCount)
+        assertEquals(0, repository.networkCallCount)
+    }
+
+    @Test
+    fun repositoryPersistenceReadsKeepEmptyStateAndSkipUnknownDifficulty(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
+        val repository = FakePhigrosRepository().apply {
+            snapshots = listOf(syncSnapshot(id = 1L, timestamp = 1_000L, dataCount = 1))
+            historyBySnapshot = mapOf(
+                1L to listOf(syncHistory(snapshotId = 1L, songId = "song-a.0", difficulty = "UNKNOWN"))
+            )
+        }
+
+        val viewModel = createViewModel(settings, repository = repository)
+        advanceUntilIdle()
+
+        assertEquals(emptyMap(), viewModel.uiState.value.clearCounts)
+        assertEquals(0, viewModel.uiState.value.fcCount)
+        assertEquals(0, viewModel.uiState.value.phiCount)
+        assertTrue(viewModel.uiState.value.recentSyncedRecords.isEmpty())
+        assertNull(viewModel.uiState.value.lastSyncedRecord)
+        assertEquals(0, repository.syncCallCount)
+        assertEquals(0, repository.networkCallCount)
+    }
+
+    @Test
+    fun repositoryFakeTracksNetworkSeparatelyFromSync(): Unit = runTest(dispatcher) {
+        val repository = FakePhigrosRepository()
+
+        runCatching { repository.validateToken("token", Server.CN) }
+        repository.apiTest()
+        repository.fetchLatestRelease(includePreRelease = false)
+        runCatching { repository.syncSave("token", Server.CN, SyncMode.Refresh) }
+
+        assertEquals(1, repository.syncCallCount)
+        assertEquals(4, repository.networkCallCount)
     }
 
     @Test
@@ -457,8 +526,34 @@ class HomeViewModelPreloadTest {
     }
 
     @Test
+    fun songApiHistorySkipsMissingAndUnknownDifficultyPayloads(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(
+            preloadDone = true,
+            autoCheckUpdate = false,
+            apiEnabled = true,
+            useApiData = true,
+            apiPlatform = "taptap",
+            apiPlatformId = "player-id"
+        )
+        val repository = FakePhigrosRepository().apply {
+            songRankResult = Result.success(Json.parseToJsonElement("""{"data":{}}""").jsonObject)
+            songAverageResult = Result.success(Json.parseToJsonElement("""{"data":{}}""").jsonObject)
+            songHistoryResult = Result.success(
+                Json.parseToJsonElement("""{"data":{"UNKNOWN":[[99.0,990000,"2026-01-01T00:00:00Z",true]],"IN":[[99.0]]}}""").jsonObject
+            )
+        }
+        val viewModel = createViewModel(settingsRepository = settings, repository = repository)
+        advanceUntilIdle()
+
+        viewModel.loadSongApiDetail("song-a.0", Difficulty.IN)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.getSongApiDetail("song-a.0", Difficulty.IN).history.isEmpty())
+    }
+
+    @Test
     fun recentEffectiveSyncHistoryLoadsAllEntriesFromLatestThreeEffectiveSnapshots(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
         val snapshots = listOf(
             syncSnapshot(id = 4L, timestamp = 4_000L, dataCount = 2),
             syncSnapshot(id = 3L, timestamp = 3_000L, dataCount = 0),
@@ -474,11 +569,11 @@ class HomeViewModelPreloadTest {
             2L to listOf(syncHistory(snapshotId = 2L, songId = "song-a.0", difficulty = "EZ", score = 900_000, accuracy = 90f, isFullCombo = false, timestamp = 2_001L)),
             1L to listOf(syncHistory(snapshotId = 1L, songId = "song-b.0", difficulty = "IN", score = 910_000, accuracy = 91f, isFullCombo = false, timestamp = 1_001L))
         )
-        val viewModel = createViewModel(
-            settingsRepository = settings,
-            syncSnapshotDao = FakeSyncSnapshotDao(snapshots),
-            songSyncHistoryDao = FakeSongSyncHistoryDao(history)
-        )
+        val repository = FakePhigrosRepository().apply {
+            this.snapshots = snapshots
+            historyBySnapshot = history
+        }
+        val viewModel = createViewModel(settingsRepository = settings, repository = repository)
         advanceUntilIdle()
 
         assertEquals(4_000L, viewModel.uiState.value.lastSyncTime)
@@ -489,14 +584,14 @@ class HomeViewModelPreloadTest {
         )
         assertEquals("song-a.0", viewModel.uiState.value.lastSyncedRecord?.songId)
         assertEquals(Difficulty.IN, viewModel.uiState.value.lastSyncedRecord?.difficulty)
+        assertEquals(0, repository.syncCallCount)
+        assertEquals(0, repository.networkCallCount)
     }
 
     @Test
     fun noChangeSyncDoesNotInsertSnapshotOrHistory(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = true)
         val preloader = RecordingPreloader()
-        val snapshotDao = TrackingSyncSnapshotDao()
-        val historyDao = TrackingSongSyncHistoryDao()
         val existingRecords = listOf(
             RecordEntity(songId = "song-a", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, updatedAt = 1_000L)
         )
@@ -519,9 +614,6 @@ class HomeViewModelPreloadTest {
             settingsRepository = settings,
             thumbnailPreloader = preloader,
             clearCacheUrlsFn = {},
-            syncSnapshotDao = snapshotDao,
-            recordDao = recordDao,
-            songSyncHistoryDao = historyDao,
             songDataUpdater = FakeSongDataUpdater(),
             runtimeLogExporter = RuntimeLogExporter(logFileStore),
             crashReportExporter = CrashReportExporter(logFileStore)
@@ -533,14 +625,12 @@ class HomeViewModelPreloadTest {
 
         assertFalse(viewModel.uiState.value.isSyncing, "Sync should be complete")
         assertEquals(null, viewModel.uiState.value.error, "Sync should have no error")
-        assertNull(snapshotDao.lastInserted, "Snapshot should not be inserted when records are unchanged")
-        assertTrue(historyDao.insertedEntries.isEmpty(), "No history should be inserted when records unchanged")
         assertEquals(2_000L, viewModel.uiState.value.lastSyncTime)
         assertEquals(listOf(SyncMode.Refresh), repository.syncModes)
         assertEquals(0, recordDao.getAllRecordsOnceCallCount, "Home must not re-read records after sync")
         assertEquals(emptyList(), viewModel.uiState.value.recentSyncedRecords)
         assertNull(viewModel.uiState.value.lastSyncedRecord)
-        assertTrue(snapshotDao.getAllOnceCallCount > 0, "getAllOnce should be called for preload/recent sync history")
+        assertEquals(emptyList(), repository.getSyncSnapshotsOnce())
     }
 
     @Test
@@ -557,8 +647,6 @@ class HomeViewModelPreloadTest {
             isFullCombo = true,
             timestamp = 2_000L
         )
-        val snapshotDao = TrackingSyncSnapshotDao(listOf(committedSnapshot))
-        val historyDao = TrackingSongSyncHistoryDao(mapOf(1L to listOf(committedHistory)))
         val initialRecords = listOf(
             RecordEntity(songId = "song-a", difficulty = "IN", score = 900_000, accuracy = 90f, isFullCombo = false, updatedAt = 1_000L)
         )
@@ -579,7 +667,10 @@ class HomeViewModelPreloadTest {
             cachedSave = cachedSave,
             changedEntryCount = 1,
             snapshotCreated = true
-        )
+        ).apply {
+            snapshots = listOf(committedSnapshot)
+            historyBySnapshot = mapOf(1L to listOf(committedHistory))
+        }
         val logFileStore = createTestLogFileStore()
 
         val viewModel = HomeViewModel(
@@ -594,9 +685,6 @@ class HomeViewModelPreloadTest {
             settingsRepository = settings,
             thumbnailPreloader = preloader,
             clearCacheUrlsFn = {},
-            syncSnapshotDao = snapshotDao,
-            recordDao = recordDao,
-            songSyncHistoryDao = historyDao,
             songDataUpdater = FakeSongDataUpdater(),
             runtimeLogExporter = RuntimeLogExporter(logFileStore),
             crashReportExporter = CrashReportExporter(logFileStore)
@@ -609,11 +697,9 @@ class HomeViewModelPreloadTest {
         assertFalse(viewModel.uiState.value.isSyncing, "Sync should be complete")
         assertEquals(null, viewModel.uiState.value.error, "Sync should have no error")
         assertEquals(listOf(SyncMode.Refresh), repository.syncModes)
-        assertNull(snapshotDao.lastInserted, "Home must not insert a second snapshot")
-        assertTrue(historyDao.insertedEntries.isEmpty(), "Home must not insert duplicate history")
         assertEquals(2_000L, viewModel.uiState.value.lastSyncTime)
         assertEquals(listOf("song-a.0"), viewModel.uiState.value.recentSyncedRecords.map { it.songId })
-        assertTrue(snapshotDao.getAllOnceCallCount > 0, "getAllOnce should be called for preload/recent sync history")
+        assertEquals(listOf(1L), repository.getSyncSnapshotsOnce().map { it.id })
     }
 
     private fun createViewModel(
@@ -622,9 +708,6 @@ class HomeViewModelPreloadTest {
         cacheClearFn: suspend (List<String>) -> Unit = {},
         artworkFileCache: StandardArtworkCache = RecordingStandardArtworkCache(),
         songDataProvider: SongDataProvider = testSongDataProvider,
-        syncSnapshotDao: SyncSnapshotDao = FakeSyncSnapshotDao(),
-        recordDao: RecordDao = FakeRecordDao(),
-        songSyncHistoryDao: SongSyncHistoryDao = FakeSongSyncHistoryDao(),
         songDataUpdater: FakeSongDataUpdater = FakeSongDataUpdater(
             paths = testPlatformPaths,
             songDataProvider = songDataProvider
@@ -647,9 +730,6 @@ class HomeViewModelPreloadTest {
             artworkFileCache = artworkFileCache,
             thumbnailPreloader = preloader,
             clearCacheUrlsFn = cacheClearFn,
-            syncSnapshotDao = syncSnapshotDao,
-            recordDao = recordDao,
-            songSyncHistoryDao = songSyncHistoryDao,
             songDataUpdater = songDataUpdater,
             runtimeLogExporter = RuntimeLogExporter(logFileStore),
             crashReportExporter = CrashReportExporter(logFileStore),
@@ -785,7 +865,16 @@ class HomeViewModelPreloadTest {
         var songRankCalls: Int = 0
         var songAverageCalls: Int = 0
         var songHistoryCalls: Int = 0
+        var syncCallCount: Int = 0
+        var networkCallCount: Int = 0
+        var clearCounts: Map<Difficulty, Int> = emptyMap()
+        var fullComboCount: Int = 0
+        var phiCount: Int = 0
+        var snapshots: List<SyncSnapshot> = emptyList()
+        var songHistory: Map<String, List<SongSyncHistoryEntry>> = emptyMap()
+        var historyBySnapshot: Map<Long, List<SongSyncHistoryEntry>> = emptyMap()
         override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> {
+            networkCallCount++
             error("Not needed for this test")
         }
 
@@ -794,8 +883,23 @@ class HomeViewModelPreloadTest {
             server: Server,
             mode: SyncMode
         ): Result<SyncSaveResult> {
+            syncCallCount++
+            networkCallCount++
             error("Not needed for this test")
         }
+
+        private fun <T> networkResult(result: Result<T>): Result<T> {
+            networkCallCount++
+            return result
+        }
+
+        override suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int> = clearCounts
+        override suspend fun getTotalFullComboCount(): Int = fullComboCount
+        override suspend fun getTotalPhiCount(): Int = phiCount
+        override fun observeSyncSnapshots(): Flow<List<SyncSnapshot>> = flowOf(snapshots)
+        override suspend fun getSyncSnapshotsOnce(): List<SyncSnapshot> = snapshots
+        override fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> = flowOf(songHistory[songId].orEmpty())
+        override suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry> = historyBySnapshot[snapshotId].orEmpty()
 
         override fun getCachedSave(): Flow<Save?> = MutableStateFlow(emptySave())
         override fun getUserProfile(): Flow<UserProfile?> = flowOf(null)
@@ -805,43 +909,43 @@ class HomeViewModelPreloadTest {
         override fun clearTokenSync() = Unit
 
         override suspend fun apiTest(): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetSingleSave(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> {
             songRankCalls++
-            return songRankResult
+            return networkResult(songRankResult)
         }
         override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> {
             songAverageCalls++
-            return songAverageResult
+            return networkResult(songAverageResult)
         }
         override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetRksStats(): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> {
             songHistoryCalls++
-            return songHistoryResult
+            return networkResult(songHistoryResult)
         }
         override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
+            networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
 
         open var fetchLatestReleaseCallCount = 0
         val fetchLatestReleaseIncludePreReleaseValues = mutableListOf<Boolean>()
@@ -851,18 +955,8 @@ class HomeViewModelPreloadTest {
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease> {
             fetchLatestReleaseCallCount++
             fetchLatestReleaseIncludePreReleaseValues.add(includePreRelease)
-            return fetchLatestReleaseResult
+            return networkResult(fetchLatestReleaseResult)
         }
-    }
-
-    private class FakeSyncSnapshotDao(
-        private val snapshots: List<SyncSnapshotEntity> = emptyList()
-    ) : SyncSnapshotDao {
-        override suspend fun insert(snapshot: SyncSnapshotEntity) = Unit
-        override suspend fun insertAndGetId(snapshot: SyncSnapshotEntity): Long = 1L
-        override fun getAll(): Flow<List<SyncSnapshotEntity>> = flowOf(snapshots)
-        override suspend fun getAllOnce(): List<SyncSnapshotEntity> = snapshots
-        override suspend fun getLatest(): SyncSnapshotEntity? = snapshots.firstOrNull()
     }
 
     private class FakeRecordDao : RecordDao {
@@ -876,16 +970,6 @@ class HomeViewModelPreloadTest {
         override suspend fun getClearCountByDifficulty(difficulty: String): Int = 0
         override suspend fun getTotalFcCount(): Int = 0
         override suspend fun getTotalPhiCount(): Int = 0
-    }
-
-    private class FakeSongSyncHistoryDao(
-        private val bySnapshotId: Map<Long, List<SongSyncHistoryEntity>> = emptyMap()
-    ) : SongSyncHistoryDao {
-        override suspend fun insertAll(entries: List<SongSyncHistoryEntity>) = Unit
-        override fun getBySongId(songId: String): Flow<List<SongSyncHistoryEntity>> = flowOf(emptyList())
-        override suspend fun getRecentBySongId(songId: String, limit: Int): List<SongSyncHistoryEntity> = emptyList()
-        override suspend fun getBySnapshotId(snapshotId: Long): List<SongSyncHistoryEntity> = bySnapshotId[snapshotId].orEmpty()
-        override suspend fun getRecent(limit: Int): List<SongSyncHistoryEntity> = bySnapshotId.values.flatten().take(limit)
     }
 
     private class FakeSongDataUpdater(
@@ -908,46 +992,6 @@ class HomeViewModelPreloadTest {
             updateCalled = true
             return onUpdate(onProgress)
         }
-    }
-
-    private class TrackingSyncSnapshotDao(
-        private val snapshots: List<SyncSnapshotEntity> = emptyList()
-    ) : SyncSnapshotDao {
-        var lastInserted: SyncSnapshotEntity? = null
-            private set
-        var getAllOnceCallCount: Int = 0
-            private set
-
-        override suspend fun insert(snapshot: SyncSnapshotEntity) {
-            lastInserted = snapshot
-        }
-
-        override suspend fun insertAndGetId(snapshot: SyncSnapshotEntity): Long {
-            lastInserted = snapshot
-            return 1L
-        }
-
-        override fun getAll(): Flow<List<SyncSnapshotEntity>> = flowOf(snapshots)
-        override suspend fun getAllOnce(): List<SyncSnapshotEntity> {
-            getAllOnceCallCount++
-            return snapshots
-        }
-        override suspend fun getLatest(): SyncSnapshotEntity? = snapshots.firstOrNull()
-    }
-
-    private class TrackingSongSyncHistoryDao(
-        private val bySnapshotId: Map<Long, List<SongSyncHistoryEntity>> = emptyMap()
-    ) : SongSyncHistoryDao {
-        val insertedEntries: MutableList<SongSyncHistoryEntity> = mutableListOf()
-
-        override suspend fun insertAll(entries: List<SongSyncHistoryEntity>) {
-            insertedEntries.addAll(entries)
-        }
-
-        override fun getBySongId(songId: String): Flow<List<SongSyncHistoryEntity>> = flowOf(emptyList())
-        override suspend fun getRecentBySongId(songId: String, limit: Int): List<SongSyncHistoryEntity> = emptyList()
-        override suspend fun getBySnapshotId(snapshotId: Long): List<SongSyncHistoryEntity> = bySnapshotId[snapshotId].orEmpty()
-        override suspend fun getRecent(limit: Int): List<SongSyncHistoryEntity> = bySnapshotId.values.flatten().take(limit)
     }
 
     private class StatefulRecordDao(
@@ -1200,8 +1244,6 @@ class HomeViewModelPreloadTest {
     fun noCachedSaveYieldsEmptySuggestions(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = true)
         val preloader = RecordingPreloader()
-        val snapshotDao = TrackingSyncSnapshotDao()
-        val historyDao = TrackingSongSyncHistoryDao()
         val existingRecords = listOf(
             RecordEntity(songId = "song-a", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, updatedAt = 1_000L)
         )
@@ -1226,9 +1268,6 @@ class HomeViewModelPreloadTest {
             settingsRepository = settings,
             thumbnailPreloader = preloader,
             clearCacheUrlsFn = {},
-            syncSnapshotDao = snapshotDao,
-            recordDao = recordDao,
-            songSyncHistoryDao = historyDao,
             songDataUpdater = FakeSongDataUpdater(),
             runtimeLogExporter = RuntimeLogExporter(logFileStore),
             crashReportExporter = CrashReportExporter(logFileStore)
@@ -1274,9 +1313,6 @@ class HomeViewModelPreloadTest {
             settingsRepository = settings,
             thumbnailPreloader = preloader,
             clearCacheUrlsFn = {},
-            syncSnapshotDao = FakeSyncSnapshotDao(),
-            recordDao = recordDao,
-            songSyncHistoryDao = FakeSongSyncHistoryDao(),
             songDataUpdater = FakeSongDataUpdater(),
             runtimeLogExporter = RuntimeLogExporter(logFileStore),
             crashReportExporter = CrashReportExporter(logFileStore)
@@ -1395,9 +1431,6 @@ class HomeViewModelPreloadTest {
             settingsRepository = settingsRepository,
             thumbnailPreloader = RecordingPreloader(),
             clearCacheUrlsFn = {},
-            syncSnapshotDao = FakeSyncSnapshotDao(),
-            recordDao = FakeRecordDao(),
-            songSyncHistoryDao = FakeSongSyncHistoryDao(),
             songDataUpdater = FakeSongDataUpdater(
                 paths = testPlatformPaths,
                 songDataProvider = songDataProvider
@@ -1617,7 +1650,7 @@ class HomeViewModelPreloadTest {
             dataCount: Int,
             rks: Float = 15f,
             nickname: String = "N"
-        ): SyncSnapshotEntity = SyncSnapshotEntity(
+        ): SyncSnapshot = SyncSnapshot(
             id = id,
             timestamp = timestamp,
             rks = rks,
@@ -1633,11 +1666,12 @@ class HomeViewModelPreloadTest {
             snapshotId: Long,
             songId: String,
             difficulty: String,
-            score: Int,
-            accuracy: Float,
-            isFullCombo: Boolean,
-            timestamp: Long
-        ): SongSyncHistoryEntity = SongSyncHistoryEntity(
+            score: Int = 900_000,
+            accuracy: Float = 90f,
+            isFullCombo: Boolean = false,
+            timestamp: Long = 1_000L
+        ): SongSyncHistoryEntry = SongSyncHistoryEntry(
+            id = 0L,
             snapshotId = snapshotId,
             songId = songId,
             difficulty = difficulty,

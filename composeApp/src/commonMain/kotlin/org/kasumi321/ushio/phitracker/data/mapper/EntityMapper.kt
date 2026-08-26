@@ -1,12 +1,16 @@
 package org.kasumi321.ushio.phitracker.data.mapper
 
 import org.kasumi321.ushio.phitracker.data.database.RecordEntity
+import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryEntity
+import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotEntity
 import org.kasumi321.ushio.phitracker.data.database.UserEntity
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.LevelRecord
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.domain.model.SongRecord
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -67,6 +71,29 @@ object EntityMapper {
         gameVersion = gameVersion,
         server = server.name,
         lastSyncAt = lastSyncAt
+    )
+
+    fun SyncSnapshotEntity.toDomain(): SyncSnapshot = SyncSnapshot(
+        id = id,
+        timestamp = timestamp,
+        rks = rks,
+        nickname = nickname,
+        dataCount = dataCount,
+        lastSyncedSongId = lastSyncedSongId,
+        lastSyncedDifficulty = lastSyncedDifficulty,
+        lastSyncedScore = lastSyncedScore,
+        lastSyncedAccuracy = lastSyncedAccuracy
+    )
+
+    fun SongSyncHistoryEntity.toDomain(): SongSyncHistoryEntry = SongSyncHistoryEntry(
+        id = id,
+        snapshotId = snapshotId,
+        songId = songId,
+        difficulty = difficulty,
+        score = score,
+        accuracy = accuracy,
+        isFullCombo = isFullCombo,
+        timestamp = timestamp
     )
 }
 

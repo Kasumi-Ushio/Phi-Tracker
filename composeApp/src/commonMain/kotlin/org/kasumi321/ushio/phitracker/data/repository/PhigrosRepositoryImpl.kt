@@ -20,15 +20,19 @@ import org.kasumi321.ushio.phitracker.data.database.SyncSnapshotDao
 import org.kasumi321.ushio.phitracker.data.database.SyncWriter
 import org.kasumi321.ushio.phitracker.data.database.UserDao
 import org.kasumi321.ushio.phitracker.data.mapper.EntityMapper.toSongRecordMap
+import org.kasumi321.ushio.phitracker.data.mapper.EntityMapper.toDomain
 import org.kasumi321.ushio.phitracker.data.mapper.EntityMapper.toUserProfile
 import org.kasumi321.ushio.phitracker.data.parser.SaveParser
 import org.kasumi321.ushio.phitracker.data.platform.TokenManager
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
@@ -42,8 +46,8 @@ class PhigrosRepositoryImpl(
     database: AppDatabase,
     private val recordDao: RecordDao,
     private val userDao: UserDao,
-    syncSnapshotDao: SyncSnapshotDao,
-    songSyncHistoryDao: SongSyncHistoryDao,
+    private val syncSnapshotDao: SyncSnapshotDao,
+    private val songSyncHistoryDao: SongSyncHistoryDao,
     private val tokenManager: TokenManager,
     private val json: Json,
     private val songDataProvider: SongDataProvider,
@@ -149,6 +153,27 @@ class PhigrosRepositoryImpl(
     override fun clearTokenSync() {
         tokenManager.clearToken()
     }
+
+    override suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int> =
+        Difficulty.entries.associateWith { difficulty ->
+            recordDao.getClearCountByDifficulty(difficulty.name)
+        }
+
+    override suspend fun getTotalFullComboCount(): Int = recordDao.getTotalFcCount()
+
+    override suspend fun getTotalPhiCount(): Int = recordDao.getTotalPhiCount()
+
+    override fun observeSyncSnapshots(): Flow<List<SyncSnapshot>> =
+        syncSnapshotDao.getAll().map { snapshots -> snapshots.map { it.toDomain() } }
+
+    override suspend fun getSyncSnapshotsOnce(): List<SyncSnapshot> =
+        syncSnapshotDao.getAllOnce().map { it.toDomain() }
+
+    override fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> =
+        songSyncHistoryDao.getBySongId(songId).map { entries -> entries.map { it.toDomain() } }
+
+    override suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry> =
+        songSyncHistoryDao.getBySnapshotId(snapshotId).map { it.toDomain() }
 
     override suspend fun apiTest(): Result<JsonObject> =
         runCatching { phiPluginApi.test() }
