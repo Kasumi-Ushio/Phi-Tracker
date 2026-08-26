@@ -2,7 +2,6 @@ package org.kasumi321.ushio.phitracker.domain.repository
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonObject
-import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.Server
@@ -11,6 +10,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
+import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 
 interface PhigrosRepository {
     suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile>
@@ -47,5 +47,5 @@ interface PhigrosRepository {
     suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject>
     suspend fun apiGetRankByPosition(position: Int): Result<JsonObject>
 
-    suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease>
+    suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo>
 }

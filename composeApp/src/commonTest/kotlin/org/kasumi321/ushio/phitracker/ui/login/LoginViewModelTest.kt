@@ -21,7 +21,6 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.JsonObject
-import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.data.api.TapTapQrLoginApi
 import org.kasumi321.ushio.phitracker.data.platform.ApiCrypto
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
@@ -33,6 +32,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
+import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
@@ -443,7 +443,7 @@ class LoginViewModelTest {
         override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> = offline()
         override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> = offline()
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = offline()
-        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease> = offline()
+        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> = offline()
     }
 
     private object FakeApiCrypto : ApiCrypto {

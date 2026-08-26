@@ -18,8 +18,8 @@ import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
-import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import kotlin.math.abs
 import kotlin.test.Test
@@ -532,7 +532,7 @@ class DomainUseCaseTest {
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
-        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease> =
+        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> =
             Result.failure(IllegalStateException("Not implemented in Phase E"))
     }
 }

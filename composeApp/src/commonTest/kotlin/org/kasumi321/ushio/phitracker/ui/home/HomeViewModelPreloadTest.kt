@@ -18,7 +18,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import org.kasumi321.ushio.phitracker.data.TipsProvider
-import org.kasumi321.ushio.phitracker.data.api.GitHubRelease
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.database.RecordEntity
 import org.kasumi321.ushio.phitracker.data.logging.CrashReportExporter
@@ -43,6 +42,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SongRecord
 import org.kasumi321.ushio.phitracker.domain.model.Summary
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
+import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
@@ -949,10 +949,10 @@ class HomeViewModelPreloadTest {
 
         open var fetchLatestReleaseCallCount = 0
         val fetchLatestReleaseIncludePreReleaseValues = mutableListOf<Boolean>()
-        open var fetchLatestReleaseResult: Result<GitHubRelease> =
+        open var fetchLatestReleaseResult: Result<ReleaseInfo> =
             Result.failure(IllegalStateException("Not configured"))
 
-        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<GitHubRelease> {
+        override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> {
             fetchLatestReleaseCallCount++
             fetchLatestReleaseIncludePreReleaseValues.add(includePreRelease)
             return networkResult(fetchLatestReleaseResult)
@@ -1484,7 +1484,7 @@ class HomeViewModelPreloadTest {
         val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = true)
         val repository = FakePhigrosRepository().apply {
             fetchLatestReleaseResult = Result.success(
-                GitHubRelease(
+                ReleaseInfo(
                     tagName = "v9.9.9",
                     htmlUrl = "https://example.test/release/v9.9.9",
                     prerelease = false,
@@ -1537,7 +1537,7 @@ class HomeViewModelPreloadTest {
         val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
         val repository = FakePhigrosRepository().apply {
             fetchLatestReleaseResult = Result.success(
-                GitHubRelease(
+                ReleaseInfo(
                     tagName = "v2.0.0-beta1",
                     htmlUrl = "https://example.test/release/v2.0.0-beta1",
                     prerelease = true,
