@@ -487,34 +487,13 @@ class DomainUseCaseTest {
         override suspend fun apiTest(): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
-        override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
         override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetSingleSave(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetRksStats(): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =

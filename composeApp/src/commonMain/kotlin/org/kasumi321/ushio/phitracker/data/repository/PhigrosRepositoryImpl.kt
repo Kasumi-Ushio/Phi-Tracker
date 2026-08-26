@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonObject
-import org.kasumi321.ushio.phitracker.data.api.BindRequest
 import org.kasumi321.ushio.phitracker.data.api.GitHubReleaseDto
 import org.kasumi321.ushio.phitracker.data.api.toDomain
 import org.kasumi321.ushio.phitracker.data.api.PhiPluginApi
@@ -178,33 +177,8 @@ class PhigrosRepositoryImpl(
     override suspend fun apiTest(): Result<JsonObject> =
         runCatching { phiPluginApi.test() }
 
-    override suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject> =
-        runCatching {
-            phiPluginApi.bind(
-                BindRequest(
-                    platform = platform.trim(),
-                    platformId = platformId.trim(),
-                    token = token.trim()
-                )
-            )
-        }
-
     override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
         runCatching { phiPluginApi.getBindInfo(platform.trim(), platformId.trim()) }
-
-    override suspend fun apiGetSingleSave(
-        platform: String,
-        platformId: String,
-        songId: String,
-        difficulty: String
-    ): Result<JsonObject> =
-        runCatching { phiPluginApi.getSingleSave(platform.trim(), platformId.trim(), songId.trim(), difficulty.trim()) }
-
-    override suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject> =
-        runCatching { phiPluginApi.getSave(platform.trim(), platformId.trim()) }
-
-    override suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject> =
-        runCatching { phiPluginApi.getSaveInfo(platform.trim(), platformId.trim()) }
 
     override suspend fun apiGetRank(
         platform: String,
@@ -221,15 +195,6 @@ class PhigrosRepositoryImpl(
         maxRks: Float?
     ): Result<JsonObject> =
         runCatching { phiPluginApi.getAvgAcc(songId.trim(), difficulty.trim(), minRks, maxRks) }
-
-    override suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject> =
-        runCatching { phiPluginApi.getAllAvgAcc(songIds.map { it.trim() }) }
-
-    override suspend fun apiGetApFcTotal(songId: String): Result<JsonObject> =
-        runCatching { phiPluginApi.getApFcTotal(songId.trim()) }
-
-    override suspend fun apiGetRksStats(): Result<JsonObject> =
-        runCatching { phiPluginApi.getRksStats() }
 
     override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
         runCatching { phiPluginApi.getRksAbove(rks) }

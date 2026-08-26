@@ -31,16 +31,9 @@ interface PhigrosRepository {
     suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry>
 
     suspend fun apiTest(): Result<JsonObject>
-    suspend fun apiBind(platform: String, platformId: String, token: String): Result<JsonObject>
     suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject>
-    suspend fun apiGetSingleSave(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject>
-    suspend fun apiGetSave(platform: String, platformId: String): Result<JsonObject>
-    suspend fun apiGetSaveInfo(platform: String, platformId: String): Result<JsonObject>
     suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject>
     suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float? = null, maxRks: Float? = null): Result<JsonObject>
-    suspend fun apiGetAllAvgAcc(songIds: List<String>): Result<JsonObject>
-    suspend fun apiGetApFcTotal(songId: String): Result<JsonObject>
-    suspend fun apiGetRksStats(): Result<JsonObject>
     suspend fun apiGetRksAbove(rks: Float): Result<JsonObject>
     suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String> = emptyList()): Result<JsonObject>
     suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String? = null, difficulty: String? = null): Result<JsonObject>
