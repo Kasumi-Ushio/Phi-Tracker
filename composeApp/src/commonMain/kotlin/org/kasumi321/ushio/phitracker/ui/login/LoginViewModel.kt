@@ -11,11 +11,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
-import org.kasumi321.ushio.phitracker.data.api.TapTapQrLoginApi
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
+import org.kasumi321.ushio.phitracker.domain.model.QrLoginPollResult
 import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
+import org.kasumi321.ushio.phitracker.domain.repository.QrLoginRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 
 /** QR 扫码状态 */
@@ -46,7 +47,8 @@ data class LoginUiState(
 class LoginViewModel(
     private val repository: PhigrosRepository,
     private val syncSaveUseCase: SyncSaveUseCase,
-    private val qrLoginApi: TapTapQrLoginApi
+    private val qrLoginRepository: QrLoginRepository,
+    private val clockMillis: () -> Long = { Clock.System.now().toEpochMilliseconds() }
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -174,63 +176,54 @@ class LoginViewModel(
         }
 
         qrPollingJob = viewModelScope.launch {
+            var failureMessage = "获取二维码失败，请重试"
             try {
-                val response = qrLoginApi.requestDeviceCode(server)
-                val deviceCode = response.data.deviceCode
-                val deviceId = response.deviceId
-                val expiresIn = response.data.expiresIn
+                val challenge = qrLoginRepository.requestChallenge(server)
+                val expiresIn = remainingSeconds(challenge.expiresAt)
 
                 _uiState.update {
                     it.copy(
-                        qrCodeUrl = response.data.qrcodeUrl,
+                        qrCodeUrl = challenge.qrUrl,
                         qrStatus = QrStatus.WaitingScan,
                         qrRemainingSeconds = expiresIn
                     )
                 }
 
-                val startTime = Clock.System.now().toEpochMilliseconds()
-                val timeoutMs = expiresIn * 1000L
+                while (clockMillis() < challenge.expiresAt) {
+                    _uiState.update { it.copy(qrRemainingSeconds = remainingSeconds(challenge.expiresAt)) }
 
-                while (Clock.System.now().toEpochMilliseconds() - startTime < timeoutMs) {
-                    val elapsed = (Clock.System.now().toEpochMilliseconds() - startTime) / 1000
-                    val remaining = (expiresIn - elapsed).toInt().coerceAtLeast(0)
-                    _uiState.update { it.copy(qrRemainingSeconds = remaining) }
+                    failureMessage = "二维码状态查询失败，请重试"
+                    when (val result = qrLoginRepository.poll(challenge.id)) {
+                        is QrLoginPollResult.Authorized -> {
+                            _uiState.update { it.copy(qrStatus = QrStatus.Exchanging) }
+                            failureMessage = "二维码授权失败，请重试"
+                            val sessionToken = qrLoginRepository.exchangeForSessionToken(result.authorizationId)
 
-                    val result = qrLoginApi.checkQrCodeResult(deviceCode, deviceId, server)
+                            repository.saveSessionToken(sessionToken, server)
+                            val syncResult = syncSaveUseCase(sessionToken, server, SyncMode.Bootstrap)
+                            if (syncResult.isFailure) {
+                                _uiState.update {
+                                    it.copy(
+                                        qrStatus = QrStatus.Error,
+                                        qrError = "存档同步失败，请检查网络后重试"
+                                    )
+                                }
+                                return@launch
+                            }
 
-                    if (result.success && result.data != null) {
-                        val tokenData = result.data
-                        _uiState.update { it.copy(qrStatus = QrStatus.Exchanging) }
-
-                        val profile = qrLoginApi.getProfile(tokenData, server)
-
-                        val sessionToken = qrLoginApi.exchangeForSessionToken(
-                            profile, tokenData, server
-                        )
-
-                        repository.saveSessionToken(sessionToken, server)
-                        val syncResult = syncSaveUseCase(sessionToken, server, SyncMode.Bootstrap)
-                        if (syncResult.isFailure) {
                             _uiState.update {
                                 it.copy(
-                                    qrStatus = QrStatus.Error,
-                                    qrError = "存档同步失败: ${syncResult.exceptionOrNull()?.message}"
+                                    qrStatus = QrStatus.Success,
+                                    isLoggedIn = true,
+                                    token = sessionToken
                                 )
                             }
                             return@launch
                         }
-
-                        _uiState.update {
-                            it.copy(
-                                qrStatus = QrStatus.Success,
-                                isLoggedIn = true,
-                                token = sessionToken
-                            )
+                        QrLoginPollResult.AuthorizationWaiting -> {
+                            _uiState.update { it.copy(qrStatus = QrStatus.Scanned) }
                         }
-                        return@launch
-
-                    } else if (result.error == "authorization_waiting") {
-                        _uiState.update { it.copy(qrStatus = QrStatus.Scanned) }
+                        QrLoginPollResult.Pending -> Unit
                     }
 
                     delay(2000)
@@ -242,7 +235,7 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         qrStatus = QrStatus.Error,
-                        qrError = e.message ?: "QR 登录失败"
+                        qrError = failureMessage
                     )
                 }
             }
@@ -256,6 +249,9 @@ class LoginViewModel(
             it.copy(qrStatus = QrStatus.Idle, qrCodeUrl = null, qrError = null)
         }
     }
+
+    private fun remainingSeconds(expiresAt: Long): Int =
+        (((expiresAt - clockMillis()).coerceAtLeast(0) + 999L) / 1_000L).toInt()
 
     fun clearError() {
         _uiState.update { it.copy(error = null, qrError = null) }

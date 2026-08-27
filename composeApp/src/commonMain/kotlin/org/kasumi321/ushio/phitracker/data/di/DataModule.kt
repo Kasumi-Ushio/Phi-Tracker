@@ -18,11 +18,13 @@ import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.createPlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.createSecureKeyValueStorage
 import org.kasumi321.ushio.phitracker.data.repository.PhigrosRepositoryImpl
+import org.kasumi321.ushio.phitracker.data.repository.QrLoginRepositoryImpl
 import org.kasumi321.ushio.phitracker.data.repository.SettingsRepositoryImpl
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
+import org.kasumi321.ushio.phitracker.domain.repository.QrLoginRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.koin.dsl.module
 
@@ -42,6 +44,7 @@ val dataModule = module {
     single { TapTapApiClient(get()) }
     single { PhiPluginApi(get()) }
     single { TapTapQrLoginApi(get()) }
+    single<QrLoginRepository> { QrLoginRepositoryImpl(get()) }
     single { AesDecryptor() }
     single { SaveParser(get()) }
     single<AppDatabase> { createAppDatabase() }

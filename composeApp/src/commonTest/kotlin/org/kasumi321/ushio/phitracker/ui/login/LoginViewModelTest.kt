@@ -23,6 +23,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.data.api.TapTapQrLoginApi
 import org.kasumi321.ushio.phitracker.data.platform.ApiCrypto
+import org.kasumi321.ushio.phitracker.data.repository.QrLoginRepositoryImpl
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.Save
@@ -58,7 +59,7 @@ class LoginViewModelTest {
     private fun viewModel(
         repo: PhigrosRepository,
         qrLoginApi: TapTapQrLoginApi = TapTapQrLoginApi(HttpClient(MockEngine { respond("") }))
-    ): LoginViewModel = LoginViewModel(repo, SyncSaveUseCase(repo), qrLoginApi)
+    ): LoginViewModel = LoginViewModel(repo, SyncSaveUseCase(repo), QrLoginRepositoryImpl(qrLoginApi))
 
     @Test
     fun noSavedTokenGoesToLogin() = runTest(dispatcher) {
