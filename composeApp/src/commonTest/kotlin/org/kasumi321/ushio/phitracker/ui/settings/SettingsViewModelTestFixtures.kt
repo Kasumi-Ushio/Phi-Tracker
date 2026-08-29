@@ -1,0 +1,179 @@
+package org.kasumi321.ushio.phitracker.ui.settings
+
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.serialization.json.JsonObject
+import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
+import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.domain.model.GameProgress
+import org.kasumi321.ushio.phitracker.domain.model.LevelRecord
+import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
+import org.kasumi321.ushio.phitracker.domain.model.Save
+import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.domain.model.SongRecord
+import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
+import org.kasumi321.ushio.phitracker.domain.model.SyncMode
+import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
+import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
+import org.kasumi321.ushio.phitracker.domain.model.UserProfile
+import org.kasumi321.ushio.phitracker.domain.model.UserSettings
+import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
+import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
+
+internal object TestAssets : TextAssetReader {
+    override fun readText(name: String): String = when (name) {
+        "tips.txt" -> "Tip: settings"
+        "info.csv" -> "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\nsong-a\tSong A\tComposer\tIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t4.0\nsong-b\tSong B\tComposer\tIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t4.0"
+        "infolist.json", "notesInfo.json" -> "{}"
+        else -> error("Unexpected asset: $name")
+    }
+}
+
+internal object EmptyArtworkCache : StandardArtworkCache {
+    override suspend fun getOrDownloadThumbnail(songId: String, url: String) = url
+    override fun getThumbnailIfPresent(songId: String): String? = null
+    override fun hasAllThumbnails(songIds: Iterable<String>) = false
+    override fun clearThumbnails(songIds: Iterable<String>) = Unit
+    override fun clearAllThumbnails() = Unit
+    override suspend fun getOrDownloadStandard(songId: String, url: String) = url
+    override fun getStandardIfPresent(songId: String): String? = null
+    override fun clearStandard(songIds: Iterable<String>) = Unit
+    override fun clearAllStandard() = Unit
+}
+
+internal class RecordingArtworkCache : StandardArtworkCache {
+    val standardDownloads = mutableListOf<Pair<String, String>>()
+    var clearedAllStandard = false
+        private set
+
+    override suspend fun getOrDownloadThumbnail(songId: String, url: String) = url
+    override fun getThumbnailIfPresent(songId: String): String? = null
+    override fun hasAllThumbnails(songIds: Iterable<String>) = false
+    override fun clearThumbnails(songIds: Iterable<String>) = Unit
+    override fun clearAllThumbnails() = Unit
+    override suspend fun getOrDownloadStandard(songId: String, url: String): String {
+        standardDownloads += songId to url
+        return "/cache/$songId.png"
+    }
+    override fun getStandardIfPresent(songId: String): String? = null
+    override fun clearStandard(songIds: Iterable<String>) = Unit
+    override fun clearAllStandard() { clearedAllStandard = true }
+}
+
+internal fun b30FixtureSave(): Save = Save(
+    gameRecord = mapOf(
+        "song-a.0" to SongRecord("song-a.0", mapOf(Difficulty.IN to LevelRecord(990_000, 99f, false))),
+        "song-b.0" to SongRecord("song-b.0", mapOf(Difficulty.IN to LevelRecord(980_000, 98f, false)))
+    ),
+    gameProgress = GameProgress(
+        isFirstRun = false,
+        legacyChapterFinished = false,
+        alreadyShowCollectionTip = false,
+        alreadyShowAutoUnlockINTip = false,
+        completed = "",
+        songUpdateInfo = 0,
+        challengeModeRank = 0,
+        money = emptyList(),
+        unlockFlagOfSpasmodic = 0,
+        unlockFlagOfIgallta = 0,
+        unlockFlagOfRrharil = 0,
+        flagOfSongRecordKey = 0,
+        randomVersionUnlocked = null,
+        chapter8UnlockBegin = null,
+        chapter8UnlockSecondPhase = null,
+        chapter8Passed = null,
+        chapter8SongUnlocked = null
+    ),
+    user = UserSettings(false, "", "", ""),
+    summary = null
+)
+
+internal class FakeSettingsRepository : SettingsRepository {
+    private val themeModeState = MutableStateFlow(0)
+    override val themeMode: Flow<Int> = themeModeState
+    private val colorSourceState = MutableStateFlow("system")
+    override val themeColorSource: Flow<String> = colorSourceState
+    private val seedState = MutableStateFlow(-10011977)
+    override val seedColorArgb: Flow<Int> = seedState
+    private val imageSeedState = MutableStateFlow<Int?>(null)
+    override val themeImageSeedColorArgb: Flow<Int?> = imageSeedState
+    private val imageUriState = MutableStateFlow<String?>(null)
+    override val themeImageUri: Flow<String?> = imageUriState
+    private val paletteState = MutableStateFlow("TonalSpot")
+    override val paletteStyleName: Flow<String> = paletteState
+    private val overflowState = MutableStateFlow(false)
+    override val showB30Overflow: Flow<Boolean> = overflowState
+    private val countState = MutableStateFlow(9)
+    override val overflowCount: Flow<Int> = countState
+    private val includeState = MutableStateFlow(false)
+    override val includePreRelease: Flow<Boolean> = includeState
+    private val autoState = MutableStateFlow(true)
+    override val autoCheckUpdate: Flow<Boolean> = autoState
+    private val apiEnabledState = MutableStateFlow(false)
+    override val apiEnabled: Flow<Boolean> = apiEnabledState
+    private val useApiState = MutableStateFlow(false)
+    override val useApiData: Flow<Boolean> = useApiState
+    private val platformState = MutableStateFlow("")
+    override val apiPlatform: Flow<String> = platformState
+    private val platformIdState = MutableStateFlow("")
+    override val apiPlatformId: Flow<String> = platformIdState
+    private val guideState = MutableStateFlow(false)
+    override val crashNotificationGuideShown: Flow<Boolean> = guideState
+    override val avatarUri: Flow<String?> = flowOf(null)
+    override val moneyString: Flow<String> = flowOf("")
+    override val apiId: Flow<String> = flowOf("")
+    override suspend fun setThemeMode(mode: Int) { themeModeState.value = mode }
+    override suspend fun setThemeColorSource(source: String) { colorSourceState.value = source }
+    override suspend fun setSeedColorArgb(argb: Int) { seedState.value = argb }
+    override suspend fun setThemeImageColor(uri: String?, seedColorArgb: Int) { imageUriState.value = uri; imageSeedState.value = seedColorArgb }
+    override suspend fun clearThemeImageColor() { imageUriState.value = null; imageSeedState.value = null }
+    override suspend fun setPaletteStyleName(name: String) { paletteState.value = name }
+    override suspend fun setShowB30Overflow(show: Boolean) { overflowState.value = show }
+    override suspend fun setOverflowCount(count: Int) { countState.value = count.coerceIn(1, 30) }
+    override suspend fun getPreloadDone() = true
+    override suspend fun setPreloadDone(done: Boolean) = Unit
+    override suspend fun setAvatarUri(uri: String?) = Unit
+    override suspend fun setMoneyString(money: String) = Unit
+    override suspend fun setIncludePreRelease(enabled: Boolean) { includeState.value = enabled }
+    override suspend fun setAutoCheckUpdate(enabled: Boolean) { autoState.value = enabled }
+    override suspend fun setApiEnabled(enabled: Boolean) { apiEnabledState.value = enabled }
+    override suspend fun setUseApiData(useApiData: Boolean) { useApiState.value = useApiData }
+    override suspend fun setApiId(apiId: String) = Unit
+    override suspend fun setApiPlatform(platform: String) { platformState.value = platform.trim() }
+    override suspend fun setApiPlatformId(platformId: String) { platformIdState.value = platformId.trim() }
+    override suspend fun setCrashNotificationGuideShown(shown: Boolean) { guideState.value = shown }
+}
+
+internal class FakePhigrosRepository : PhigrosRepository {
+    var cachedSave: Save? = null
+    var release: Result<ReleaseInfo> = Result.failure(IllegalStateException("not configured"))
+    var apiStatus: Result<JsonObject> = Result.failure(IllegalStateException("not configured"))
+    var bind: Result<JsonObject> = Result.failure(IllegalStateException("not configured"))
+    override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> = Result.failure(IllegalStateException())
+    override suspend fun syncSave(sessionToken: String, server: Server, mode: SyncMode): Result<SyncSaveResult> = Result.failure(IllegalStateException())
+    override fun getCachedSave(): Flow<Save?> = flowOf(cachedSave)
+    override fun getUserProfile(): Flow<UserProfile?> = flowOf(null)
+    override suspend fun saveSessionToken(token: String, server: Server) = Unit
+    override suspend fun getSessionToken(): Pair<String, Server>? = null
+    override suspend fun clearData() = Unit
+    override fun clearTokenSync() = Unit
+    override suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int> = emptyMap()
+    override suspend fun getTotalFullComboCount() = 0
+    override suspend fun getTotalPhiCount() = 0
+    override fun observeSyncSnapshots(): Flow<List<SyncSnapshot>> = flowOf(emptyList())
+    override suspend fun getSyncSnapshotsOnce(): List<SyncSnapshot> = emptyList()
+    override fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> = flowOf(emptyList())
+    override suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry> = emptyList()
+    override suspend fun apiTest() = apiStatus
+    override suspend fun apiGetBindInfo(platform: String, platformId: String) = bind
+    override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun fetchLatestRelease(includePreRelease: Boolean) = release
+}

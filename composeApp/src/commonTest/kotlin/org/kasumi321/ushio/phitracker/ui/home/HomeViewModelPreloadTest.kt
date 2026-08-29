@@ -1,8 +1,10 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,6 +54,7 @@ import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import kotlin.test.AfterTest
@@ -66,6 +69,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelPreloadTest {
     private val dispatcher = StandardTestDispatcher()
+    private val viewModels = mutableListOf<HomeViewModel>()
 
     private val testPlatformPaths = PlatformPaths("/tmp/test", "/tmp/test_cache")
     private val testSongDataProvider = SongDataProvider(FakeTextAssetReader, testPlatformPaths)
@@ -77,6 +81,8 @@ class HomeViewModelPreloadTest {
 
     @AfterTest
     fun tearDown() {
+        viewModels.forEach { it.viewModelScope.cancel() }
+        viewModels.clear()
         Dispatchers.resetMain()
     }
 
@@ -178,235 +184,6 @@ class HomeViewModelPreloadTest {
         val viewModel = createViewModel(settings, preloader)
         val url = viewModel.getStandardIllustrationUrl("song-a")
         assertEquals("https://example.test/ill/song-a.png", url)
-    }
-
-    @Test
-    fun clearHighResCacheInvokesCompletionAfterClear(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        var clearedUrls: List<String>? = null
-        var completionResult: Result<Unit>? = null
-        val viewModel = createViewModel(
-            settings, preloader,
-            cacheClearFn = { urls -> clearedUrls = urls }
-        )
-        advanceUntilIdle()
-
-        viewModel.clearHighResCache { result ->
-            completionResult = result
-        }
-        advanceUntilIdle()
-
-        assertTrue((completionResult ?: error("Completion was not called")).isSuccess)
-        val urls = clearedUrls ?: error("Cache clear was not called")
-        assertEquals(2, urls.size)
-        urls.forEach { assertTrue(it.contains("/ill/") && !it.contains("/illLow/"), "Cleared URL must be standard: $it") }
-    }
-
-    @Test
-    fun cacheB30StandardArtworkDownloadsDistinctStandardArtwork(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val artworkCache = RecordingStandardArtworkCache()
-        val cachedSave = emptySave().copy(
-            gameRecord = mapOf(
-                "song-a.0" to SongRecord("song-a.0", mapOf(Difficulty.IN to LevelRecord(990_000, 99f, false))),
-                "song-b.0" to SongRecord("song-b.0", mapOf(Difficulty.IN to LevelRecord(980_000, 98f, false)))
-            )
-        )
-        val repository = FakePhigrosRepositoryForSync(
-            syncResult = Result.success(saveWithRks(15.5f)),
-            recordDao = StatefulRecordDao(emptyList(), emptyList()),
-            cachedSave = cachedSave
-        )
-        val viewModel = createViewModel(
-            settingsRepository = settings,
-            preloader = preloader,
-            artworkFileCache = artworkCache,
-            repository = repository
-        )
-        val b30 = viewModel.uiState.first { it.b30.size == 2 }.b30
-        assertEquals(2, b30.size, "B30 fixture must be ready before artwork caching")
-
-        var completion: Result<Unit>? = null
-        viewModel.cacheB30StandardArtwork { result -> completion = result }
-        advanceUntilIdle()
-
-        assertTrue((completion ?: error("Completion missing")).isSuccess)
-        assertEquals(
-            setOf(
-                "song-a.0" to "https://example.test/ill/song-a.png",
-                "song-b.0" to "https://example.test/ill/song-b.png"
-            ),
-            artworkCache.downloaded.toSet()
-        )
-        assertEquals(
-            setOf(
-                "https://example.test/ill/song-a.png",
-                "https://example.test/ill/song-b.png"
-            ),
-            preloader.urls.toSet(),
-            "B30 standard artwork caching also warms display cache with standard URLs"
-        )
-        assertFalse(viewModel.uiState.value.isCachingB30Artwork)
-    }
-
-    @Test
-    fun updateSongDataSetsUpdatingStateAndClearsAfterSuccess(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val updater = FakeSongDataUpdater()
-        val viewModel = createViewModel(settings, preloader, songDataUpdater = updater)
-        advanceUntilIdle()
-
-        assertFalse(viewModel.uiState.value.isUpdatingData)
-        viewModel.updateSongData()
-        advanceUntilIdle()
-
-        assertFalse(viewModel.uiState.value.isUpdatingData)
-        assertEquals(SongDataUpdater.FILE_NAMES.size, viewModel.uiState.value.updateDataTotal)
-        assertEquals(SongDataUpdater.FILE_NAMES.size, viewModel.uiState.value.updateDataProgress)
-    }
-
-    @Test
-    fun updateSongDataReconcilesAddedAndRemovedIllustrationCaches(): Unit = runTest(dispatcher) {
-        val reader = MutableSongDataReader(listOf("song-a", "song-b"))
-        val provider = SongDataProvider(reader)
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val artworkCache = RecordingStandardArtworkCache()
-        var clearedUrls: List<String> = emptyList()
-        val updater = FakeSongDataUpdater(
-            paths = testPlatformPaths,
-            songDataProvider = provider,
-            onUpdate = { onProgress ->
-                onProgress(SongDataUpdater.FILE_NAMES.size, SongDataUpdater.FILE_NAMES.size, "完成")
-                reader.replaceSongs(listOf("song-b", "song-c"))
-                provider.invalidateCache()
-                Result.success(Unit)
-            }
-        )
-        val viewModel = createViewModel(
-            settingsRepository = settings,
-            preloader = preloader,
-            cacheClearFn = { urls -> clearedUrls = urls },
-            artworkFileCache = artworkCache,
-            songDataProvider = provider,
-            songDataUpdater = updater
-        )
-        advanceUntilIdle()
-
-        viewModel.updateSongData()
-        advanceUntilIdle()
-
-        assertTrue(updater.updateCalled, "Fake updater must be invoked")
-        assertEquals(
-            listOf("https://example.test/illLow/song-c.png"),
-            preloader.urls.filter { it.contains("song-c") },
-            "Only the newly added song thumbnail should be preloaded; keys=${provider.getSongs().keys} urls=${preloader.urls} error=${viewModel.uiState.value.updateDataError}"
-        )
-        assertEquals(
-            setOf(
-                "https://example.test/illLow/song-a.png",
-                "https://example.test/ill/song-a.png",
-                "https://example.test/illBlur/song-a.png"
-            ),
-            clearedUrls.toSet(),
-            "Removed songs must clear low, standard and blur Coil cache URLs"
-        )
-        assertEquals(listOf("song-a.0"), artworkCache.clearedThumbnails)
-        assertEquals(listOf("song-a.0"), artworkCache.clearedStandard)
-        assertEquals(null, viewModel.uiState.value.updateDataError)
-    }
-
-    @Test
-    fun updateSongDataReportsThumbnailFailureWithoutRollingBackSongData(): Unit = runTest(dispatcher) {
-        val reader = MutableSongDataReader(listOf("song-a"))
-        val provider = SongDataProvider(reader)
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader(failOnUrl = "https://example.test/illLow/song-b.png")
-        val updater = FakeSongDataUpdater(
-            paths = testPlatformPaths,
-            songDataProvider = provider,
-            onUpdate = { onProgress ->
-                onProgress(SongDataUpdater.FILE_NAMES.size, SongDataUpdater.FILE_NAMES.size, "完成")
-                reader.replaceSongs(listOf("song-a", "song-b"))
-                provider.invalidateCache()
-                Result.success(Unit)
-            }
-        )
-        val viewModel = createViewModel(
-            settingsRepository = settings,
-            preloader = preloader,
-            songDataProvider = provider,
-            songDataUpdater = updater
-        )
-        advanceUntilIdle()
-
-        viewModel.updateSongData()
-        advanceUntilIdle()
-
-        assertTrue(updater.updateCalled, "Fake updater must be invoked")
-        assertTrue(provider.getSongs().containsKey("song-b.0"), "Song data update must remain committed")
-        assertEquals("曲目数据已更新，但部分曲绘未能下载，可稍后在设置中重试", viewModel.uiState.value.updateDataError)
-    }
-
-    @Test
-    fun updateSongDataReportsIntermediateFileProgress(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val progressReached = CompletableDeferred<Unit>()
-        val continueUpdate = CompletableDeferred<Unit>()
-        val updater = FakeSongDataUpdater(
-            onUpdate = { onProgress ->
-                onProgress(1, SongDataUpdater.FILE_NAMES.size, "info.csv")
-                progressReached.complete(Unit)
-                continueUpdate.await()
-                Result.success(Unit)
-            }
-        )
-        val viewModel = createViewModel(settings, preloader, songDataUpdater = updater)
-        advanceUntilIdle()
-
-        viewModel.updateSongData()
-        runCurrent()
-        progressReached.await()
-
-        assertTrue(viewModel.uiState.value.isUpdatingData)
-        assertEquals(1, viewModel.uiState.value.updateDataProgress)
-        assertEquals(SongDataUpdater.FILE_NAMES.size, viewModel.uiState.value.updateDataTotal)
-        assertEquals("info.csv", viewModel.uiState.value.updateDataFileName)
-
-        continueUpdate.complete(Unit)
-        advanceUntilIdle()
-
-        assertFalse(viewModel.uiState.value.isUpdatingData)
-        assertEquals(SongDataUpdater.FILE_NAMES.size, viewModel.uiState.value.updateDataProgress)
-        assertEquals("", viewModel.uiState.value.updateDataFileName)
-    }
-
-    @Test
-    fun dismissUpdateDataErrorClearsError(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
-        advanceUntilIdle()
-
-        viewModel.dismissUpdateDataError()
-        advanceUntilIdle()
-        assertEquals(null, viewModel.uiState.value.updateDataError)
-    }
-
-    @Test
-    fun testApiConnectionRequiresPlatformAndId(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
-        advanceUntilIdle()
-
-        viewModel.testApiConnection()
-        advanceUntilIdle()
-        assertEquals("请先填写平台名称与平台 ID", viewModel.uiState.value.apiTestMessage)
     }
 
     @Test
@@ -612,12 +389,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader,
-            clearCacheUrlsFn = {},
-            songDataUpdater = FakeSongDataUpdater(),
-            runtimeLogExporter = RuntimeLogExporter(logFileStore),
-            crashReportExporter = CrashReportExporter(logFileStore)
-        )
+            thumbnailPreloader = preloader
+        ).also(viewModels::add)
         advanceUntilIdle()
 
         viewModel.refresh()
@@ -683,12 +456,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader,
-            clearCacheUrlsFn = {},
-            songDataUpdater = FakeSongDataUpdater(),
-            runtimeLogExporter = RuntimeLogExporter(logFileStore),
-            crashReportExporter = CrashReportExporter(logFileStore)
-        )
+            thumbnailPreloader = preloader
+        ).also(viewModels::add)
         advanceUntilIdle()
 
         viewModel.refresh()
@@ -705,18 +474,12 @@ class HomeViewModelPreloadTest {
     private fun createViewModel(
         settingsRepository: FakeSettingsRepository,
         preloader: IllustrationThumbnailPreloader = RecordingPreloader(),
-        cacheClearFn: suspend (List<String>) -> Unit = {},
         artworkFileCache: StandardArtworkCache = RecordingStandardArtworkCache(),
         songDataProvider: SongDataProvider = testSongDataProvider,
-        songDataUpdater: FakeSongDataUpdater = FakeSongDataUpdater(
-            paths = testPlatformPaths,
-            songDataProvider = songDataProvider
-        ),
         appVersionName: String = "",
         repository: PhigrosRepository = FakePhigrosRepository()
     ): HomeViewModel {
         val illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") }
-        val logFileStore = createTestLogFileStore()
         return HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
@@ -729,12 +492,8 @@ class HomeViewModelPreloadTest {
             settingsRepository = settingsRepository,
             artworkFileCache = artworkFileCache,
             thumbnailPreloader = preloader,
-            clearCacheUrlsFn = cacheClearFn,
-            songDataUpdater = songDataUpdater,
-            runtimeLogExporter = RuntimeLogExporter(logFileStore),
-            crashReportExporter = CrashReportExporter(logFileStore),
             appVersionNameProvider = { appVersionName }
-        )
+        ).also(viewModels::add)
     }
 
     private class RecordingPreloader(
@@ -1252,12 +1011,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader,
-            clearCacheUrlsFn = {},
-            songDataUpdater = FakeSongDataUpdater(),
-            runtimeLogExporter = RuntimeLogExporter(logFileStore),
-            crashReportExporter = CrashReportExporter(logFileStore)
-        )
+            thumbnailPreloader = preloader
+        ).also(viewModels::add)
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.suggestItems.isEmpty(),
@@ -1297,12 +1052,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader,
-            clearCacheUrlsFn = {},
-            songDataUpdater = FakeSongDataUpdater(),
-            runtimeLogExporter = RuntimeLogExporter(logFileStore),
-            crashReportExporter = CrashReportExporter(logFileStore)
-        )
+            thumbnailPreloader = preloader
+        ).also(viewModels::add)
         advanceUntilIdle()
 
         // B30 has only 1 record (< 20 minimum) → empty suggestions
@@ -1415,15 +1166,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = illustrationProvider,
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settingsRepository,
-            thumbnailPreloader = RecordingPreloader(),
-            clearCacheUrlsFn = {},
-            songDataUpdater = FakeSongDataUpdater(
-                paths = testPlatformPaths,
-                songDataProvider = songDataProvider
-            ),
-            runtimeLogExporter = RuntimeLogExporter(logFileStore),
-            crashReportExporter = CrashReportExporter(logFileStore)
-        )
+            thumbnailPreloader = RecordingPreloader()
+        ).also(viewModels::add)
     }
 
     private object ChapterTestAssetReader : TextAssetReader {
@@ -1437,33 +1181,6 @@ class HomeViewModelPreloadTest {
     }
 
     // ---- Phase G: auto-update core tests ----
-
-    @Test
-    fun autoCheckUpdateDefaultsTrueInUiState(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
-        advanceUntilIdle()
-
-        assertTrue(viewModel.uiState.value.autoCheckUpdate,
-            "autoCheckUpdate should default true")
-    }
-
-    @Test
-    fun setAutoCheckUpdateFalsePersistsAndReflectsInState(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
-        advanceUntilIdle()
-
-        viewModel.setAutoCheckUpdate(false)
-        advanceUntilIdle()
-
-        assertEquals(false, settings.autoCheckUpdateSetValue,
-            "Repository setAutoCheckUpdate should be called with false")
-        assertEquals(false, viewModel.uiState.value.autoCheckUpdate,
-            "UI state should reflect autoCheckUpdate=false")
-    }
 
     @Test
     fun startupAutoCheckEnabledFetchesAndSetsAvailable(): Unit = runTest(dispatcher) {
@@ -1516,48 +1233,6 @@ class HomeViewModelPreloadTest {
             "Should NOT call fetchLatestRelease when auto-check is disabled")
         assertTrue(viewModel.uiState.value.updateCheckState is UpdateCheckState.Idle,
             "UpdateCheckState should remain Idle")
-    }
-
-    @Test
-    fun manualCheckRespectsIncludePreRelease(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
-        val repository = FakePhigrosRepository().apply {
-            fetchLatestReleaseResult = Result.success(
-                ReleaseInfo(
-                    tagName = "v2.0.0-beta1",
-                    htmlUrl = "https://example.test/release/v2.0.0-beta1",
-                    prerelease = true,
-                    body = "Beta release"
-                )
-            )
-        }
-        val viewModel = createViewModel(
-            settings, RecordingPreloader(),
-            appVersionName = "0.1.0",
-            repository = repository
-        )
-        advanceUntilIdle()
-
-        // Enable includePreRelease via settings setter
-        viewModel.setIncludePreRelease(true)
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.includePreRelease,
-            "includePreRelease should be true after setting")
-
-        // Manual check should pass the current includePreRelease
-        viewModel.checkForUpdate("0.1.0")
-        advanceUntilIdle()
-
-        assertEquals(1, repository.fetchLatestReleaseCallCount,
-            "Manual check should call fetchLatestRelease")
-        assertEquals(
-            listOf(true),
-            repository.fetchLatestReleaseIncludePreReleaseValues,
-            "Manual check should pass includePreRelease=true"
-        )
-        val state = viewModel.uiState.value.updateCheckState
-        assertTrue(state is UpdateCheckState.Available,
-            "Should find the beta release available")
     }
 
     private companion object {

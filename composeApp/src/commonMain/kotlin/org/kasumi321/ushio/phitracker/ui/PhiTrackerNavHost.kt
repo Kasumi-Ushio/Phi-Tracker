@@ -52,6 +52,7 @@ import org.kasumi321.ushio.phitracker.ui.settings.DisclaimerScreen
 import org.kasumi321.ushio.phitracker.ui.settings.LicensesScreen
 import org.kasumi321.ushio.phitracker.ui.settings.PrivacyPolicyScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsScreen
+import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
@@ -293,8 +294,7 @@ fun PhiTrackerNavHost() {
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
             LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_settings") }
-            val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
-            val viewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
+            val viewModel: SettingsViewModel = koinViewModel()
             SettingsScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },

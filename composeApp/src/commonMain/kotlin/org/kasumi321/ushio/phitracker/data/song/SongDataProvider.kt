@@ -2,6 +2,9 @@ package org.kasumi321.ushio.phitracker.data.song
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.BufferOverflow
 import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
 import org.kasumi321.ushio.phitracker.data.platform.createFileThenAssetReader
@@ -16,6 +19,11 @@ class SongDataProvider(
     private val json: Json = Json { ignoreUnknownKeys = true }
 ) {
     private var songs: Map<String, SongInfo>? = null
+    private val invalidations = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+    val cacheInvalidations = invalidations.asSharedFlow()
 
     private val reader: TextAssetReader = paths?.let { createFileThenAssetReader(assetReader, it) } ?: assetReader
 
@@ -54,6 +62,7 @@ class SongDataProvider(
 
     fun invalidateCache() {
         songs = null
+        invalidations.tryEmit(Unit)
     }
 
     fun getDifficultyMap(): Map<String, Map<Difficulty, Float>> = getSongs().mapValues { it.value.difficulties }

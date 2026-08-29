@@ -1,5 +1,7 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.settings.shouldShowCrashNotificationGuide
@@ -50,13 +52,6 @@ class PhaseGRejectionFixTest {
         val displayRks = 15.92995f
         val formatted = displayRks.formatFour()
         assertEquals("15.9300", formatted)
-    }
-
-    @Test
-    fun homeViewModelHasClearAllLogsMethod() {
-        // Compile-time safe verification: method reference fails to compile if method is missing
-        val ref: (HomeViewModel) -> Boolean = HomeViewModel::clearAllLogs
-        assertNotNull(ref)
     }
 
     @Test

@@ -4,25 +4,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
-import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
+import org.kasumi321.ushio.phitracker.data.platform.triggerAppRestart
 
 @Composable
 fun SettingsScreen(
-    viewModel: HomeViewModel,
+    viewModel: SettingsViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onLogout: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
-    val tip = remember { viewModel.getRandomTip() }
-    val metadata = remember { getAppMetadata() }
+    val metadata = getAppMetadata()
     val isDebugBuild = metadata.buildType == "Debug"
 
-    LaunchedEffect(state.isLoggedOut) {
-        if (state.isLoggedOut) {
-            onLogout()
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                SettingsEvent.LoggedOut -> onLogout()
+                SettingsEvent.RestartRequested -> triggerAppRestart()
+            }
         }
     }
 
@@ -48,11 +49,11 @@ fun SettingsScreen(
         b30ArtworkCacheTotal = state.b30ArtworkCacheTotal,
         onCacheB30Artwork = { callback -> viewModel.cacheB30StandardArtwork(onComplete = callback) },
         onClearHighResCache = { callback -> viewModel.clearHighResCache(onComplete = callback) },
-        onRedownloadIllustrations = { viewModel.resetIllustrationDownloadAndExit() },
+        onRedownloadIllustrations = { viewModel.resetIllustrationDownload() },
         onNavigateToAbout = onNavigateToAbout,
         onLogout = { viewModel.logout() },
         onNavigateBack = onNavigateBack,
-        tip = tip,
+        tip = state.tip,
         apiEnabled = state.apiEnabled,
         useApiData = state.useApiData,
         apiPlatform = state.apiPlatform,
@@ -79,8 +80,8 @@ fun SettingsScreen(
         onAutoCheckUpdateChange = { viewModel.setAutoCheckUpdate(it) },
         onDismissUpdateResult = { viewModel.dismissUpdateResult() },
         isDebugBuild = isDebugBuild,
-        hasRuntimeLogs = viewModel.hasRuntimeLogs(),
-        hasCrashLogs = viewModel.hasCrashLogs(),
+        hasRuntimeLogs = state.hasRuntimeLogs,
+        hasCrashLogs = state.hasCrashLogs,
         onExportRuntimeLog = { viewModel.exportRuntimeLogText() },
         onExportCrashLog = { viewModel.exportCrashLogText() },
         onClearAllLogs = { viewModel.clearAllLogs() },

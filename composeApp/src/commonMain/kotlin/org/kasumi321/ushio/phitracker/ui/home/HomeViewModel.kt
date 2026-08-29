@@ -30,20 +30,13 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.kasumi321.ushio.phitracker.data.TipsProvider
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
-import org.kasumi321.ushio.phitracker.data.logging.CrashReportExporter
-import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
 import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.NoOpStandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
-import org.kasumi321.ushio.phitracker.data.platform.clearAllImageCache
-import org.kasumi321.ushio.phitracker.data.platform.clearImageCacheUrls
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
-import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
-import org.kasumi321.ushio.phitracker.data.platform.triggerAppRestart
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
-import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
@@ -60,14 +53,9 @@ import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
-
-sealed class UpdateCheckState {
-    data object Idle : UpdateCheckState()
-    data object Checking : UpdateCheckState()
-    data class Available(val version: String, val htmlUrl: String, val body: String) : UpdateCheckState()
-    data object NoUpdate : UpdateCheckState()
-    data class Error(val message: String) : UpdateCheckState()
-}
+import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
+import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.update.toUpdateCheckState
 
 data class ApiToolResult(
     val isLoading: Boolean = false,
@@ -137,24 +125,10 @@ data class HomeUiState(
     val fcCount: Int = 0,
     val phiCount: Int = 0,
 
-    // Song data update
-    val isUpdatingData: Boolean = false,
-    val updateDataProgress: Int = 0,
-    val updateDataTotal: Int = 0,
-    val updateDataFileName: String = "",
-    val updateDataError: String? = null,
-    val isCachingB30Artwork: Boolean = false,
-    val b30ArtworkCacheTotal: Int = 0,
-    val b30ArtworkCacheCompleted: Int = 0,
-    val b30ArtworkCacheError: String? = null,
-
     // Tool tab (sync snapshots)
     val syncSnapshots: List<SyncSnapshot> = emptyList(),
     val sessionToken: String? = null,
 
-    // Pre-release channel and update check
-    val includePreRelease: Boolean = false,
-    val autoCheckUpdate: Boolean = true,
     val updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
 
     // PhiPlugin API
@@ -162,8 +136,6 @@ data class HomeUiState(
     val useApiData: Boolean = false,
     val apiPlatform: String = "",
     val apiPlatformId: String = "",
-    val isApiTesting: Boolean = false,
-    val apiTestMessage: String? = null,
     val apiRksRank: Int? = null,
     val apiTotalUsers: Int? = null,
     val apiHistorySnapshots: List<SyncSnapshot> = emptyList(),
@@ -174,9 +146,7 @@ data class HomeUiState(
     val suggestTargetInput: String = "",
     val suggestTargetError: String? = null,
     val suggestItems: List<SuggestItem> = emptyList(),
-    val songApiDetailMap: Map<String, SongApiDetailState> = emptyMap(),
-
-    val crashNotificationGuideShown: Boolean = false
+    val songApiDetailMap: Map<String, SongApiDetailState> = emptyMap()
 ) {
     val themeSettings: PhiTrackerThemeSettings
         get() = PhiTrackerThemeSettings(
@@ -201,11 +171,7 @@ class HomeViewModel(
     private val settingsRepository: SettingsRepository,
     private val artworkFileCache: StandardArtworkCache = NoOpStandardArtworkCache,
     private val thumbnailPreloader: IllustrationThumbnailPreloader = CoilIllustrationThumbnailPreloader,
-    private val clearCacheUrlsFn: suspend (List<String>) -> Unit = ::clearImageCacheUrls,
-    private val clearAllCacheFn: suspend () -> Unit = ::clearAllImageCache,
-    private val songDataUpdater: SongDataUpdater,
-    private val runtimeLogExporter: RuntimeLogExporter,
-    private val crashReportExporter: CrashReportExporter,
+    private val checkForUpdateUseCase: CheckForUpdateUseCase = CheckForUpdateUseCase(repository),
     private val appVersionNameProvider: () -> String = { getAppMetadata().versionName },
 ) : ViewModel() {
 
@@ -219,6 +185,12 @@ class HomeViewModel(
         observeB30()
         observeUserProfile()
         checkIllustrationState()
+        viewModelScope.launch {
+            songDataProvider.cacheInvalidations.collect {
+                loadSongs()
+                observeB30()
+            }
+        }
 
         // Observe settings flows
         viewModelScope.launch {
@@ -283,18 +255,6 @@ class HomeViewModel(
             val tokenPair = repository.getSessionToken()
             _uiState.update { it.copy(sessionToken = tokenPair?.first) }
         }
-        // Observe pre-release channel setting
-        viewModelScope.launch {
-            settingsRepository.includePreRelease.collect { enabled ->
-                _uiState.update { it.copy(includePreRelease = enabled) }
-            }
-        }
-        // Observe auto-update check setting
-        viewModelScope.launch {
-            settingsRepository.autoCheckUpdate.collect { enabled ->
-                _uiState.update { it.copy(autoCheckUpdate = enabled) }
-            }
-        }
         // Observe PhiPlugin API settings
         viewModelScope.launch {
             settingsRepository.apiEnabled.collect { enabled ->
@@ -318,11 +278,6 @@ class HomeViewModel(
             settingsRepository.apiPlatformId.collect { platformId ->
                 _uiState.update { it.copy(apiPlatformId = platformId) }
                 refreshApiToolData()
-            }
-        }
-        viewModelScope.launch {
-            settingsRepository.crashNotificationGuideShown.collect { shown ->
-                _uiState.update { it.copy(crashNotificationGuideShown = shown) }
             }
         }
         viewModelScope.launch {
@@ -778,130 +733,6 @@ class HomeViewModel(
         }
     }
 
-    fun updateSongData() {
-        if (_uiState.value.isUpdatingData) return
-        viewModelScope.launch {
-            val totalFiles = SongDataUpdater.FILE_NAMES.size
-            val oldSongIds = _uiState.value.allSongs
-                .map { it.id }
-                .toSet()
-                .ifEmpty {
-                    runCatching { songDataProvider.getSongs().keys.toSet() }.getOrDefault(emptySet())
-                }
-            _uiState.update {
-                it.copy(
-                    isUpdatingData = true,
-                    updateDataProgress = 0,
-                    updateDataTotal = totalFiles,
-                    updateDataFileName = "",
-                    updateDataError = null
-                )
-            }
-            AppLogger.event("data", "update_song_data_started", mapOf("totalFiles" to totalFiles.toString()))
-            val result = songDataUpdater.updateAll { current, total, fileName ->
-                _uiState.update {
-                    it.copy(
-                        updateDataProgress = current,
-                        updateDataTotal = total,
-                        updateDataFileName = fileName
-                    )
-                }
-            }
-            if (result.isSuccess) {
-                val cacheResult = runCatching {
-                    val newSongIds = songDataProvider.getSongs().keys.toSet()
-                    reconcileSongDataIllustrationCache(oldSongIds, newSongIds)
-                }
-                _uiState.update {
-                    it.copy(
-                        isUpdatingData = false,
-                        updateDataProgress = totalFiles,
-                        updateDataFileName = "",
-                        updateDataError = cacheResult.exceptionOrNull()?.message
-                    )
-                }
-                AppLogger.event(
-                    "data",
-                    "update_song_data_success",
-                    mapOf("cacheReconcile" to cacheResult.isSuccess.toString())
-                )
-                // Reload songs and B30
-                loadSongs()
-                observeB30()
-            } else {
-                _uiState.update {
-                    it.copy(
-                        isUpdatingData = false,
-                        updateDataError = result.exceptionOrNull()?.message
-                    )
-                }
-                AppLogger.event("data", "update_song_data_failed", mapOf("error" to (result.exceptionOrNull()?.message ?: "unknown")))
-            }
-        }
-    }
-
-    private suspend fun reconcileSongDataIllustrationCache(
-        oldSongIds: Set<String>,
-        newSongIds: Set<String>
-    ) {
-        val added = (newSongIds - oldSongIds).sorted()
-        val removed = (oldSongIds - newSongIds).sorted()
-        var addedSuccess = 0
-        var addedFailure = 0
-
-        if (added.isNotEmpty()) {
-            val semaphore = Semaphore(6)
-            val mutex = Mutex()
-            val jobs = added.map { songId ->
-                viewModelScope.launch {
-                    semaphore.withPermit {
-                        val result = runCatching {
-                            val remoteUrl = illustrationProvider.getLowUrl(songId)
-                            val localUri = artworkFileCache.getOrDownloadThumbnail(songId, remoteUrl)
-                            thumbnailPreloader.preload(localUri).getOrThrow()
-                        }
-                        mutex.withLock {
-                            if (result.isSuccess) addedSuccess++ else addedFailure++
-                        }
-                    }
-                }
-            }
-            jobs.forEach { it.join() }
-        }
-
-        if (removed.isNotEmpty()) {
-            val urls = removed.flatMap { songId ->
-                listOf(
-                    illustrationProvider.getLowUrl(songId),
-                    illustrationProvider.getStandardUrl(songId),
-                    illustrationProvider.getBlurUrl(songId)
-                )
-            }
-            clearCacheUrlsFn(urls)
-            artworkFileCache.clearThumbnails(removed)
-            artworkFileCache.clearStandard(removed)
-        }
-
-        AppLogger.event(
-            "cache",
-            "song_data_illustration_reconcile",
-            mapOf(
-                "added" to added.size.toString(),
-                "addedSuccess" to addedSuccess.toString(),
-                "addedFailure" to addedFailure.toString(),
-                "removed" to removed.size.toString()
-            )
-        )
-
-        if (addedFailure > 0) {
-            throw IllegalStateException("曲目数据已更新，但部分曲绘未能下载，可稍后在设置中重试")
-        }
-    }
-
-    fun dismissUpdateDataError() {
-        _uiState.update { it.copy(updateDataError = null) }
-    }
-
     fun searchSongs(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
         applyFilters()
@@ -1007,243 +838,10 @@ class HomeViewModel(
         _uiState.update { it.copy(error = null) }
     }
 
-    // --- Settings ---
-    fun setThemeMode(mode: Int) {
-        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
-    }
-
-    fun setThemeColorSource(source: String) {
-        viewModelScope.launch {
-            AppLogger.event("settings", "theme_color_source_changed", mapOf("source" to source))
-            settingsRepository.setThemeColorSource(source)
-        }
-    }
-
-    fun setSeedColorArgb(argb: Int) {
-        viewModelScope.launch {
-            AppLogger.event("settings", "theme_seed_color_changed")
-            settingsRepository.setSeedColorArgb(argb)
-        }
-    }
-
-    fun setThemeImageColor(uri: String?, seedColorArgb: Int) {
-        viewModelScope.launch {
-            AppLogger.event("settings", "theme_image_color_selected", mapOf("uriPresent" to (uri != null).toString()))
-            settingsRepository.setThemeImageColor(uri, seedColorArgb)
-        }
-    }
-
-    fun clearThemeImageColor() {
-        viewModelScope.launch {
-            AppLogger.event("settings", "theme_image_color_cleared")
-            settingsRepository.clearThemeImageColor()
-        }
-    }
-
-    fun setPaletteStyleName(name: String) {
-        viewModelScope.launch {
-            AppLogger.event("settings", "palette_style_changed", mapOf("style" to name))
-            settingsRepository.setPaletteStyleName(name)
-        }
-    }
-
-    fun setShowB30Overflow(show: Boolean) {
-        viewModelScope.launch {
-            AppLogger.event("settings", "b30_overflow_changed", mapOf("enabled" to show.toString()))
-            settingsRepository.setShowB30Overflow(show)
-        }
-    }
-
-    fun setOverflowCount(count: Int) {
-        viewModelScope.launch {
-            AppLogger.event("settings", "b30_overflow_count_changed", mapOf("count" to count.toString()))
-            settingsRepository.setOverflowCount(count)
-        }
-    }
-
     fun setAvatarUri(uri: String?) {
         viewModelScope.launch {
             AppLogger.event("settings", "avatar_changed", mapOf("uriPresent" to (uri != null).toString()))
             settingsRepository.setAvatarUri(uri)
-        }
-    }
-
-    fun setIncludePreRelease(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setIncludePreRelease(enabled) }
-    }
-
-    fun setAutoCheckUpdate(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setAutoCheckUpdate(enabled) }
-    }
-
-    fun setApiEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            AppLogger.event("settings", "api_enabled_changed", mapOf("enabled" to enabled.toString()))
-            settingsRepository.setApiEnabled(enabled)
-        }
-    }
-
-    fun setUseApiData(useApiData: Boolean) {
-        viewModelScope.launch {
-            AppLogger.event("settings", "use_api_data_changed", mapOf("enabled" to useApiData.toString()))
-            settingsRepository.setUseApiData(useApiData)
-        }
-    }
-
-    fun setApiPlatform(platform: String) {
-        viewModelScope.launch { settingsRepository.setApiPlatform(platform) }
-    }
-
-    fun setApiPlatformId(platformId: String) {
-        viewModelScope.launch { settingsRepository.setApiPlatformId(platformId) }
-    }
-
-    fun setCrashNotificationGuideShown() {
-        viewModelScope.launch { settingsRepository.setCrashNotificationGuideShown(true) }
-    }
-
-    fun clearHighResCache(onComplete: (Result<Unit>) -> Unit = {}) {
-        viewModelScope.launch {
-            val result = runCatching {
-                artworkFileCache.clearAllStandard()
-                val songs = songDataProvider.getSongs()
-                clearCacheUrlsFn(songs.keys.map { illustrationProvider.getStandardUrl(it) })
-            }
-            AppLogger.event(
-                "cache",
-                if (result.isSuccess) "high_res_clear_success" else "high_res_clear_failed",
-                mapOf("error" to (result.exceptionOrNull()?.message ?: ""))
-            )
-            onComplete(result)
-        }
-    }
-
-    fun cacheB30StandardArtwork(onComplete: (Result<Unit>) -> Unit = {}) {
-        if (_uiState.value.isCachingB30Artwork) return
-        viewModelScope.launch {
-            val songIds = _uiState.value.b30.map { it.songId }.distinct()
-            if (songIds.isEmpty()) {
-                val failure = Result.failure<Unit>(IllegalStateException("当前没有可缓存的 B30 曲目"))
-                onComplete(failure)
-                return@launch
-            }
-
-            _uiState.update {
-                it.copy(
-                    isCachingB30Artwork = true,
-                    b30ArtworkCacheTotal = songIds.size,
-                    b30ArtworkCacheCompleted = 0,
-                    b30ArtworkCacheError = null
-                )
-            }
-            AppLogger.event("cache", "b30_standard_artwork_started", mapOf("count" to songIds.size.toString()))
-
-            val semaphore = Semaphore(4)
-            val mutex = Mutex()
-            var completed = 0
-            var failures = 0
-            val jobs = songIds.map { songId ->
-                launch {
-                    semaphore.withPermit {
-                        val result = runCatching {
-                            val url = illustrationProvider.getStandardUrl(songId)
-                            artworkFileCache.getOrDownloadStandard(songId, url)
-                            thumbnailPreloader.preload(url).getOrThrow()
-                        }
-                        mutex.withLock {
-                            if (result.isFailure) failures++
-                            completed++
-                            _uiState.update {
-                                it.copy(b30ArtworkCacheCompleted = completed)
-                            }
-                        }
-                    }
-                }
-            }
-            jobs.forEach { it.join() }
-
-            val result = if (failures == 0) {
-                Result.success(Unit)
-            } else {
-                Result.failure(IllegalStateException("$failures 个 B30 高清曲绘缓存失败"))
-            }
-            _uiState.update {
-                it.copy(
-                    isCachingB30Artwork = false,
-                    b30ArtworkCacheError = result.exceptionOrNull()?.message
-                )
-            }
-            AppLogger.event(
-                "cache",
-                "b30_standard_artwork_finished",
-                mapOf("count" to songIds.size.toString(), "failures" to failures.toString())
-            )
-            onComplete(result)
-        }
-    }
-
-    fun resetIllustrationDownloadAndExit() {
-        viewModelScope.launch {
-            val result = runCatching {
-                settingsRepository.setPreloadDone(false)
-                clearAllCacheFn()
-                artworkFileCache.clearAllThumbnails()
-                artworkFileCache.clearAllStandard()
-            }
-            if (result.isSuccess) {
-                AppLogger.event("cache", "redownload_reset_success")
-                triggerAppRestart()
-            } else {
-                val message = result.exceptionOrNull()?.message ?: "未知错误"
-                AppLogger.event("cache", "redownload_reset_failed", mapOf("error" to message))
-                showPlatformMessage("重新下载曲绘失败: $message")
-                _uiState.update { it.copy(error = "重新下载曲绘失败: $message") }
-            }
-        }
-    }
-
-    // --- PhiPlugin API methods ---
-
-    fun testApiConnection() {
-        viewModelScope.launch {
-            val platform = _uiState.value.apiPlatform.trim()
-            val platformId = _uiState.value.apiPlatformId.trim()
-            if (platform.isBlank() || platformId.isBlank()) {
-                _uiState.update { it.copy(apiTestMessage = "请先填写平台名称与平台 ID") }
-                return@launch
-            }
-
-            _uiState.update { it.copy(isApiTesting = true, apiTestMessage = null) }
-            AppLogger.event("api", "test_started")
-
-            val statusResult = repository.apiTest()
-            if (statusResult.isFailure) {
-                _uiState.update {
-                    it.copy(
-                        isApiTesting = false,
-                        apiTestMessage = "连接失败：${statusResult.exceptionOrNull()?.message ?: "未知错误"}"
-                    )
-                }
-                AppLogger.event("api", "test_failed", mapOf("error" to (statusResult.exceptionOrNull()?.message ?: "unknown")))
-                return@launch
-            }
-
-            val bindResult = repository.apiGetBindInfo(platform, platformId)
-            _uiState.update {
-                it.copy(
-                    isApiTesting = false,
-                    apiTestMessage = if (bindResult.isSuccess) {
-                        "连接正常"
-                    } else {
-                        "已连接，但账号查询失败：${bindResult.exceptionOrNull()?.message ?: "未知错误"}"
-                    }
-                )
-            }
-            val success = bindResult.isSuccess
-            AppLogger.event("api", if (success) "test_success" else "test_partial", mapOf("bindSuccess" to success.toString()))
-            if (success) {
-                refreshApiToolData()
-            }
         }
     }
 
@@ -1497,9 +1095,6 @@ class HomeViewModel(
         viewModelScope.launch {
             val result = repository.apiGetSaveHistory(platform, platformId, listOf("rks"))
             if (result.isFailure) {
-                _uiState.update {
-                    it.copy(apiTestMessage = "API 历史拉取失败：${result.exceptionOrNull()?.message ?: "未知错误"}")
-                }
                 return@launch
             }
 
@@ -1591,36 +1186,20 @@ class HomeViewModel(
         viewModelScope.launch {
             _uiState.update { it.copy(updateCheckState = UpdateCheckState.Checking) }
             AppLogger.event("update", "check_started")
-            try {
-                val includePre = _uiState.value.includePreRelease
-                val release = repository.fetchLatestRelease(includePre).getOrThrow()
-
-                val latestVersion = release.tagName.removePrefix("v")
-
-                if (isNewerVersion(latestVersion, currentVersionName)) {
-                    _uiState.update {
-                        it.copy(
-                            updateCheckState = UpdateCheckState.Available(
-                                version = release.tagName,
-                                htmlUrl = release.htmlUrl,
-                                body = release.body ?: "",
-                            )
-                        )
-                    }
-                    AppLogger.event("update", "check_update_available", mapOf("version" to release.tagName))
-                } else {
-                    _uiState.update { it.copy(updateCheckState = UpdateCheckState.NoUpdate) }
-                    AppLogger.event("update", "check_no_update")
-                }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        updateCheckState = UpdateCheckState.Error(
-                            e.message ?: "未知错误"
-                        )
-                    )
-                }
-                AppLogger.event("update", "check_failed", mapOf("error" to (e.message ?: "unknown")))
+            val result = checkForUpdateUseCase(
+                currentVersionName = currentVersionName,
+                includePreRelease = settingsRepository.includePreRelease.first()
+            ).toUpdateCheckState()
+            _uiState.update { it.copy(updateCheckState = result) }
+            when (result) {
+                is UpdateCheckState.Available -> AppLogger.event(
+                    "update", "check_update_available", mapOf("version" to result.version)
+                )
+                is UpdateCheckState.Error -> AppLogger.event(
+                    "update", "check_failed", mapOf("error" to result.message)
+                )
+                UpdateCheckState.NoUpdate -> AppLogger.event("update", "check_no_update")
+                UpdateCheckState.Checking, UpdateCheckState.Idle -> Unit
             }
         }
     }
@@ -1629,64 +1208,4 @@ class HomeViewModel(
         _uiState.update { it.copy(updateCheckState = UpdateCheckState.Idle) }
     }
 
-    private fun isNewerVersion(newer: String, current: String): Boolean {
-        val newerParts = newer.split("-")[0].split(".").map { it.toIntOrNull() ?: 0 }
-        val currentParts = current.split("-")[0].split(".").map { it.toIntOrNull() ?: 0 }
-        val maxLen = maxOf(newerParts.size, currentParts.size)
-        for (i in 0 until maxLen) {
-            val n = newerParts.getOrElse(i) { 0 }
-            val c = currentParts.getOrElse(i) { 0 }
-            if (n > c) return true
-            if (n < c) return false
-        }
-        return false
-    }
-
-    // --- Log export & clear ---
-
-    fun exportRuntimeLogText(): String {
-        AppLogger.event("log", "runtime_export")
-        return runtimeLogExporter.buildExportText()
-    }
-
-    fun hasRuntimeLogs(): Boolean {
-        return runtimeLogExporter.hasLogs()
-    }
-
-    fun clearRuntimeLogs(): Boolean {
-        return try {
-            runtimeLogExporter.clearLogs()
-            AppLogger.event("log", "runtime_clear", mapOf("status" to "success"))
-            true
-        } catch (e: Exception) {
-            AppLogger.event("log", "runtime_clear", mapOf("status" to "failed", "error" to (e.message ?: "unknown")))
-            false
-        }
-    }
-
-    fun exportCrashLogText(): String {
-        AppLogger.event("log", "crash_export")
-        return crashReportExporter.buildExportText()
-    }
-
-    fun hasCrashLogs(): Boolean {
-        return crashReportExporter.hasReports()
-    }
-
-    fun clearCrashLogs(): Boolean {
-        return try {
-            crashReportExporter.clearReports()
-            AppLogger.event("log", "crash_clear", mapOf("status" to "success"))
-            true
-        } catch (e: Exception) {
-            AppLogger.event("log", "crash_clear", mapOf("status" to "failed", "error" to (e.message ?: "unknown")))
-            false
-        }
-    }
-
-    fun clearAllLogs(): Boolean {
-        val runtimeOk = clearRuntimeLogs()
-        val crashOk = clearCrashLogs()
-        return runtimeOk && crashOk
-    }
 }

@@ -44,12 +44,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
+import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -308,45 +309,6 @@ fun MainScreen(
             )
         }
     }
-}
-
-@Composable
-internal fun UpdateResultDialog(
-    version: String,
-    body: String,
-    htmlUrl: String,
-    onDismiss: () -> Unit,
-    onDownload: (androidx.compose.ui.platform.UriHandler) -> Unit
-) {
-    val uriHandler = LocalUriHandler.current
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("发现新版本") },
-        text = {
-            Column {
-                Text("最新版本: $version")
-                if (body.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = body,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 10
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { onDownload(uriHandler) }) {
-                Text("前往下载")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("稍后再说")
-            }
-        }
-    )
 }
 
 @Composable

@@ -7,8 +7,10 @@ import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
+import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -17,6 +19,7 @@ val appModule = module {
     single { GetB30UseCase(get()) }
     single { GetSuggestUseCase() }
     single { SearchSongUseCase() }
+    single { CheckForUpdateUseCase(get()) }
     single {
         val store = LoggingStateHolder.state?.store
             ?: error("LoggingState not initialised. Call createLoggingState() before initKoin().")
@@ -29,6 +32,21 @@ val appModule = module {
     }
     viewModel { LoginViewModel(get(), get(), get()) }
     viewModel {
+        SettingsViewModel(
+            repository = get(),
+            settingsRepository = get(),
+            checkForUpdateUseCase = get(),
+            getB30UseCase = get(),
+            songDataProvider = get(),
+            songDataUpdater = get(),
+            illustrationProvider = get(),
+            artworkFileCache = get(),
+            runtimeLogExporter = get(),
+            crashReportExporter = get(),
+            tipsProvider = get()
+        )
+    }
+    viewModel {
         HomeViewModel(
             repository = get(),
             getB30UseCase = get(),
@@ -40,9 +58,7 @@ val appModule = module {
             tipsProvider = get(),
             settingsRepository = get(),
             artworkFileCache = get(),
-            songDataUpdater = get(),
-            runtimeLogExporter = get(),
-            crashReportExporter = get(),
+            checkForUpdateUseCase = get(),
         )
     }
 }

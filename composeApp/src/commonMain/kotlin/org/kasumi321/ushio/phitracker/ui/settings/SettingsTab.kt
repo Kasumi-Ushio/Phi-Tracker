@@ -35,8 +35,8 @@ import org.kasumi321.ushio.phitracker.data.platform.shouldShowThemeColorSourceSe
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformAlert
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
-import org.kasumi321.ushio.phitracker.ui.home.UpdateCheckState
-import org.kasumi321.ushio.phitracker.ui.home.UpdateResultDialog
+import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_IMAGE
 import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_SYSTEM
 import org.kasumi321.ushio.phitracker.ui.theme.argbToColor
