@@ -11,6 +11,8 @@ import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
+import org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey
+import org.kasumi321.ushio.phitracker.domain.model.SongApiDetail
 
 interface PhigrosRepository {
     suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile>
@@ -20,7 +22,7 @@ interface PhigrosRepository {
     suspend fun saveSessionToken(token: String, server: Server)
     suspend fun getSessionToken(): Pair<String, Server>?
     suspend fun clearData()
-    fun clearTokenSync()
+    suspend fun clearTokenSync()
 
     suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int>
     suspend fun getTotalFullComboCount(): Int
@@ -32,11 +34,9 @@ interface PhigrosRepository {
 
     suspend fun apiTest(): Result<JsonObject>
     suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject>
-    suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject>
-    suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float? = null, maxRks: Float? = null): Result<JsonObject>
+    suspend fun getSongApiDetail(key: ApiDetailCacheKey): Result<SongApiDetail>
     suspend fun apiGetRksAbove(rks: Float): Result<JsonObject>
     suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String> = emptyList()): Result<JsonObject>
-    suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String? = null, difficulty: String? = null): Result<JsonObject>
     suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject>
     suspend fun apiGetRankByPosition(position: Int): Result<JsonObject>
 

@@ -174,30 +174,6 @@ class HomeViewModelPreloadTest {
     }
 
     @Test
-    fun getStandardIllustrationUrlReturnsIllPath(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
-        val url = viewModel.getStandardIllustrationUrl("song-a")
-        assertEquals("https://example.test/ill/song-a.png", url)
-    }
-
-    @Test
-    fun getSyncHistoryReturnsFlowFromRepository(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
-        val repository = FakePhigrosRepository().apply {
-            songHistory = mapOf(
-                "song-a" to listOf(syncHistory(snapshotId = 1L, songId = "song-a", difficulty = "IN"))
-            )
-        }
-        val viewModel = createViewModel(settings, repository = repository)
-
-        assertEquals(listOf(1L), viewModel.getSyncHistory("song-a").first().map { it.snapshotId })
-        assertEquals(0, repository.syncCallCount)
-        assertEquals(0, repository.networkCallCount)
-    }
-
-    @Test
     fun repositoryPersistenceReadsPopulateStatsAndOrderedSnapshots(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
         val repository = FakePhigrosRepository().apply {
@@ -259,69 +235,6 @@ class HomeViewModelPreloadTest {
 
         assertEquals(1, repository.syncCallCount)
         assertEquals(4, repository.networkCallCount)
-    }
-
-    @Test
-    fun songApiDetailPresentsSingleSongDataAndReusesSuccessfulSameKeyResult(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(
-            preloadDone = true,
-            apiEnabled = true,
-            useApiData = true,
-            apiPlatform = "taptap",
-            apiPlatformId = "player-id"
-        )
-        val repository = FakePhigrosRepository().apply {
-            songRankResult = Result.success(Json.parseToJsonElement(
-                """{"data":{"userRank":7,"totDataNum":12}}"""
-            ).jsonObject)
-            songAverageResult = Result.success(Json.parseToJsonElement(
-                """{"data":{"accAvg":98.5,"count":6}}"""
-            ).jsonObject)
-            songHistoryResult = Result.success(Json.parseToJsonElement("""{"data":[]}""").jsonObject)
-        }
-        val viewModel = createViewModel(settingsRepository = settings, repository = repository)
-        advanceUntilIdle()
-
-        viewModel.loadSongApiDetail("song-a.0", Difficulty.IN)
-        advanceUntilIdle()
-        val detail = viewModel.getSongApiDetail("song-a.0", Difficulty.IN)
-        assertEquals(7, detail.userRank)
-        assertEquals(12, detail.totalUsers)
-        assertEquals(98.5f, detail.avgAcc)
-        assertEquals(6, detail.avgAccCount)
-        assertTrue(detail.history.isEmpty())
-
-        val repeatedDetail = viewModel.getSongApiDetail("song-a.0", Difficulty.IN)
-        assertEquals(detail, repeatedDetail)
-        assertEquals(1, repository.songRankCalls)
-        assertEquals(1, repository.songAverageCalls)
-        assertEquals(1, repository.songHistoryCalls)
-    }
-
-    @Test
-    fun songApiHistorySkipsMissingAndUnknownDifficultyPayloads(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(
-            preloadDone = true,
-            autoCheckUpdate = false,
-            apiEnabled = true,
-            useApiData = true,
-            apiPlatform = "taptap",
-            apiPlatformId = "player-id"
-        )
-        val repository = FakePhigrosRepository().apply {
-            songRankResult = Result.success(Json.parseToJsonElement("""{"data":{}}""").jsonObject)
-            songAverageResult = Result.success(Json.parseToJsonElement("""{"data":{}}""").jsonObject)
-            songHistoryResult = Result.success(
-                Json.parseToJsonElement("""{"data":{"UNKNOWN":[[99.0,990000,"2026-01-01T00:00:00Z",true]],"IN":[[99.0]]}}""").jsonObject
-            )
-        }
-        val viewModel = createViewModel(settingsRepository = settings, repository = repository)
-        advanceUntilIdle()
-
-        viewModel.loadSongApiDetail("song-a.0", Difficulty.IN)
-        advanceUntilIdle()
-
-        assertTrue(viewModel.getSongApiDetail("song-a.0", Difficulty.IN).history.isEmpty())
     }
 
     @Test
@@ -614,12 +527,6 @@ class HomeViewModelPreloadTest {
     }
 
     private open class FakePhigrosRepository : PhigrosRepository {
-        var songRankResult: Result<JsonObject> = Result.failure(IllegalStateException("Not configured"))
-        var songAverageResult: Result<JsonObject> = Result.failure(IllegalStateException("Not configured"))
-        var songHistoryResult: Result<JsonObject> = Result.failure(IllegalStateException("Not configured"))
-        var songRankCalls: Int = 0
-        var songAverageCalls: Int = 0
-        var songHistoryCalls: Int = 0
         var syncCallCount: Int = 0
         var networkCallCount: Int = 0
         var clearCounts: Map<Difficulty, Int> = emptyMap()
@@ -661,28 +568,18 @@ class HomeViewModelPreloadTest {
         override suspend fun saveSessionToken(token: String, server: Server) = Unit
         override suspend fun getSessionToken(): Pair<String, Server>? = Pair("fake-token", Server.CN)
         override suspend fun clearData() = Unit
-        override fun clearTokenSync() = Unit
+        override suspend fun clearTokenSync() = Unit
 
         override suspend fun apiTest(): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
-        override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> {
-            songRankCalls++
-            return networkResult(songRankResult)
-        }
-        override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> {
-            songAverageCalls++
-            return networkResult(songAverageResult)
-        }
+        override suspend fun getSongApiDetail(key: org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey): Result<org.kasumi321.ushio.phitracker.domain.model.SongApiDetail> =
+            Result.failure(IllegalStateException("Song detail is route-owned"))
         override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
-        override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> {
-            songHistoryCalls++
-            return networkResult(songHistoryResult)
-        }
         override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =

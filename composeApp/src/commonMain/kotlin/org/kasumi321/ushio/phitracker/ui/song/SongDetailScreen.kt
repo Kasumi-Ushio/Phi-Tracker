@@ -73,7 +73,6 @@ import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.ui.common.SpringPagerIndicator
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
-import org.kasumi321.ushio.phitracker.ui.home.SongApiDetailState
 import kotlin.math.roundToInt
 import kotlin.time.Instant
 
@@ -100,6 +99,7 @@ fun SongDetailScreen(
     syncHistory: List<SongSyncHistoryEntry> = emptyList(),
     apiEnabled: Boolean = false,
     useApiData: Boolean = false,
+    apiRequestKey: String = "",
     getSongApiDetail: (Difficulty) -> SongApiDetailState = { SongApiDetailState() },
     onLoadSongApiDetail: (Difficulty) -> Unit = {},
     getLowIllustrationUrl: (String) -> String?,
@@ -116,7 +116,7 @@ fun SongDetailScreen(
     val songApiDetail = getSongApiDetail(selectedDifficulty)
     var showImagePreview by remember { mutableStateOf(false) }
 
-    LaunchedEffect(apiEnabled, useApiData, selectedDifficulty) {
+    LaunchedEffect(apiEnabled, useApiData, apiRequestKey, selectedDifficulty) {
         if (apiEnabled && useApiData) {
             onLoadSongApiDetail(selectedDifficulty)
         }

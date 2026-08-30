@@ -474,7 +474,7 @@ class DomainUseCaseTest {
 
         override suspend fun clearData() = Unit
 
-        override fun clearTokenSync() = Unit
+        override suspend fun clearTokenSync() = Unit
 
         override suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int> = emptyMap()
         override suspend fun getTotalFullComboCount(): Int = 0
@@ -490,19 +490,13 @@ class DomainUseCaseTest {
         override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
-        override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> =
+        override suspend fun getSongApiDetail(key: org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey): Result<org.kasumi321.ushio.phitracker.domain.model.SongApiDetail> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
-            Result.failure(IllegalStateException("Not implemented in Phase B"))
-
-        override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =

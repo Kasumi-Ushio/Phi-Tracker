@@ -148,31 +148,36 @@ internal class FakeSettingsRepository : SettingsRepository {
 
 internal class FakePhigrosRepository : PhigrosRepository {
     var cachedSave: Save? = null
+    var profile: UserProfile? = null
+    var songHistory: List<SongSyncHistoryEntry> = emptyList()
+    var songApiDetail: Result<org.kasumi321.ushio.phitracker.domain.model.SongApiDetail> = Result.failure(IllegalStateException("not configured"))
+    var songApiDetailRequests = mutableListOf<org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey>()
     var release: Result<ReleaseInfo> = Result.failure(IllegalStateException("not configured"))
     var apiStatus: Result<JsonObject> = Result.failure(IllegalStateException("not configured"))
     var bind: Result<JsonObject> = Result.failure(IllegalStateException("not configured"))
     override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> = Result.failure(IllegalStateException())
     override suspend fun syncSave(sessionToken: String, server: Server, mode: SyncMode): Result<SyncSaveResult> = Result.failure(IllegalStateException())
     override fun getCachedSave(): Flow<Save?> = flowOf(cachedSave)
-    override fun getUserProfile(): Flow<UserProfile?> = flowOf(null)
+    override fun getUserProfile(): Flow<UserProfile?> = flowOf(profile)
     override suspend fun saveSessionToken(token: String, server: Server) = Unit
     override suspend fun getSessionToken(): Pair<String, Server>? = null
     override suspend fun clearData() = Unit
-    override fun clearTokenSync() = Unit
+    override suspend fun clearTokenSync() = Unit
     override suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int> = emptyMap()
     override suspend fun getTotalFullComboCount() = 0
     override suspend fun getTotalPhiCount() = 0
     override fun observeSyncSnapshots(): Flow<List<SyncSnapshot>> = flowOf(emptyList())
     override suspend fun getSyncSnapshotsOnce(): List<SyncSnapshot> = emptyList()
-    override fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> = flowOf(emptyList())
+    override fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> = flowOf(songHistory)
     override suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry> = emptyList()
     override suspend fun apiTest() = apiStatus
     override suspend fun apiGetBindInfo(platform: String, platformId: String) = bind
-    override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> = Result.failure(IllegalStateException())
-    override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun getSongApiDetail(key: org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey): Result<org.kasumi321.ushio.phitracker.domain.model.SongApiDetail> {
+        songApiDetailRequests += key
+        return songApiDetail
+    }
     override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> = Result.failure(IllegalStateException())
     override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> = Result.failure(IllegalStateException())
-    override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> = Result.failure(IllegalStateException())
     override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> = Result.failure(IllegalStateException())
     override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = Result.failure(IllegalStateException())
     override suspend fun fetchLatestRelease(includePreRelease: Boolean) = release

@@ -2,6 +2,7 @@ package org.kasumi321.ushio.phitracker.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -54,9 +56,11 @@ import org.kasumi321.ushio.phitracker.ui.settings.PrivacyPolicyScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
+import org.kasumi321.ushio.phitracker.ui.song.SongDetailViewModel
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 sealed class Screen(val route: String) {
     data object Login : Screen("login")
@@ -323,12 +327,14 @@ fun PhiTrackerNavHost() {
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) { backStackEntry ->
-            val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
-            val homeViewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
-            val state by homeViewModel.uiState.collectAsState()
             val route = backStackEntry.toRoute<SongDetailRoute>()
             val songId = route.songId
             val difficulty = route.difficulty()
+            val viewModel: SongDetailViewModel = koinViewModel(
+                viewModelStoreOwner = backStackEntry,
+                parameters = { parametersOf(songId, difficulty ?: org.kasumi321.ushio.phitracker.domain.model.Difficulty.IN) }
+            )
+            val state by viewModel.uiState.collectAsState()
             LaunchedEffect(songId, difficulty) {
                 AppLogger.event(
                     "navigation",
@@ -336,25 +342,26 @@ fun PhiTrackerNavHost() {
                     mapOf("songId" to songId, "difficulty" to (difficulty?.name ?: "default"))
                 )
             }
-            val songInfo = state.allSongs.find { it.id == songId }
-            if (songInfo != null) {
-                val records = state.allRecords.filter { it.songId == songId }
-                val syncHistory by homeViewModel.getSyncHistory(songId).collectAsState(initial = emptyList())
-                SongDetailScreen(
+            val songInfo = state.songInfo
+            when {
+                state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                songInfo != null -> SongDetailScreen(
                     songInfo = songInfo,
-                    userRecords = records,
-                    syncHistory = syncHistory,
+                    userRecords = state.userRecords,
+                    syncHistory = state.syncHistory,
                     apiEnabled = state.apiEnabled,
                     useApiData = state.useApiData,
-                    getSongApiDetail = { diff -> homeViewModel.getSongApiDetail(songId, diff) },
-                    onLoadSongApiDetail = { diff -> homeViewModel.loadSongApiDetail(songId, diff) },
-                    getLowIllustrationUrl = { homeViewModel.getLowIllustrationUrl(it) },
-                    getStandardIllustrationUrl = { homeViewModel.getStandardIllustrationUrl(it) },
-                    initialDifficulty = difficulty,
+                    apiRequestKey = "${state.apiPlatform.trim()}\u0000${state.apiPlatformId.trim()}\u0000${state.displayRks}",
+                    getSongApiDetail = viewModel::getSongApiDetail,
+                    onLoadSongApiDetail = viewModel::loadSongApiDetail,
+                    getLowIllustrationUrl = { state.lowIllustrationUrl },
+                    getStandardIllustrationUrl = { state.standardIllustrationUrl },
+                    initialDifficulty = state.initialDifficulty,
                     onBack = { navController.popBackStack() }
                 )
-            } else {
-                SongDetailNotFound(songId = songId, onBack = { navController.popBackStack() })
+                else -> SongDetailNotFound(songId = songId, onBack = { navController.popBackStack() })
             }
         }
     }

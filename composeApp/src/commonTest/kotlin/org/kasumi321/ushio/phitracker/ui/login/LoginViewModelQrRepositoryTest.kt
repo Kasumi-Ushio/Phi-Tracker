@@ -228,7 +228,7 @@ class LoginViewModelQrRepositoryTest {
         override suspend fun saveSessionToken(token: String, server: Server) { persistedTokens += token to server }
         override suspend fun getSessionToken(): Pair<String, Server>? = null
         override suspend fun clearData() = Unit
-        override fun clearTokenSync() = Unit
+        override suspend fun clearTokenSync() = Unit
         override suspend fun getClearCountsByDifficulty(): Map<Difficulty, Int> = emptyMap()
         override suspend fun getTotalFullComboCount(): Int = 0
         override suspend fun getTotalPhiCount(): Int = 0
@@ -238,11 +238,9 @@ class LoginViewModelQrRepositoryTest {
         override suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry> = emptyList()
         override suspend fun apiTest(): Result<JsonObject> = offline()
         override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> = offline()
-        override suspend fun apiGetRank(platform: String, platformId: String, songId: String, difficulty: String): Result<JsonObject> = offline()
-        override suspend fun apiGetAvgAcc(songId: String, difficulty: String, minRks: Float?, maxRks: Float?): Result<JsonObject> = offline()
+        override suspend fun getSongApiDetail(key: org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey): Result<org.kasumi321.ushio.phitracker.domain.model.SongApiDetail> = offline()
         override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> = offline()
         override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> = offline()
-        override suspend fun apiGetScoreHistory(platform: String, platformId: String, songId: String?, difficulty: String?): Result<JsonObject> = offline()
         override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> = offline()
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = offline()
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> = offline()

@@ -68,16 +68,6 @@ data class ApiToolRow(
     val value: String
 )
 
-data class SongApiDetailState(
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val userRank: Int? = null,
-    val totalUsers: Int? = null,
-    val avgAcc: Float? = null,
-    val avgAccCount: Int? = null,
-    val history: List<SongSyncHistoryEntry> = emptyList()
-)
-
 data class HomeUiState(
     val b30: List<BestRecord> = emptyList(),
     val displayRks: Float = 0f,
@@ -145,8 +135,7 @@ data class HomeUiState(
     val suggestTargetMode: SuggestTargetMode = SuggestTargetMode.PlayerDisplayRks,
     val suggestTargetInput: String = "",
     val suggestTargetError: String? = null,
-    val suggestItems: List<SuggestItem> = emptyList(),
-    val songApiDetailMap: Map<String, SongApiDetailState> = emptyMap()
+    val suggestItems: List<SuggestItem> = emptyList()
 ) {
     val themeSettings: PhiTrackerThemeSettings
         get() = PhiTrackerThemeSettings(
@@ -656,10 +645,6 @@ class HomeViewModel(
         }
     }
 
-    fun getSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> {
-        return repository.observeSongSyncHistory(songId)
-    }
-
     private suspend fun loadSyncRecordsForSnapshot(snapshotId: Long) {
         val songs = songDataProvider.getSongs()
         val recentHistory = repository.getSyncHistoryForSnapshot(snapshotId)
@@ -812,10 +797,6 @@ class HomeViewModel(
     fun getLowIllustrationUrl(songId: String): String? {
         return artworkFileCache.getThumbnailIfPresent(songId)
             ?: illustrationProvider.getLowUrl(songId)
-    }
-
-    fun getStandardIllustrationUrl(songId: String): String {
-        return illustrationProvider.getStandardUrl(songId)
     }
 
     fun getCachedOrStandardIllustrationUri(songId: String): String {
@@ -999,72 +980,6 @@ class HomeViewModel(
         }
     }
 
-    fun getSongApiDetail(songId: String, difficulty: Difficulty): SongApiDetailState {
-        return _uiState.value.songApiDetailMap["$songId:${difficulty.name}"] ?: SongApiDetailState()
-    }
-
-    fun loadSongApiDetail(songId: String, difficulty: Difficulty) {
-        val state = _uiState.value
-        if (!state.apiEnabled || !state.useApiData) return
-        val platform = state.apiPlatform.trim()
-        val platformId = state.apiPlatformId.trim()
-        if (platform.isBlank() || platformId.isBlank()) return
-
-        val key = "$songId:${difficulty.name}"
-        viewModelScope.launch {
-            _uiState.update {
-                val updated = it.songApiDetailMap.toMutableMap()
-                updated[key] = (updated[key] ?: SongApiDetailState()).copy(isLoading = true, error = null)
-                it.copy(songApiDetailMap = updated)
-            }
-
-            val currentRks = _uiState.value.displayRks
-            val minRks = (currentRks - 0.015f).coerceAtLeast(0f)
-            val maxRks = currentRks + 0.015f
-
-            val rankResult = repository.apiGetRank(platform, platformId, songId, difficulty.name)
-            val avgResult = repository.apiGetAvgAcc(songId, difficulty.name, minRks, maxRks)
-            val historyResult = repository.apiGetScoreHistory(platform, platformId, songId, difficulty.name)
-
-            if (rankResult.isFailure || avgResult.isFailure || historyResult.isFailure) {
-                val firstError = listOf(rankResult, avgResult, historyResult)
-                    .firstOrNull { it.isFailure }?.exceptionOrNull()?.message ?: "未知错误"
-                _uiState.update {
-                    val updated = it.songApiDetailMap.toMutableMap()
-                    updated[key] = (updated[key] ?: SongApiDetailState()).copy(
-                        isLoading = false,
-                        error = "数据获取失败，请稍后重试"
-                    )
-                    it.copy(songApiDetailMap = updated)
-                }
-                return@launch
-            }
-
-            val rankData = rankResult.getOrNull()?.get("data")?.asObject()
-            val userRank = rankData?.get("userRank")?.asInt()
-            val totalUsers = rankData?.get("totDataNum")?.asInt()
-            val avgData = avgResult.getOrNull()?.get("data")?.asObject()
-            val avgAcc = avgData?.get("accAvg")?.asFloat()
-            val avgCount = avgData?.get("count")?.asInt()
-            val historyData = historyResult.getOrNull()?.get("data")
-            val apiHistory = parseSongHistory(historyData, songId, difficulty.name)
-
-            _uiState.update {
-                val updated = it.songApiDetailMap.toMutableMap()
-                updated[key] = SongApiDetailState(
-                    isLoading = false,
-                    error = null,
-                    userRank = userRank,
-                    totalUsers = totalUsers,
-                    avgAcc = avgAcc,
-                    avgAccCount = avgCount,
-                    history = apiHistory
-                )
-                it.copy(songApiDetailMap = updated)
-            }
-        }
-    }
-
     private fun refreshApiToolData() {
         val state = _uiState.value
         if (!state.apiEnabled || !state.useApiData) {
@@ -1121,38 +1036,6 @@ class HomeViewModel(
     }
 
     // --- JSON parsing helpers ---
-
-    private fun parseSongHistory(dataElement: JsonElement?, songId: String, difficulty: String): List<SongSyncHistoryEntry> {
-        val directArray = dataElement?.asArray()
-        val list = when {
-            directArray != null -> parseRecordArray(directArray, songId, difficulty)
-            dataElement?.asObject()?.get(difficulty)?.asArray() != null ->
-                parseRecordArray(dataElement.asObject()?.get(difficulty)?.asArray().orEmpty(), songId, difficulty)
-            else -> emptyList()
-        }
-        return list.sortedByDescending { it.timestamp }
-    }
-
-    private fun parseRecordArray(records: JsonArray, songId: String, difficulty: String): List<SongSyncHistoryEntry> {
-        return records.mapNotNull { row ->
-            val arr = row.asArray() ?: return@mapNotNull null
-            if (arr.size < 4) return@mapNotNull null
-            val acc = arr.getOrNull(0)?.asFloat() ?: return@mapNotNull null
-            val score = arr.getOrNull(1)?.asInt() ?: return@mapNotNull null
-            val date = arr.getOrNull(2)?.asString() ?: return@mapNotNull null
-            val fc = arr.getOrNull(3)?.asBoolean() ?: false
-            SongSyncHistoryEntry(
-                id = 0L,
-                snapshotId = 0L,
-                songId = songId,
-                difficulty = difficulty,
-                score = score,
-                accuracy = acc,
-                isFullCombo = fc,
-                timestamp = parseIsoToEpoch(date)
-            )
-        }
-    }
 
     private fun parseIsoToEpoch(iso: String): Long {
         return runCatching {

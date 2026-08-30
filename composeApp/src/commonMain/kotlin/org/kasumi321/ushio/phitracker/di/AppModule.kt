@@ -11,6 +11,7 @@ import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
+import org.kasumi321.ushio.phitracker.ui.song.SongDetailViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -31,6 +32,16 @@ val appModule = module {
         CrashReportExporter(store)
     }
     viewModel { LoginViewModel(get(), get(), get()) }
+    viewModel { parameters ->
+        SongDetailViewModel(
+            songId = parameters.get(),
+            initialDifficulty = parameters.get(),
+            repository = get(),
+            settingsRepository = get(),
+            songDataProvider = get(),
+            illustrationProvider = get()
+        )
+    }
     viewModel {
         SettingsViewModel(
             repository = get(),
