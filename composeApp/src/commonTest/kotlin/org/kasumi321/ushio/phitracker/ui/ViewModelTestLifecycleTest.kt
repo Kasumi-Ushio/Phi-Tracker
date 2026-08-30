@@ -14,11 +14,86 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertContains
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class ViewModelTestLifecycleTest {
+    @Test
+    fun tearDownFailsWithinBoundWhenTrackedScopeCannotFinishCleanup() {
+        val dispatcher = StandardTestDispatcher()
+        val lifecycle = ViewModelTestLifecycle(cleanupTimeout = 100.milliseconds)
+        val defaultStarted = CompletableDeferred<Unit>()
+        val allowCleanupToFinish = CompletableDeferred<Unit>()
+        Dispatchers.setMain(dispatcher)
+        val viewModel = lifecycle.track(object : ViewModel() {
+            fun startBlockedCleanup() {
+                viewModelScope.launch {
+                    withContext(Dispatchers.Default) {
+                        defaultStarted.complete(Unit)
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            withContext(NonCancellable) {
+                                allowCleanupToFinish.await()
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        runTest(dispatcher) {
+            viewModel.startBlockedCleanup()
+            runCurrent()
+            defaultStarted.await()
+        }
+
+        val failure = assertFailsWith<ViewModelScopeCleanupTimeoutException> {
+            lifecycle.tearDown(dispatcher)
+        }
+        assertContains(failure.message.orEmpty(), "Tracked ViewModel scope cleanup")
+
+        Dispatchers.setMain(dispatcher)
+        allowCleanupToFinish.complete(Unit)
+        runTest(dispatcher) {
+            lifecycle.cancelAndJoin()
+        }
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun runTestSurfacesFailureFromTrackedViewModelChild() {
+        val dispatcher = StandardTestDispatcher()
+        val lifecycle = ViewModelTestLifecycle()
+        val expectedFailure = IllegalStateException("tracked ViewModel child failed")
+        Dispatchers.setMain(dispatcher)
+        val viewModel = lifecycle.track(object : ViewModel() {
+            fun failFromChild() {
+                viewModelScope.launch {
+                    throw expectedFailure
+                }
+            }
+        })
+
+        try {
+            val actualFailure = assertFailsWith<IllegalStateException> {
+                runTest(dispatcher) {
+                    viewModel.failFromChild()
+                    runCurrent()
+                }
+            }
+
+            assertSame(expectedFailure, actualFailure)
+        } finally {
+            lifecycle.tearDown(dispatcher)
+        }
+    }
+
     @Test
     fun tearDownWaitsForDefaultChildBeforeResettingMain() {
         val dispatcher = StandardTestDispatcher()
