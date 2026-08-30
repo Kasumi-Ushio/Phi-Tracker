@@ -6,6 +6,8 @@ on:
       - '**.md'
       - 'internalResources/**'
       - '.github/workflows/ios.yml'
+      - '.github/workflows/android-test.yml'
+      - '.github/workflows/ios-test.yml'
       - '.github/workflows/cache-cleanup.yml'
   pull_request:
     branches: [main]
@@ -13,6 +15,8 @@ on:
       - '**.md'
       - 'internalResources/**'
       - '.github/workflows/ios.yml'
+      - '.github/workflows/android-test.yml'
+      - '.github/workflows/ios-test.yml'
       - '.github/workflows/cache-cleanup.yml'
   workflow_dispatch:
 
@@ -44,9 +48,6 @@ jobs:
             :composeApp:compileKotlinMetadata \
             :composeApp:compileDebugKotlinAndroid \
             :composeApp:compileReleaseKotlinAndroid
-
-      - name: Shared/Android tests
-        run: ./gradlew :composeApp:allTests --no-daemon
 
       - name: Build debug APK from compiled outputs
         run: ./gradlew :composeApp:assembleDebug

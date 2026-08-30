@@ -6,6 +6,8 @@ on:
       - '**.md'
       - 'internalResources/**'
       - '.github/workflows/android.yml'
+      - '.github/workflows/ios-test.yml'
+      - '.github/workflows/android-test.yml'
       - '.github/workflows/cache-cleanup.yml'
   pull_request:
     branches: [main]
@@ -13,6 +15,8 @@ on:
       - '**.md'
       - 'internalResources/**'
       - '.github/workflows/android.yml'
+      - '.github/workflows/ios-test.yml'
+      - '.github/workflows/android-test.yml'
       - '.github/workflows/cache-cleanup.yml'
   workflow_dispatch:
 
@@ -24,7 +28,7 @@ permissions:
   contents: read
 
 jobs:
-  shared-compile:
+  ios-debug:
     runs-on: macos-26
     steps:
       - name: Checkout
@@ -46,51 +50,26 @@ jobs:
           restore-keys: |
             konan-${{ runner.os }}-
 
-      - name: Shared Kotlin/Native compilation
+      - name: Build Debug framework and resources
         run: |
           ./gradlew \
             :composeApp:compileKotlinIosArm64 \
             :composeApp:linkDebugFrameworkIosArm64 \
-            :composeApp:linkReleaseFrameworkIosArm64 \
             :composeApp:iosArm64AggregateResources
 
-      - name: iOS simulator tests
-        run: ./gradlew :composeApp:iosSimulatorArm64Test --no-daemon
-
-      - name: Upload device frameworks
+      - name: Upload Debug device frameworks
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ios-device-frameworks
+          name: ios-device-frameworks-debug
           path: composeApp/build/bin/iosArm64/**
           if-no-files-found: error
 
-      - name: Upload device compose resources
+      - name: Upload Debug device compose resources
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ios-device-compose-resources
+          name: ios-device-compose-resources-debug
           path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64/**
           if-no-files-found: error
-
-  ios-debug:
-    needs: shared-compile
-    runs-on: macos-26
-    steps:
-      - name: Checkout (Xcode project only)
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-
-      - name: Download prebuilt device frameworks
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: ios-device-frameworks
-          path: composeApp/build/bin/iosArm64
-
-      - name: Download prebuilt device compose resources
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: ios-device-compose-resources
-          path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64
 
       - name: Prepare Xcode DerivedData cache directory
         run: mkdir -p "$RUNNER_TEMP/DerivedDataDebug"
@@ -105,7 +84,7 @@ jobs:
           deriveddata-directory: ${{ runner.temp }}/DerivedDataDebug
           delete-used-deriveddata-cache: false
 
-      - name: Build iosApp (Debug) - consumes upstream framework, skips Gradle
+      - name: Build iosApp (Debug)
         run: |
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \
@@ -153,26 +132,48 @@ jobs:
           if-no-files-found: error
 
   ios-release:
-    needs: shared-compile
     runs-on: macos-26
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
     steps:
-      - name: Checkout (Xcode project only)
+      - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Download prebuilt device frameworks
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      - name: Gradle Setup
+        uses: ./.github/actions/gradle-setup
         with:
-          name: ios-device-frameworks
-          path: composeApp/build/bin/iosArm64
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
 
-      - name: Download prebuilt device compose resources
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+      - name: Restore Kotlin/Native cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
-          name: ios-device-compose-resources
-          path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties', 'gradle.properties', 'settings.gradle.kts', 'build.gradle.kts', 'composeApp/build.gradle.kts') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      - name: Build Release framework and resources
+        run: |
+          ./gradlew \
+            :composeApp:compileKotlinIosArm64 \
+            :composeApp:linkReleaseFrameworkIosArm64 \
+            :composeApp:iosArm64AggregateResources
+
+      - name: Upload Release device frameworks
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-device-frameworks-release
+          path: composeApp/build/bin/iosArm64/**
+          if-no-files-found: error
+
+      - name: Upload Release device compose resources
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-device-compose-resources-release
+          path: composeApp/build/kotlin-multiplatform-resources/aggregated-resources/iosArm64/**
+          if-no-files-found: error
 
       - name: Prepare Xcode DerivedData cache directory
         run: mkdir -p "$RUNNER_TEMP/DerivedDataRelease"
@@ -187,7 +188,7 @@ jobs:
           deriveddata-directory: ${{ runner.temp }}/DerivedDataRelease
           delete-used-deriveddata-cache: false
 
-      - name: Build iosApp (Release) - consumes upstream framework, skips Gradle
+      - name: Build iosApp (Release)
         run: |
           xcodebuild \
             -project iosApp/iosApp.xcodeproj \

@@ -1,0 +1,72 @@
+name: iOS Tests
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+      - 'internalResources/**'
+      - '.github/workflows/android.yml'
+      - '.github/workflows/ios.yml'
+      - '.github/workflows/android-test.yml'
+      - '.github/workflows/cache-cleanup.yml'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'internalResources/**'
+      - '.github/workflows/android.yml'
+      - '.github/workflows/ios.yml'
+      - '.github/workflows/android-test.yml'
+      - '.github/workflows/cache-cleanup.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ios-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ios-test:
+    runs-on: macos-26
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Gradle Setup
+        uses: ./.github/actions/gradle-setup
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      - name: Restore Kotlin/Native cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties', 'gradle.properties', 'settings.gradle.kts', 'build.gradle.kts', 'composeApp/build.gradle.kts') }}
+          restore-keys: |
+            konan-${{ runner.os }}-
+
+      # pipefail keeps the simulator-test verdict authoritative while tee preserves the full console log.
+      - name: iOS simulator tests
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:iosSimulatorArm64Test --no-daemon 2>&1 | tee "$RUNNER_TEMP/iosSimulatorArm64Test.log"
+
+      - name: Upload iOS test diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-test-diagnostics
+          path: |
+            ${{ runner.temp }}/iosSimulatorArm64Test.log
+            composeApp/build/test-results/**/*.xml
+            composeApp/build/reports/tests/**
+            composeApp/build/reports/**
+            composeApp/build/tmp/**
+            composeApp/build/bin/iosSimulatorArm64/**
+          if-no-files-found: warn

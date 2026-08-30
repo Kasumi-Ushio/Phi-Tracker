@@ -1,0 +1,63 @@
+name: Android Tests
+
+on:
+  push:
+    paths-ignore:
+      - '**.md'
+      - 'internalResources/**'
+      - '.github/workflows/android.yml'
+      - '.github/workflows/ios.yml'
+      - '.github/workflows/ios-test.yml'
+      - '.github/workflows/cache-cleanup.yml'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'internalResources/**'
+      - '.github/workflows/android.yml'
+      - '.github/workflows/ios.yml'
+      - '.github/workflows/ios-test.yml'
+      - '.github/workflows/cache-cleanup.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: android-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Gradle Setup
+        uses: ./.github/actions/gradle-setup
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.event_name != 'workflow_dispatch' }}
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+
+      # pipefail keeps the Gradle verdict authoritative while tee preserves the full console log.
+      - name: Shared/Android tests
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew :composeApp:allTests --no-daemon 2>&1 | tee "$RUNNER_TEMP/android-allTests.log"
+
+      - name: Upload Android test diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-test-diagnostics
+          path: |
+            ${{ runner.temp }}/android-allTests.log
+            composeApp/build/test-results/**/*.xml
+            composeApp/build/reports/tests/**
+            composeApp/build/reports/**
+            composeApp/build/tmp/**
+          if-no-files-found: warn
