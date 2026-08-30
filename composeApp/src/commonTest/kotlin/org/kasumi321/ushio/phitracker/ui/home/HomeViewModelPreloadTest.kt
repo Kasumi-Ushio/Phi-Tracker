@@ -1,10 +1,8 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,7 +10,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -55,6 +52,7 @@ import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.ViewModelTestLifecycle
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import kotlin.test.AfterTest
@@ -69,7 +67,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelPreloadTest {
     private val dispatcher = StandardTestDispatcher()
-    private val viewModels = mutableListOf<HomeViewModel>()
+    private val viewModelLifecycle = ViewModelTestLifecycle()
 
     private val testPlatformPaths = PlatformPaths("/tmp/test", "/tmp/test_cache")
     private val testSongDataProvider = SongDataProvider(FakeTextAssetReader, testPlatformPaths)
@@ -81,9 +79,7 @@ class HomeViewModelPreloadTest {
 
     @AfterTest
     fun tearDown() {
-        viewModels.forEach { it.viewModelScope.cancel() }
-        viewModels.clear()
-        Dispatchers.resetMain()
+        viewModelLifecycle.tearDown(dispatcher)
     }
 
     @Test
@@ -390,7 +386,7 @@ class HomeViewModelPreloadTest {
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
             thumbnailPreloader = preloader
-        ).also(viewModels::add)
+        ).let(viewModelLifecycle::track)
         advanceUntilIdle()
 
         viewModel.refresh()
@@ -457,7 +453,7 @@ class HomeViewModelPreloadTest {
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
             thumbnailPreloader = preloader
-        ).also(viewModels::add)
+        ).let(viewModelLifecycle::track)
         advanceUntilIdle()
 
         viewModel.refresh()
@@ -493,7 +489,7 @@ class HomeViewModelPreloadTest {
             artworkFileCache = artworkFileCache,
             thumbnailPreloader = preloader,
             appVersionNameProvider = { appVersionName }
-        ).also(viewModels::add)
+        ).let(viewModelLifecycle::track)
     }
 
     private class RecordingPreloader(
@@ -1012,7 +1008,7 @@ class HomeViewModelPreloadTest {
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
             thumbnailPreloader = preloader
-        ).also(viewModels::add)
+        ).let(viewModelLifecycle::track)
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.suggestItems.isEmpty(),
@@ -1053,7 +1049,7 @@ class HomeViewModelPreloadTest {
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
             thumbnailPreloader = preloader
-        ).also(viewModels::add)
+        ).let(viewModelLifecycle::track)
         advanceUntilIdle()
 
         // B30 has only 1 record (< 20 minimum) → empty suggestions
@@ -1167,7 +1163,7 @@ class HomeViewModelPreloadTest {
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settingsRepository,
             thumbnailPreloader = RecordingPreloader()
-        ).also(viewModels::add)
+        ).let(viewModelLifecycle::track)
     }
 
     private object ChapterTestAssetReader : TextAssetReader {
