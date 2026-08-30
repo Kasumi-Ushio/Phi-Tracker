@@ -10,7 +10,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.json.JsonObject
@@ -30,6 +29,7 @@ import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.ViewModelTestLifecycle
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -40,16 +40,14 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
-    private val viewModels = mutableListOf<SettingsViewModel>()
+    private val viewModelLifecycle = ViewModelTestLifecycle()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @AfterTest
     fun tearDown() {
-        viewModels.forEach { it.viewModelScope.cancel() }
-        viewModels.clear()
-        Dispatchers.resetMain()
+        viewModelLifecycle.tearDown(dispatcher)
     }
 
     @Test
@@ -197,7 +195,7 @@ class SettingsViewModelTest {
             clearCacheUrls = clearCacheUrls,
             clearAllCache = {},
             platformMessage = {}
-        ).also(viewModels::add)
+        ).let(viewModelLifecycle::track)
     }
 
 }

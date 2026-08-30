@@ -1,15 +1,12 @@
 package org.kasumi321.ushio.phitracker.ui.settings
 
-import androidx.lifecycle.viewModelScope
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -28,6 +25,7 @@ import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
+import org.kasumi321.ushio.phitracker.ui.ViewModelTestLifecycle
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -38,12 +36,11 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsMaintenanceViewModelTest {
     private val dispatcher = StandardTestDispatcher()
-    private val viewModels = mutableListOf<SettingsViewModel>()
+    private val viewModelLifecycle = ViewModelTestLifecycle()
 
     @BeforeTest fun setUp() = Dispatchers.setMain(dispatcher)
     @AfterTest fun tearDown() {
-        viewModels.forEach { it.viewModelScope.cancel() }
-        Dispatchers.resetMain()
+        viewModelLifecycle.tearDown(dispatcher)
     }
 
     @Test
@@ -184,6 +181,6 @@ class SettingsMaintenanceViewModelTest {
             repository, FakeSettingsRepository(), CheckForUpdateUseCase(repository), GetB30UseCase(repository), provider, updater,
             IllustrationProvider(), artworkCache, RuntimeLogExporter(store), CrashReportExporter(store), TipsProvider(TestAssets),
             thumbnailPreloader, clearCacheUrls, {}, {}
-        ).also(viewModels::add)
+        ).let(viewModelLifecycle::track)
     }
 }
