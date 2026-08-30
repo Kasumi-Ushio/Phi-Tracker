@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -30,6 +29,7 @@ import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.QrLoginRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.ui.ViewModelTestLifecycle
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -41,12 +41,13 @@ import kotlin.test.assertTrue
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class LoginViewModelQrRepositoryTest {
     private val dispatcher = StandardTestDispatcher()
+    private val viewModelLifecycle = ViewModelTestLifecycle()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @AfterTest
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() = viewModelLifecycle.tearDown(dispatcher)
 
     @Test
     fun qrHappyPathUsesTwoSecondCadencePersistsThenBootstrapsAndSucceeds() = runTest(dispatcher) {
@@ -61,7 +62,9 @@ class LoginViewModelQrRepositoryTest {
                 )
             )
         )
-        val vm = LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+        val vm = viewModelLifecycle.track(
+            LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+        )
         advanceUntilIdle()
         vm.updateServer(Server.GLOBAL)
 
@@ -95,7 +98,9 @@ class LoginViewModelQrRepositoryTest {
     fun qrExpiryUsesVirtualTimeAndEndsExpiredWithoutPersisting() = runTest(dispatcher) {
         val phigros = FakePhigrosRepository(syncOk = true)
         val qr = FakeQrRepository(expiresAt = 4_000)
-        val vm = LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+        val vm = viewModelLifecycle.track(
+            LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+        )
         advanceUntilIdle()
 
         vm.startQrLogin()
@@ -117,7 +122,9 @@ class LoginViewModelQrRepositoryTest {
     fun qrCancellationStopsPollingAndPreservesCurrentErrorTerminalState() = runTest(dispatcher) {
         val phigros = FakePhigrosRepository(syncOk = true)
         val qr = FakeQrRepository(expiresAt = 30_000, suspendPoll = true)
-        val vm = LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+        val vm = viewModelLifecycle.track(
+            LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+        )
         advanceUntilIdle()
 
         vm.startQrLogin()
@@ -137,7 +144,9 @@ class LoginViewModelQrRepositoryTest {
     @Test
     fun qrRequestPollExchangeAndSyncFailuresMapToErrorWithoutCredentialLeak() = runTest(dispatcher) {
         suspend fun assertError(qr: FakeQrRepository, phigros: FakePhigrosRepository = FakePhigrosRepository(true)) {
-            val vm = LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+            val vm = viewModelLifecycle.track(
+                LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+            )
             advanceUntilIdle()
             vm.startQrLogin()
             advanceUntilIdle()

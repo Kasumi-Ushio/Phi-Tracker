@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -37,6 +36,7 @@ import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.ui.ViewModelTestLifecycle
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -49,17 +49,20 @@ import kotlin.test.assertTrue
 class LoginViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
+    private val viewModelLifecycle = ViewModelTestLifecycle()
 
     @BeforeTest
     fun setUp() = Dispatchers.setMain(dispatcher)
 
     @AfterTest
-    fun tearDown() = Dispatchers.resetMain()
+    fun tearDown() = viewModelLifecycle.tearDown(dispatcher)
 
     private fun viewModel(
         repo: PhigrosRepository,
         qrLoginApi: TapTapQrLoginApi = TapTapQrLoginApi(HttpClient(MockEngine { respond("") }))
-    ): LoginViewModel = LoginViewModel(repo, SyncSaveUseCase(repo), QrLoginRepositoryImpl(qrLoginApi))
+    ): LoginViewModel = viewModelLifecycle.track(
+        LoginViewModel(repo, SyncSaveUseCase(repo), QrLoginRepositoryImpl(qrLoginApi))
+    )
 
     @Test
     fun noSavedTokenGoesToLogin() = runTest(dispatcher) {
