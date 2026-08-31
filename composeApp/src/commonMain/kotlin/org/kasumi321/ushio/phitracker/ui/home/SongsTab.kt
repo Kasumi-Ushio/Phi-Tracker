@@ -74,19 +74,12 @@ private fun Float.formatLevel(): String {
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SongsTab(
-    songs: List<SongInfo>,
-    searchQuery: String,
+    state: SongsUiState,
     onSearchChange: (String) -> Unit,
-    availableChapters: List<String>,
-    selectedChapters: Set<String>,
     onToggleChapter: (String) -> Unit,
     onClearChapters: () -> Unit,
-    selectedDifficulty: Difficulty?,
     onDifficultySelect: (Difficulty?) -> Unit,
-    minLevel: Int,
-    maxLevel: Int,
     onLevelRangeSelect: (Int, Int) -> Unit,
-    showFilterSheet: Boolean,
     onToggleFilterSheet: (Boolean) -> Unit,
     onResetFilters: () -> Unit,
     getIllustrationUrl: (String) -> String?,
@@ -94,6 +87,14 @@ fun SongsTab(
     tip: String = "",
     modifier: Modifier = Modifier
 ) {
+    val songs = state.filteredSongs
+    val searchQuery = state.searchQuery
+    val availableChapters = state.availableChapters
+    val selectedChapters = state.selectedChapters
+    val selectedDifficulty = state.selectedDifficulty
+    val minLevel = state.minLevel
+    val maxLevel = state.maxLevel
+    val showFilterSheet = state.showFilterSheet
     // 计算已激活的筛选数
     val activeFilterCount = remember(selectedChapters, selectedDifficulty, minLevel, maxLevel) {
         var count = 0

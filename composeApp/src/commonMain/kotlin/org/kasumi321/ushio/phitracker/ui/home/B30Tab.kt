@@ -36,18 +36,19 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun B30Tab(
-    b30: List<BestRecord>,
-    displayRks: Float,
+    state: B30UiState,
     nickname: String,
     challengeModeRank: Int,
     onGenerateImage: () -> Unit,
     getIllustrationUrl: (String) -> String?,
     onSongClick: (String, Difficulty?) -> Unit,
-    showB30Overflow: Boolean = false,
-    overflowCount: Int = 9,
     tip: String = "",
     modifier: Modifier = Modifier
 ) {
+    val b30 = state.b30
+    val displayRks = state.displayRks
+    val showB30Overflow = state.showB30Overflow
+    val overflowCount = state.overflowCount
     val phi3 = b30.filter { it.isPhi }
     val b36 = b30.filter { !it.isPhi }
     val b27 = b36.take(27)

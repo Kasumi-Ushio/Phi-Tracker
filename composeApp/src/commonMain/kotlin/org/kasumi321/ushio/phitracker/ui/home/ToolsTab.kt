@@ -95,18 +95,8 @@ import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ToolsTab(
-        syncSnapshots: List<SyncSnapshot>,
-        sessionToken: String?,
-        apiEnabled: Boolean,
-        useApiData: Boolean,
+        state: ToolsUiState,
         defaultRks: Float,
-        apiRankByUser: ApiToolResult,
-        apiRankByPosition: ApiToolResult,
-        apiRksRankResult: ApiToolResult,
-        suggestTargetMode: SuggestTargetMode,
-        suggestTargetInput: String,
-        suggestTargetError: String?,
-        suggestItems: List<SuggestItem>,
         onSuggestTargetModeChange: (SuggestTargetMode) -> Unit,
         onSuggestTargetInputChange: (String) -> Unit,
         onFetchRankByUser: () -> Unit,
@@ -117,6 +107,17 @@ fun ToolsTab(
         tip: String,
         modifier: Modifier = Modifier
 ) {
+    val syncSnapshots = if (state.apiEnabled && state.useApiData) state.apiHistorySnapshots else state.syncSnapshots
+    val sessionToken = state.sessionToken
+    val apiEnabled = state.apiEnabled
+    val useApiData = state.useApiData
+    val apiRankByUser = state.apiRankByUser
+    val apiRankByPosition = state.apiRankByPosition
+    val apiRksRankResult = state.apiRksRankResult
+    val suggestTargetMode = state.suggestTargetMode
+    val suggestTargetInput = state.suggestTargetInput
+    val suggestTargetError = state.suggestTargetError
+    val suggestItems = state.suggestItems
     val scrollState = rememberScrollState()
 
     Scaffold(

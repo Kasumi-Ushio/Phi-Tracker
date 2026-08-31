@@ -90,7 +90,7 @@ class HomeViewModelPreloadTest {
         val viewModel = createViewModel(settings, preloader, artworkFileCache = artworkCache)
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value.showPreloadDialog)
+        assertTrue(viewModel.uiState.value.songs.showPreloadDialog)
 
         viewModel.startPreloadIllustrations()
         advanceUntilIdle()
@@ -103,10 +103,10 @@ class HomeViewModelPreloadTest {
             preloader.urls.sorted()
         )
         assertTrue(settings.preloadDone)
-        assertTrue(viewModel.uiState.value.illustrationReady)
-        assertFalse(viewModel.uiState.value.showPreloadDialog)
-        assertEquals(2, viewModel.uiState.value.preloadCompleted)
-        assertEquals(1f, viewModel.uiState.value.preloadProgress)
+        assertTrue(viewModel.uiState.value.songs.illustrationReady)
+        assertFalse(viewModel.uiState.value.songs.showPreloadDialog)
+        assertEquals(2, viewModel.uiState.value.songs.preloadCompleted)
+        assertEquals(1f, viewModel.uiState.value.songs.preloadProgress)
         assertEquals(listOf("song-a.0", "song-b.0"), artworkCache.downloadedThumbnails.map { it.first }.sorted())
     }
 
@@ -121,8 +121,8 @@ class HomeViewModelPreloadTest {
         )
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value.showPreloadDialog)
-        assertTrue(viewModel.uiState.value.illustrationReady)
+        assertTrue(viewModel.uiState.value.songs.showPreloadDialog)
+        assertTrue(viewModel.uiState.value.songs.illustrationReady)
     }
 
     @Test
@@ -136,11 +136,82 @@ class HomeViewModelPreloadTest {
         advanceUntilIdle()
 
         assertFalse(settings.preloadDone)
-        assertTrue(viewModel.uiState.value.illustrationReady)
-        assertFalse(viewModel.uiState.value.showPreloadDialog)
-        assertEquals("部分曲绘图片未能加载", viewModel.uiState.value.error)
-        assertEquals(2, viewModel.uiState.value.preloadCompleted)
-        assertEquals(1f, viewModel.uiState.value.preloadProgress)
+        assertTrue(viewModel.uiState.value.songs.illustrationReady)
+        assertFalse(viewModel.uiState.value.songs.showPreloadDialog)
+        assertEquals("部分曲绘图片未能加载", viewModel.uiState.value.sync.error)
+        assertEquals(2, viewModel.uiState.value.songs.preloadCompleted)
+        assertEquals(1f, viewModel.uiState.value.songs.preloadProgress)
+    }
+
+    @Test
+    fun tabTransitionsDoNotRestartActiveHomeWorkOrResetSiblingState(): Unit = runTest(dispatcher) {
+        val repository = ControlledHomeWorkRepository()
+        val artworkCache = ControlledThumbnailCache()
+        val viewModel = createViewModel(
+            settingsRepository = FakeSettingsRepository(preloadDone = false, autoCheckUpdate = false),
+            artworkFileCache = artworkCache,
+            repository = repository
+        )
+        val tabs = HomeTabState()
+        advanceUntilIdle()
+
+        viewModel.startPreloadIllustrations()
+        viewModel.refresh()
+        viewModel.setSuggestTargetInput("invalid")
+        viewModel.fetchApiRankByPosition(7)
+        runCurrent()
+
+        assertEquals(1, repository.syncCallCount)
+        assertEquals(1, repository.rankByPositionCallCount)
+        assertEquals(2, repository.networkCallCount)
+        assertEquals(2, artworkCache.requests.size)
+        assertTrue(viewModel.uiState.value.sync.isSyncing)
+        assertTrue(viewModel.uiState.value.songs.isPreloading)
+
+        repeat(3) {
+            tabs.select(HomeTab.Songs)
+            tabs.select(HomeTab.Tools)
+            tabs.select(HomeTab.Profile)
+            tabs.select(HomeTab.B30)
+        }
+        assertEquals(HomeTab.B30, tabs.selected)
+        assertEquals(1, repository.syncCallCount)
+        assertEquals(1, repository.rankByPositionCallCount)
+        assertEquals(2, artworkCache.requests.size)
+
+        artworkCache.complete("song-a.0")
+        repository.completeRankByPosition()
+        runCurrent()
+        assertEquals(1, viewModel.uiState.value.songs.preloadCompleted)
+        assertEquals(0.5f, viewModel.uiState.value.songs.preloadProgress)
+        assertEquals("查询未成功，请检查网络或稍后重试", viewModel.uiState.value.tools.apiRankByPosition.message)
+        assertEquals("invalid", viewModel.uiState.value.tools.suggestTargetInput)
+        assertNotNull(viewModel.uiState.value.tools.suggestTargetError)
+
+        repeat(2) {
+            tabs.select(HomeTab.Tools)
+            tabs.select(HomeTab.Songs)
+        }
+        assertEquals(1, repository.syncCallCount)
+        assertEquals(1, repository.rankByPositionCallCount)
+        assertEquals(2, repository.networkCallCount)
+        assertEquals(2, artworkCache.requests.size)
+        assertTrue(viewModel.uiState.value.sync.isSyncing)
+        assertEquals(0.5f, viewModel.uiState.value.songs.preloadProgress)
+
+        repository.completeSync()
+        artworkCache.complete("song-b.0")
+        advanceUntilIdle()
+        assertEquals("部分曲绘图片未能加载", viewModel.uiState.value.sync.error)
+        assertEquals(1f, viewModel.uiState.value.songs.preloadProgress)
+        assertEquals("查询未成功，请检查网络或稍后重试", viewModel.uiState.value.tools.apiRankByPosition.message)
+
+        viewModel.clearError()
+        assertNull(viewModel.uiState.value.sync.error)
+        assertEquals(1f, viewModel.uiState.value.songs.preloadProgress)
+        assertEquals("查询未成功，请检查网络或稍后重试", viewModel.uiState.value.tools.apiRankByPosition.message)
+        assertEquals("invalid", viewModel.uiState.value.tools.suggestTargetInput)
+        assertNotNull(viewModel.uiState.value.tools.suggestTargetError)
     }
 
     @Test
@@ -193,11 +264,11 @@ class HomeViewModelPreloadTest {
         val viewModel = createViewModel(settings, repository = repository)
         advanceUntilIdle()
 
-        assertEquals(mapOf("EZ" to 2, "HD" to 3, "IN" to 4, "AT" to 1), viewModel.uiState.value.clearCounts)
-        assertEquals(5, viewModel.uiState.value.fcCount)
-        assertEquals(2, viewModel.uiState.value.phiCount)
-        assertEquals(listOf(2L, 1L), viewModel.uiState.value.syncSnapshots.map { it.id })
-        assertEquals(listOf("song-a.0", "song-b.0"), viewModel.uiState.value.recentSyncedRecords.map { it.songId })
+        assertEquals(mapOf("EZ" to 2, "HD" to 3, "IN" to 4, "AT" to 1), viewModel.uiState.value.profile.clearCounts)
+        assertEquals(5, viewModel.uiState.value.profile.fcCount)
+        assertEquals(2, viewModel.uiState.value.profile.phiCount)
+        assertEquals(listOf(2L, 1L), viewModel.uiState.value.tools.syncSnapshots.map { it.id })
+        assertEquals(listOf("song-a.0", "song-b.0"), viewModel.uiState.value.profile.recentSyncedRecords.map { it.songId })
         assertEquals(0, repository.syncCallCount)
         assertEquals(0, repository.networkCallCount)
     }
@@ -215,11 +286,11 @@ class HomeViewModelPreloadTest {
         val viewModel = createViewModel(settings, repository = repository)
         advanceUntilIdle()
 
-        assertEquals(emptyMap(), viewModel.uiState.value.clearCounts)
-        assertEquals(0, viewModel.uiState.value.fcCount)
-        assertEquals(0, viewModel.uiState.value.phiCount)
-        assertTrue(viewModel.uiState.value.recentSyncedRecords.isEmpty())
-        assertNull(viewModel.uiState.value.lastSyncedRecord)
+        assertEquals(emptyMap(), viewModel.uiState.value.profile.clearCounts)
+        assertEquals(0, viewModel.uiState.value.profile.fcCount)
+        assertEquals(0, viewModel.uiState.value.profile.phiCount)
+        assertTrue(viewModel.uiState.value.profile.recentSyncedRecords.isEmpty())
+        assertNull(viewModel.uiState.value.profile.lastSyncedRecord)
         assertEquals(0, repository.syncCallCount)
         assertEquals(0, repository.networkCallCount)
     }
@@ -262,14 +333,14 @@ class HomeViewModelPreloadTest {
         val viewModel = createViewModel(settingsRepository = settings, repository = repository)
         advanceUntilIdle()
 
-        assertEquals(4_000L, viewModel.uiState.value.lastSyncTime)
+        assertEquals(4_000L, viewModel.uiState.value.profile.lastSyncTime)
         assertEquals(
             listOf("song-a.0", "song-b.0", "song-a.0", "song-b.0"),
-            viewModel.uiState.value.recentSyncedRecords.map { it.songId },
+            viewModel.uiState.value.profile.recentSyncedRecords.map { it.songId },
             "History should include every entry from the latest three effective snapshots"
         )
-        assertEquals("song-a.0", viewModel.uiState.value.lastSyncedRecord?.songId)
-        assertEquals(Difficulty.IN, viewModel.uiState.value.lastSyncedRecord?.difficulty)
+        assertEquals("song-a.0", viewModel.uiState.value.profile.lastSyncedRecord?.songId)
+        assertEquals(Difficulty.IN, viewModel.uiState.value.profile.lastSyncedRecord?.difficulty)
         assertEquals(0, repository.syncCallCount)
         assertEquals(0, repository.networkCallCount)
     }
@@ -305,13 +376,13 @@ class HomeViewModelPreloadTest {
         viewModel.refresh()
         advanceUntilIdle()
 
-        assertFalse(viewModel.uiState.value.isSyncing, "Sync should be complete")
-        assertEquals(null, viewModel.uiState.value.error, "Sync should have no error")
-        assertEquals(2_000L, viewModel.uiState.value.lastSyncTime)
+        assertFalse(viewModel.uiState.value.sync.isSyncing, "Sync should be complete")
+        assertEquals(null, viewModel.uiState.value.sync.error, "Sync should have no error")
+        assertEquals(2_000L, viewModel.uiState.value.profile.lastSyncTime)
         assertEquals(listOf(SyncMode.Refresh), repository.syncModes)
         assertEquals(0, recordDao.getAllRecordsOnceCallCount, "Home must not re-read records after sync")
-        assertEquals(emptyList(), viewModel.uiState.value.recentSyncedRecords)
-        assertNull(viewModel.uiState.value.lastSyncedRecord)
+        assertEquals(emptyList(), viewModel.uiState.value.profile.recentSyncedRecords)
+        assertNull(viewModel.uiState.value.profile.lastSyncedRecord)
         assertEquals(emptyList(), repository.getSyncSnapshotsOnce())
     }
 
@@ -372,11 +443,11 @@ class HomeViewModelPreloadTest {
         viewModel.refresh()
         advanceUntilIdle()
 
-        assertFalse(viewModel.uiState.value.isSyncing, "Sync should be complete")
-        assertEquals(null, viewModel.uiState.value.error, "Sync should have no error")
+        assertFalse(viewModel.uiState.value.sync.isSyncing, "Sync should be complete")
+        assertEquals(null, viewModel.uiState.value.sync.error, "Sync should have no error")
         assertEquals(listOf(SyncMode.Refresh), repository.syncModes)
-        assertEquals(2_000L, viewModel.uiState.value.lastSyncTime)
-        assertEquals(listOf("song-a.0"), viewModel.uiState.value.recentSyncedRecords.map { it.songId })
+        assertEquals(2_000L, viewModel.uiState.value.profile.lastSyncTime)
+        assertEquals(listOf("song-a.0"), viewModel.uiState.value.profile.recentSyncedRecords.map { it.songId })
         assertEquals(listOf(1L), repository.getSyncSnapshotsOnce().map { it.id })
     }
 
@@ -415,6 +486,64 @@ class HomeViewModelPreloadTest {
             if (url == failOnUrl) return Result.failure(IllegalStateException("preload failed"))
             return Result.success(Unit)
         }
+    }
+
+    private class ControlledHomeWorkRepository : FakePhigrosRepository() {
+        private val syncGate = CompletableDeferred<Unit>()
+        private val rankGate = CompletableDeferred<Unit>()
+        var rankByPositionCallCount: Int = 0
+            private set
+
+        override suspend fun syncSave(
+            sessionToken: String,
+            server: Server,
+            mode: SyncMode
+        ): Result<SyncSaveResult> {
+            syncCallCount++
+            networkCallCount++
+            syncGate.await()
+            return Result.failure(IllegalStateException("sync failed"))
+        }
+
+        override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> {
+            rankByPositionCallCount++
+            networkCallCount++
+            rankGate.await()
+            return Result.failure(IllegalStateException("rank failed"))
+        }
+
+        fun completeSync() {
+            syncGate.complete(Unit)
+        }
+
+        fun completeRankByPosition() {
+            rankGate.complete(Unit)
+        }
+    }
+
+    private class ControlledThumbnailCache : StandardArtworkCache {
+        private val gates = mutableMapOf<String, CompletableDeferred<Unit>>()
+        val requests = mutableListOf<String>()
+
+        override suspend fun getOrDownloadThumbnail(songId: String, url: String): String {
+            requests += songId
+            gates.getOrPut(songId) { CompletableDeferred() }.await()
+            if (songId == "song-b.0") error("thumbnail failed")
+            return url
+        }
+
+        fun complete(songId: String) {
+            gates.getValue(songId).complete(Unit)
+        }
+
+        override fun getThumbnailIfPresent(songId: String): String? = null
+        override fun hasAllThumbnails(songIds: Iterable<String>): Boolean = false
+        override fun clearThumbnails(songIds: Iterable<String>) = Unit
+        override fun clearAllThumbnails() = Unit
+        override suspend fun getOrDownloadStandard(songId: String, url: String): String = url
+        override fun getStandardIfPresent(songId: String): String? = null
+        override fun clearStandard(songIds: Iterable<String>) = Unit
+        override fun clearAllStandard() = Unit
     }
 
     private class RecordingStandardArtworkCache(
@@ -722,22 +851,22 @@ class HomeViewModelPreloadTest {
         advanceUntilIdle()
 
         // Initially no chapter filter — all 3 songs visible
-        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+        assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size,
             "All songs should be visible with no chapter filter")
 
         // Toggle "Single" — songs in "Single" chapter: song-a.0 and song-c.0
         viewModel.toggleChapter("Single")
         advanceUntilIdle()
-        assertEquals(2, viewModel.uiState.value.filteredSongs.size,
+        assertEquals(2, viewModel.uiState.value.songs.filteredSongs.size,
             "2 songs in Single chapter")
-        assertTrue(viewModel.uiState.value.filteredSongs.all { it.chapter == "Single" })
+        assertTrue(viewModel.uiState.value.songs.filteredSongs.all { it.chapter == "Single" })
 
         // Toggle also "Collection" — now both chapters active
         viewModel.toggleChapter("Collection")
         advanceUntilIdle()
-        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+        assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size,
             "Stacking both chapters shows all 3 songs")
-        assertEquals(setOf("Single", "Collection"), viewModel.uiState.value.selectedChapters)
+        assertEquals(setOf("Single", "Collection"), viewModel.uiState.value.songs.selectedChapters)
     }
 
     @Test
@@ -750,17 +879,17 @@ class HomeViewModelPreloadTest {
         viewModel.toggleChapter("Single")
         viewModel.toggleChapter("Collection")
         advanceUntilIdle()
-        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+        assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size,
             "Both chapters active")
-        assertEquals(setOf("Single", "Collection"), viewModel.uiState.value.selectedChapters)
+        assertEquals(setOf("Single", "Collection"), viewModel.uiState.value.songs.selectedChapters)
 
         // Toggle off "Single" — only "Collection" remains
         viewModel.toggleChapter("Single")
         advanceUntilIdle()
-        assertEquals(1, viewModel.uiState.value.filteredSongs.size,
+        assertEquals(1, viewModel.uiState.value.songs.filteredSongs.size,
             "Only Collection chapter songs after toggling Single off")
-        assertTrue(viewModel.uiState.value.filteredSongs.all { it.chapter == "Collection" })
-        assertEquals(setOf("Collection"), viewModel.uiState.value.selectedChapters)
+        assertTrue(viewModel.uiState.value.songs.filteredSongs.all { it.chapter == "Collection" })
+        assertEquals(setOf("Collection"), viewModel.uiState.value.songs.selectedChapters)
     }
 
     @Test
@@ -772,16 +901,16 @@ class HomeViewModelPreloadTest {
         // Apply chapter filter
         viewModel.toggleChapter("Single")
         advanceUntilIdle()
-        assertEquals(2, viewModel.uiState.value.filteredSongs.size,
+        assertEquals(2, viewModel.uiState.value.songs.filteredSongs.size,
             "Filtered to Single chapter")
-        assertTrue(viewModel.uiState.value.selectedChapters.isNotEmpty())
+        assertTrue(viewModel.uiState.value.songs.selectedChapters.isNotEmpty())
 
         // Clear chapters
         viewModel.clearChapters()
         advanceUntilIdle()
-        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+        assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size,
             "All songs restored after clearing chapters")
-        assertTrue(viewModel.uiState.value.selectedChapters.isEmpty(),
+        assertTrue(viewModel.uiState.value.songs.selectedChapters.isEmpty(),
             "selectedChapters should be empty after clear")
     }
 
@@ -798,19 +927,19 @@ class HomeViewModelPreloadTest {
         advanceUntilIdle()
 
         // Verify filtering is active
-        assertTrue(viewModel.uiState.value.selectedChapters.isNotEmpty())
-        assertNotNull(viewModel.uiState.value.selectedDifficulty)
+        assertTrue(viewModel.uiState.value.songs.selectedChapters.isNotEmpty())
+        assertNotNull(viewModel.uiState.value.songs.selectedDifficulty)
 
         // Reset
         viewModel.resetFilters()
         advanceUntilIdle()
 
         // All filters cleared
-        assertTrue(viewModel.uiState.value.selectedChapters.isEmpty())
-        assertEquals(null, viewModel.uiState.value.selectedDifficulty)
-        assertEquals(1, viewModel.uiState.value.minLevel)
-        assertEquals(17, viewModel.uiState.value.maxLevel)
-        assertEquals(3, viewModel.uiState.value.filteredSongs.size,
+        assertTrue(viewModel.uiState.value.songs.selectedChapters.isEmpty())
+        assertEquals(null, viewModel.uiState.value.songs.selectedDifficulty)
+        assertEquals(1, viewModel.uiState.value.songs.minLevel)
+        assertEquals(17, viewModel.uiState.value.songs.maxLevel)
+        assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size,
             "Reset should restore all songs")
     }
 
@@ -821,15 +950,15 @@ class HomeViewModelPreloadTest {
         advanceUntilIdle()
 
         // selectedChapters starts empty — all songs match
-        assertTrue(viewModel.uiState.value.selectedChapters.isEmpty())
-        assertEquals(3, viewModel.uiState.value.filteredSongs.size)
+        assertTrue(viewModel.uiState.value.songs.selectedChapters.isEmpty())
+        assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size)
 
         // Filter by difficulty only — chapters still empty, difficulty narrows
         viewModel.filterByDifficulty(Difficulty.IN)
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.selectedChapters.isEmpty())
+        assertTrue(viewModel.uiState.value.songs.selectedChapters.isEmpty())
         // All 3 songs have IN=3.0, min=1 max=16 → all should match
-        assertEquals(3, viewModel.uiState.value.filteredSongs.size)
+        assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size)
     }
 
     @Test
@@ -841,14 +970,14 @@ class HomeViewModelPreloadTest {
         // Apply chapter filter first
         viewModel.toggleChapter("Single")
         advanceUntilIdle()
-        assertEquals(2, viewModel.uiState.value.filteredSongs.size)
+        assertEquals(2, viewModel.uiState.value.songs.filteredSongs.size)
 
         // Add search query that narrows further
         viewModel.searchSongs("Song A")
         advanceUntilIdle()
-        assertEquals(1, viewModel.uiState.value.filteredSongs.size,
+        assertEquals(1, viewModel.uiState.value.songs.filteredSongs.size,
             "Search + chapter filter should stack")
-        assertEquals("song-a.0", viewModel.uiState.value.filteredSongs.first().id)
+        assertEquals("song-a.0", viewModel.uiState.value.songs.filteredSongs.first().id)
     }
 
     @Test
@@ -874,7 +1003,7 @@ class HomeViewModelPreloadTest {
         advanceUntilIdle()
 
         // No B30 records → empty suggestions
-        assertTrue(viewModel.uiState.value.suggestItems.isEmpty(),
+        assertTrue(viewModel.uiState.value.tools.suggestItems.isEmpty(),
             "Empty B30 should yield empty suggestions")
     }
 
@@ -908,7 +1037,7 @@ class HomeViewModelPreloadTest {
         ).let(viewModelLifecycle::track)
         advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value.suggestItems.isEmpty(),
+        assertTrue(viewModel.uiState.value.tools.suggestItems.isEmpty(),
             "No cached save should yield empty suggestions")
     }
 
@@ -950,7 +1079,7 @@ class HomeViewModelPreloadTest {
         advanceUntilIdle()
 
         // B30 has only 1 record (< 20 minimum) → empty suggestions
-        assertTrue(viewModel.uiState.value.suggestItems.isEmpty(),
+        assertTrue(viewModel.uiState.value.tools.suggestItems.isEmpty(),
             "B30 with < 20 records should yield empty suggestions")
     }
 
@@ -1026,19 +1155,19 @@ class HomeViewModelPreloadTest {
         viewModel.setSuggestTargetInput("16.123")
         advanceUntilIdle()
 
-        assertEquals("16.123", viewModel.uiState.value.suggestTargetInput)
+        assertEquals("16.123", viewModel.uiState.value.tools.suggestTargetInput)
         assertEquals(
             "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数",
-            viewModel.uiState.value.suggestTargetError
+            viewModel.uiState.value.tools.suggestTargetError
         )
 
         viewModel.setSuggestTargetInput("abc")
         advanceUntilIdle()
 
-        assertEquals("abc", viewModel.uiState.value.suggestTargetInput)
+        assertEquals("abc", viewModel.uiState.value.tools.suggestTargetInput)
         assertEquals(
             "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数",
-            viewModel.uiState.value.suggestTargetError
+            viewModel.uiState.value.tools.suggestTargetError
         )
     }
 
@@ -1102,7 +1231,7 @@ class HomeViewModelPreloadTest {
             repository.fetchLatestReleaseIncludePreReleaseValues,
             "Startup auto-check should use includePreRelease=false by default"
         )
-        val state = viewModel.uiState.value.updateCheckState
+        val state = viewModel.uiState.value.sync.updateCheckState
         assertTrue(state is UpdateCheckState.Available,
             "Should be Available when a newer version is returned")
         val available = state as UpdateCheckState.Available
@@ -1124,7 +1253,7 @@ class HomeViewModelPreloadTest {
 
         assertEquals(0, repository.fetchLatestReleaseCallCount,
             "Should NOT call fetchLatestRelease when auto-check is disabled")
-        assertTrue(viewModel.uiState.value.updateCheckState is UpdateCheckState.Idle,
+        assertTrue(viewModel.uiState.value.sync.updateCheckState is UpdateCheckState.Idle,
             "UpdateCheckState should remain Idle")
     }
 

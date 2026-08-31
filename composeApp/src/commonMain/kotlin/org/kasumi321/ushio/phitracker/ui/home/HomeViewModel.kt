@@ -52,7 +52,6 @@ import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
-import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.toUpdateCheckState
@@ -67,86 +66,6 @@ data class ApiToolRow(
     val label: String,
     val value: String
 )
-
-data class HomeUiState(
-    val b30: List<BestRecord> = emptyList(),
-    val displayRks: Float = 0f,
-    val nickname: String = "",
-    val challengeModeRank: Int = 0,
-    val isLoading: Boolean = false,
-    val isSyncing: Boolean = false,
-    val error: String? = null,
-    val isLoggedOut: Boolean = false,
-    val searchQuery: String = "",
-    val filteredSongs: List<SongInfo> = emptyList(),
-    val allSongs: List<SongInfo> = emptyList(),
-    val allRecords: List<BestRecord> = emptyList(),
-    val availableChapters: List<String> = emptyList(),
-    val selectedChapters: Set<String> = emptySet(),
-    val selectedDifficulty: Difficulty? = null,
-    val minLevel: Int = 1,
-    val maxLevel: Int = 17,
-    val showFilterSheet: Boolean = false,
-    // Illustration preload. This must not block home rendering.
-    val illustrationReady: Boolean = true,
-    val showPreloadDialog: Boolean = false,
-    val preloadProgress: Float = 0f,
-    val preloadTotal: Int = 0,
-    val preloadCompleted: Int = 0,
-    val isPreloading: Boolean = false,
-
-    // Settings
-    val themeMode: Int = 0,
-    val themeColorSource: String = "system",
-    val seedColorArgb: Int = -10011977,
-    val themeImageSeedColorArgb: Int? = null,
-    val themeImageUri: String? = null,
-    val paletteStyleName: String = "TonalSpot",
-    val showB30Overflow: Boolean = false,
-    val overflowCount: Int = 9,
-
-    // Personal home
-    val avatarUri: String? = null,
-    val lastSyncTime: Long? = null,
-    val lastSyncedRecord: BestRecord? = null,
-    val recentSyncedRecords: List<BestRecord> = emptyList(),
-    val moneyString: String = "",
-    val clearCounts: Map<String, Int> = emptyMap(),
-    val fcCount: Int = 0,
-    val phiCount: Int = 0,
-
-    // Tool tab (sync snapshots)
-    val syncSnapshots: List<SyncSnapshot> = emptyList(),
-    val sessionToken: String? = null,
-
-    val updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
-
-    // PhiPlugin API
-    val apiEnabled: Boolean = false,
-    val useApiData: Boolean = false,
-    val apiPlatform: String = "",
-    val apiPlatformId: String = "",
-    val apiRksRank: Int? = null,
-    val apiTotalUsers: Int? = null,
-    val apiHistorySnapshots: List<SyncSnapshot> = emptyList(),
-    val apiRankByUser: ApiToolResult = ApiToolResult(),
-    val apiRankByPosition: ApiToolResult = ApiToolResult(),
-    val apiRksRankResult: ApiToolResult = ApiToolResult(),
-    val suggestTargetMode: SuggestTargetMode = SuggestTargetMode.PlayerDisplayRks,
-    val suggestTargetInput: String = "",
-    val suggestTargetError: String? = null,
-    val suggestItems: List<SuggestItem> = emptyList()
-) {
-    val themeSettings: PhiTrackerThemeSettings
-        get() = PhiTrackerThemeSettings(
-            themeMode = themeMode,
-            colorSource = themeColorSource,
-            seedColorArgb = seedColorArgb,
-            imageSeedColorArgb = themeImageSeedColorArgb,
-            imageUri = themeImageUri,
-            paletteStyleName = paletteStyleName
-        )
-}
 
 class HomeViewModel(
     private val repository: PhigrosRepository,
@@ -184,88 +103,88 @@ class HomeViewModel(
         // Observe settings flows
         viewModelScope.launch {
             settingsRepository.themeMode.collect { mode ->
-                _uiState.update { it.copy(themeMode = mode) }
+                updateB30 { it.copy(themeSettings = it.themeSettings.copy(themeMode = mode)) }
             }
         }
         viewModelScope.launch {
             settingsRepository.themeColorSource.collect { source ->
-                _uiState.update { it.copy(themeColorSource = source) }
+                updateB30 { it.copy(themeSettings = it.themeSettings.copy(colorSource = source)) }
             }
         }
         viewModelScope.launch {
             settingsRepository.seedColorArgb.collect { argb ->
-                _uiState.update { it.copy(seedColorArgb = argb) }
+                updateB30 { it.copy(themeSettings = it.themeSettings.copy(seedColorArgb = argb)) }
             }
         }
         viewModelScope.launch {
             settingsRepository.themeImageSeedColorArgb.collect { argb ->
-                _uiState.update { it.copy(themeImageSeedColorArgb = argb) }
+                updateB30 { it.copy(themeSettings = it.themeSettings.copy(imageSeedColorArgb = argb)) }
             }
         }
         viewModelScope.launch {
             settingsRepository.themeImageUri.collect { uri ->
-                _uiState.update { it.copy(themeImageUri = uri) }
+                updateB30 { it.copy(themeSettings = it.themeSettings.copy(imageUri = uri)) }
             }
         }
         viewModelScope.launch {
             settingsRepository.paletteStyleName.collect { style ->
-                _uiState.update { it.copy(paletteStyleName = style) }
+                updateB30 { it.copy(themeSettings = it.themeSettings.copy(paletteStyleName = style)) }
             }
         }
 
         viewModelScope.launch {
             settingsRepository.showB30Overflow.collect { show ->
-                _uiState.update { it.copy(showB30Overflow = show) }
+                updateB30 { it.copy(showB30Overflow = show) }
             }
         }
         viewModelScope.launch {
             settingsRepository.overflowCount.collect { count ->
-                _uiState.update { it.copy(overflowCount = count) }
+                updateB30 { it.copy(overflowCount = count) }
             }
         }
         viewModelScope.launch {
             settingsRepository.avatarUri.collect { uri ->
-                _uiState.update { it.copy(avatarUri = uri) }
+                updateProfile { it.copy(avatarUri = uri) }
             }
         }
         viewModelScope.launch {
             settingsRepository.moneyString.collect { money ->
-                _uiState.update { it.copy(moneyString = money) }
+                updateProfile { it.copy(moneyString = money) }
             }
         }
         // Tool tab: observe sync snapshots
         viewModelScope.launch {
             repository.observeSyncSnapshots().collect { list ->
-                _uiState.update { it.copy(syncSnapshots = list) }
+                updateTools { it.copy(syncSnapshots = list) }
             }
         }
         // Tool tab: load sessionToken
         viewModelScope.launch {
             val tokenPair = repository.getSessionToken()
-            _uiState.update { it.copy(sessionToken = tokenPair?.first) }
+            updateTools { it.copy(sessionToken = tokenPair?.first) }
         }
         // Observe PhiPlugin API settings
         viewModelScope.launch {
             settingsRepository.apiEnabled.collect { enabled ->
-                _uiState.update { it.copy(apiEnabled = enabled) }
+                updateTools { it.copy(apiEnabled = enabled) }
                 refreshApiToolData()
             }
         }
         viewModelScope.launch {
             settingsRepository.useApiData.collect { useApiData ->
-                _uiState.update { it.copy(useApiData = useApiData) }
+                updateTools { it.copy(useApiData = useApiData) }
                 refreshApiToolData()
             }
         }
         viewModelScope.launch {
             settingsRepository.apiPlatform.collect { platform ->
-                _uiState.update { it.copy(apiPlatform = platform) }
+                updateTools { it.copy(apiPlatform = platform) }
                 refreshApiToolData()
             }
         }
         viewModelScope.launch {
             settingsRepository.apiPlatformId.collect { platformId ->
-                _uiState.update { it.copy(apiPlatformId = platformId) }
+                updateTools { it.copy(apiPlatformId = platformId) }
                 refreshApiToolData()
             }
         }
@@ -281,11 +200,31 @@ class HomeViewModel(
         }
     }
 
+    private fun updateProfile(transform: (ProfileUiState) -> ProfileUiState) {
+        _uiState.update { it.copy(profile = transform(it.profile)) }
+    }
+
+    private fun updateSongs(transform: (SongsUiState) -> SongsUiState) {
+        _uiState.update { it.copy(songs = transform(it.songs)) }
+    }
+
+    private fun updateB30(transform: (B30UiState) -> B30UiState) {
+        _uiState.update { it.copy(b30 = transform(it.b30)) }
+    }
+
+    private fun updateTools(transform: (ToolsUiState) -> ToolsUiState) {
+        _uiState.update { it.copy(tools = transform(it.tools)) }
+    }
+
+    private fun updateSync(transform: (SyncUiState) -> SyncUiState) {
+        _uiState.update { it.copy(sync = transform(it.sync)) }
+    }
+
     private suspend fun loadStats() {
         val clearCounts = repository.getClearCountsByDifficulty().mapKeys { (difficulty, _) -> difficulty.name }
         val fcCount = repository.getTotalFullComboCount()
         val phiCount = repository.getTotalPhiCount()
-        _uiState.update {
+        updateProfile {
             it.copy(
                 clearCounts = clearCounts,
                 fcCount = fcCount,
@@ -299,7 +238,7 @@ class HomeViewModel(
             try {
                 val songs = songDataProvider.getSongs().values.toList().sortedBy { it.name }
                 val chapters = songs.map { it.chapter }.filter { it.isNotBlank() }.distinct().sorted()
-                _uiState.update {
+                updateSongs {
                     it.copy(allSongs = songs, filteredSongs = songs, availableChapters = chapters)
                 }
                 applyFilters()
@@ -327,18 +266,22 @@ class HomeViewModel(
                             records = it.gameRecord,
                             difficulties = diffMap,
                             songNames = nameMap,
-                            mode = _uiState.value.suggestTargetMode,
-                            input = _uiState.value.suggestTargetInput
+                            mode = _uiState.value.tools.suggestTargetMode,
+                            input = _uiState.value.tools.suggestTargetInput
                         )
                     } ?: SuggestBuildResult(emptyList(), null)
-                    _uiState.update {
-                        it.copy(
+                    _uiState.update { state ->
+                        state.copy(
+                            b30 = state.b30.copy(
                             b30 = b30,
                             allRecords = allRecords,
-                            displayRks = if (it.displayRks == 0f) computedRks else it.displayRks,
+                                displayRks = if (state.b30.displayRks == 0f) computedRks else state.b30.displayRks
+                            ),
+                            tools = state.tools.copy(
                             suggestItems = suggestResult.items,
-                            suggestTargetError = suggestResult.error,
-                            isLoading = false
+                                suggestTargetError = suggestResult.error
+                            ),
+                            sync = state.sync.copy(isLoading = false)
                         )
                     }
                 }
@@ -402,13 +345,13 @@ class HomeViewModel(
     }
 
     fun setSuggestTargetMode(mode: SuggestTargetMode) {
-        _uiState.update { it.copy(suggestTargetMode = mode) }
+        updateTools { it.copy(suggestTargetMode = mode) }
         recalculateSuggestItems()
     }
 
     fun setSuggestTargetInput(input: String) {
         val normalized = input.replace('，', '.')
-        _uiState.update { it.copy(suggestTargetInput = normalized) }
+        updateTools { it.copy(suggestTargetInput = normalized) }
         recalculateSuggestItems()
     }
 
@@ -423,15 +366,15 @@ class HomeViewModel(
             val cachedSave = repository.getCachedSave().first()
             val result = cachedSave?.let {
                 buildSuggestItems(
-                    currentB30 = state.b30,
+                    currentB30 = state.b30.b30,
                     records = it.gameRecord,
                     difficulties = diffMap,
                     songNames = nameMap,
-                    mode = state.suggestTargetMode,
-                    input = state.suggestTargetInput
+                    mode = state.tools.suggestTargetMode,
+                    input = state.tools.suggestTargetInput
                 )
             } ?: SuggestBuildResult(emptyList(), null)
-            _uiState.update {
+            updateTools {
                 it.copy(
                     suggestItems = result.items,
                     suggestTargetError = result.error
@@ -446,9 +389,13 @@ class HomeViewModel(
                 if (profile != null) {
                     _uiState.update { state ->
                         state.copy(
+                            profile = state.profile.copy(
                             nickname = profile.nickname,
-                            displayRks = if (profile.rks > 0f) profile.rks else state.displayRks,
                             challengeModeRank = profile.challengeModeRank
+                            ),
+                            b30 = state.b30.copy(
+                                displayRks = if (profile.rks > 0f) profile.rks else state.b30.displayRks
+                            )
                         )
                     }
                 }
@@ -468,7 +415,7 @@ class HomeViewModel(
             val songIds = songDataProvider.getSongs().keys
             val thumbnailsPresent = artworkFileCache.hasAllThumbnails(songIds)
             if (alreadyDone && thumbnailsPresent) {
-                _uiState.update { it.copy(illustrationReady = true) }
+                updateSongs { it.copy(illustrationReady = true) }
             } else {
                 AppLogger.event(
                     "cache",
@@ -479,7 +426,7 @@ class HomeViewModel(
                         "songCount" to songIds.size.toString()
                     )
                 )
-                _uiState.update { it.copy(showPreloadDialog = true, illustrationReady = true) }
+                updateSongs { it.copy(showPreloadDialog = true, illustrationReady = true) }
             }
         }
     }
@@ -492,7 +439,7 @@ class HomeViewModel(
 
             if (total == 0) {
                 settingsRepository.setPreloadDone(true)
-                _uiState.update {
+                updateSongs {
                     it.copy(
                         isPreloading = false,
                         showPreloadDialog = false,
@@ -506,7 +453,7 @@ class HomeViewModel(
             val semaphore = Semaphore(6)
             val mutex = Mutex()
 
-            _uiState.update {
+            updateSongs {
                 it.copy(isPreloading = true, preloadTotal = total, preloadCompleted = 0, preloadProgress = 0f)
             }
 
@@ -526,7 +473,7 @@ class HomeViewModel(
                         mutex.withLock {
                             if (result.isFailure) hasChildError = true
                             completed++
-                            _uiState.update {
+                            updateSongs {
                                 it.copy(
                                     preloadCompleted = completed,
                                     preloadProgress = completed.toFloat() / total
@@ -546,12 +493,14 @@ class HomeViewModel(
                 persistResult.exceptionOrNull()?.message
             }
 
-            _uiState.update {
-                it.copy(
+            _uiState.update { state ->
+                state.copy(
+                    songs = state.songs.copy(
                     isPreloading = false,
                     showPreloadDialog = false,
-                    illustrationReady = true,
-                    error = errorMessage
+                        illustrationReady = true
+                    ),
+                    sync = state.sync.copy(error = errorMessage)
                 )
             }
         }
@@ -563,7 +512,7 @@ class HomeViewModel(
     fun dismissPreload() {
         viewModelScope.launch {
             settingsRepository.setPreloadDone(true)
-            _uiState.update {
+            updateSongs {
                 it.copy(showPreloadDialog = false, illustrationReady = true)
             }
         }
@@ -571,12 +520,12 @@ class HomeViewModel(
 
     fun refresh() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isSyncing = true, error = null) }
+            updateSync { it.copy(isSyncing = true, error = null) }
             AppLogger.event("sync", "refresh_started")
             try {
                 val tokenPair = repository.getSessionToken()
                 if (tokenPair == null) {
-                    _uiState.update { it.copy(isSyncing = false, error = "请先登录后再操作") }
+                    updateSync { it.copy(isSyncing = false, error = "请先登录后再操作") }
                     return@launch
                 }
 
@@ -596,10 +545,10 @@ class HomeViewModel(
                     settingsRepository.setMoneyString(moneyStr)
 
                     if (syncResult.snapshotCreated) {
-                        _uiState.update {
-                            it.copy(
-                                isSyncing = false,
-                                lastSyncTime = syncResult.committedAt
+                        _uiState.update { state ->
+                            state.copy(
+                                sync = state.sync.copy(isSyncing = false),
+                                profile = state.profile.copy(lastSyncTime = syncResult.committedAt)
                             )
                         }
                         loadRecentEffectiveSyncHistory()
@@ -608,27 +557,29 @@ class HomeViewModel(
                             "refresh_success",
                             mapOf(
                                 "changedEntries" to syncResult.changedEntryCount.toString(),
-                                "displayRks" to _uiState.value.displayRks.toString()
+                                "displayRks" to _uiState.value.b30.displayRks.toString()
                             )
                         )
                     } else {
-                        _uiState.update {
-                            it.copy(
-                                isSyncing = false,
+                        _uiState.update { state ->
+                            state.copy(
+                                sync = state.sync.copy(isSyncing = false),
+                                profile = state.profile.copy(
                                 lastSyncTime = syncResult.committedAt,
                                 recentSyncedRecords = emptyList(),
                                 lastSyncedRecord = null
+                                )
                             )
                         }
                         AppLogger.event("sync", "refresh_success", mapOf("changedEntries" to "0"))
                     }
                     // Refresh stats
                     loadStats()
-                    if (_uiState.value.apiEnabled && _uiState.value.useApiData) {
+                    if (_uiState.value.tools.apiEnabled && _uiState.value.tools.useApiData) {
                         refreshApiToolData()
                     }
                 } else {
-                    _uiState.update {
+                    updateSync {
                         it.copy(
                             isSyncing = false,
                             error = result.exceptionOrNull()?.message
@@ -637,7 +588,7 @@ class HomeViewModel(
                     AppLogger.event("sync", "refresh_failed", mapOf("error" to (result.exceptionOrNull()?.message ?: "unknown")))
                 }
             } catch (e: Exception) {
-                _uiState.update {
+                updateSync {
                     it.copy(isSyncing = false, error = e.message)
                 }
                 AppLogger.event("sync", "refresh_failed", mapOf("error" to (e.message ?: "unknown")))
@@ -667,7 +618,7 @@ class HomeViewModel(
             )
         }
 
-        _uiState.update {
+        updateProfile {
             it.copy(
                 recentSyncedRecords = recentRecords,
                 lastSyncedRecord = recentRecords.firstOrNull()
@@ -707,7 +658,7 @@ class HomeViewModel(
             )
         }
 
-        _uiState.update {
+        updateProfile {
             // Home summary uses the first entry of the newest effective sync snapshot,
             // while the history list keeps every entry from the latest three effective snapshots.
             it.copy(
@@ -719,12 +670,12 @@ class HomeViewModel(
     }
 
     fun searchSongs(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
+        updateSongs { it.copy(searchQuery = query) }
         applyFilters()
     }
 
     fun toggleChapter(chapter: String) {
-        _uiState.update { state ->
+        updateSongs { state ->
             val newChapters = state.selectedChapters.toMutableSet().apply {
                 if (contains(chapter)) remove(chapter) else add(chapter)
             }
@@ -734,28 +685,28 @@ class HomeViewModel(
     }
 
     fun clearChapters() {
-        _uiState.update {
+        updateSongs {
             it.copy(selectedChapters = emptySet())
         }
         applyFilters()
     }
 
     fun filterByDifficulty(diff: Difficulty?) {
-        _uiState.update { it.copy(selectedDifficulty = diff) }
+        updateSongs { it.copy(selectedDifficulty = diff) }
         applyFilters()
     }
 
     fun filterByLevelRange(min: Int, max: Int) {
-        _uiState.update { it.copy(minLevel = min, maxLevel = max) }
+        updateSongs { it.copy(minLevel = min, maxLevel = max) }
         applyFilters()
     }
 
     fun toggleFilterSheet(show: Boolean) {
-        _uiState.update { it.copy(showFilterSheet = show) }
+        updateSongs { it.copy(showFilterSheet = show) }
     }
 
     fun resetFilters() {
-        _uiState.update {
+        updateSongs {
             it.copy(
                 selectedChapters = emptySet(),
                 selectedDifficulty = null,
@@ -767,7 +718,7 @@ class HomeViewModel(
     }
 
     private fun applyFilters() {
-        val state = _uiState.value
+        val state = _uiState.value.songs
         val allSongsMap = songDataProvider.getSongs()
         val searchResults = if (state.searchQuery.isNotBlank()) {
             searchSongUseCase(state.searchQuery, allSongsMap)
@@ -791,7 +742,7 @@ class HomeViewModel(
             matchesChapter && matchesLevelAndDiff
         }
 
-        _uiState.update { it.copy(filteredSongs = filtered) }
+        updateSongs { it.copy(filteredSongs = filtered) }
     }
 
     fun getLowIllustrationUrl(songId: String): String? {
@@ -811,12 +762,12 @@ class HomeViewModel(
     fun logout() {
         viewModelScope.launch {
             repository.clearData()
-            _uiState.update { it.copy(isLoggedOut = true) }
+            updateSync { it.copy(isLoggedOut = true) }
         }
     }
 
     fun clearError() {
-        _uiState.update { it.copy(error = null) }
+        updateSync { it.copy(error = null) }
     }
 
     fun setAvatarUri(uri: String?) {
@@ -826,30 +777,21 @@ class HomeViewModel(
         }
     }
 
-    fun getToolSnapshots(): List<SyncSnapshot> {
-        val state = _uiState.value
-        return if (state.apiEnabled && state.useApiData) {
-            state.apiHistorySnapshots
-        } else {
-            state.syncSnapshots
-        }
-    }
-
     fun fetchApiRankByUser() {
-        val state = _uiState.value
+        val state = _uiState.value.tools
         if (!state.apiEnabled || !state.useApiData) return
         val platform = state.apiPlatform.trim()
         val platformId = state.apiPlatformId.trim()
         if (platform.isBlank() || platformId.isBlank()) {
-            _uiState.update { it.copy(apiRankByUser = ApiToolResult(message = "请先填写平台名称与平台 ID")) }
+            updateTools { it.copy(apiRankByUser = ApiToolResult(message = "请先填写平台名称与平台 ID")) }
             return
         }
 
         viewModelScope.launch {
-            _uiState.update { it.copy(apiRankByUser = ApiToolResult(isLoading = true)) }
+            updateTools { it.copy(apiRankByUser = ApiToolResult(isLoading = true)) }
             val result = repository.apiGetRankByUser(platform, platformId)
             if (result.isFailure) {
-                _uiState.update {
+                updateTools {
                     it.copy(
                         apiRankByUser = ApiToolResult(
                             message = "查询未成功，请检查网络或稍后重试"
@@ -890,20 +832,20 @@ class HomeViewModel(
                 if (meRank != null) add(ApiToolRow("我的名次", meRank.toString()))
                 add(ApiToolRow("总人数", total?.toString() ?: "—"))
             }
-            _uiState.update { it.copy(apiRankByUser = ApiToolResult(message = msg, rows = rows)) }
+            updateTools { it.copy(apiRankByUser = ApiToolResult(message = msg, rows = rows)) }
         }
     }
 
     fun fetchApiRankByPosition(position: Int) {
         if (position <= 0) {
-            _uiState.update { it.copy(apiRankByPosition = ApiToolResult(message = "请输入大于 0 的名次")) }
+            updateTools { it.copy(apiRankByPosition = ApiToolResult(message = "请输入大于 0 的名次")) }
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(apiRankByPosition = ApiToolResult(isLoading = true)) }
+            updateTools { it.copy(apiRankByPosition = ApiToolResult(isLoading = true)) }
             val result = repository.apiGetRankByPosition(position)
             if (result.isFailure) {
-                _uiState.update {
+                updateTools {
                     it.copy(
                         apiRankByPosition = ApiToolResult(
                             message = "查询未成功，请检查网络或稍后重试"
@@ -938,20 +880,20 @@ class HomeViewModel(
                 if (rks != null) add(ApiToolRow("RKS", formatFourDecimals(rks)))
                 add(ApiToolRow("匹配状态", if (exact) "精确匹配" else "最接近匹配"))
             }
-            _uiState.update { it.copy(apiRankByPosition = ApiToolResult(message = msg, rows = rows)) }
+            updateTools { it.copy(apiRankByPosition = ApiToolResult(message = msg, rows = rows)) }
         }
     }
 
     fun fetchApiRksRankForValue(rks: Float) {
         if (rks <= 0f) {
-            _uiState.update { it.copy(apiRksRankResult = ApiToolResult(message = "请输入有效的 RKS")) }
+            updateTools { it.copy(apiRksRankResult = ApiToolResult(message = "请输入有效的 RKS")) }
             return
         }
         viewModelScope.launch {
-            _uiState.update { it.copy(apiRksRankResult = ApiToolResult(isLoading = true)) }
+            updateTools { it.copy(apiRksRankResult = ApiToolResult(isLoading = true)) }
             val result = repository.apiGetRksAbove(rks)
             if (result.isFailure) {
-                _uiState.update {
+                updateTools {
                     it.copy(
                         apiRksRankResult = ApiToolResult(
                             message = "查询未成功，请检查网络或稍后重试"
@@ -963,7 +905,7 @@ class HomeViewModel(
             val dataObj = result.getOrNull()?.get("data")?.asObject()
             val total = dataObj?.get("totNum")?.asInt()
             val rank = dataObj?.get("rksRank")?.asInt()
-            _uiState.update {
+            updateTools {
                 it.copy(
                     apiTotalUsers = total,
                     apiRksRank = rank,
@@ -981,9 +923,9 @@ class HomeViewModel(
     }
 
     private fun refreshApiToolData() {
-        val state = _uiState.value
+        val state = _uiState.value.tools
         if (!state.apiEnabled || !state.useApiData) {
-            _uiState.update {
+            updateTools {
                 it.copy(
                     apiHistorySnapshots = emptyList(),
                     apiRankByUser = ApiToolResult(),
@@ -996,13 +938,13 @@ class HomeViewModel(
 
         fetchApiHistorySnapshots()
         fetchApiRankByUser()
-        if (state.displayRks > 0f) {
-            fetchApiRksRankForValue(state.displayRks)
+        if (_uiState.value.b30.displayRks > 0f) {
+            fetchApiRksRankForValue(_uiState.value.b30.displayRks)
         }
     }
 
     private fun fetchApiHistorySnapshots() {
-        val state = _uiState.value
+        val state = _uiState.value.tools
         val platform = state.apiPlatform.trim()
         val platformId = state.apiPlatformId.trim()
         if (platform.isBlank() || platformId.isBlank()) return
@@ -1022,7 +964,7 @@ class HomeViewModel(
                     id = index.toLong() + 1L,
                     timestamp = parseIsoToEpoch(date),
                     rks = value,
-                    nickname = _uiState.value.nickname,
+                    nickname = _uiState.value.profile.nickname,
                     dataCount = 0,
                     lastSyncedSongId = null,
                     lastSyncedDifficulty = null,
@@ -1031,7 +973,7 @@ class HomeViewModel(
                 )
             }.sortedBy { it.timestamp }
 
-            _uiState.update { it.copy(apiHistorySnapshots = snapshots) }
+            updateTools { it.copy(apiHistorySnapshots = snapshots) }
         }
     }
 
@@ -1067,13 +1009,13 @@ class HomeViewModel(
 
     fun checkForUpdate(currentVersionName: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(updateCheckState = UpdateCheckState.Checking) }
+            updateSync { it.copy(updateCheckState = UpdateCheckState.Checking) }
             AppLogger.event("update", "check_started")
             val result = checkForUpdateUseCase(
                 currentVersionName = currentVersionName,
                 includePreRelease = settingsRepository.includePreRelease.first()
             ).toUpdateCheckState()
-            _uiState.update { it.copy(updateCheckState = result) }
+            updateSync { it.copy(updateCheckState = result) }
             when (result) {
                 is UpdateCheckState.Available -> AppLogger.event(
                     "update", "check_update_available", mapOf("version" to result.version)
@@ -1088,7 +1030,7 @@ class HomeViewModel(
     }
 
     fun dismissUpdateResult() {
-        _uiState.update { it.copy(updateCheckState = UpdateCheckState.Idle) }
+        updateSync { it.copy(updateCheckState = UpdateCheckState.Idle) }
     }
 
 }

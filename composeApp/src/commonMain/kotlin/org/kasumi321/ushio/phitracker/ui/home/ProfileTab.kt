@@ -83,16 +83,8 @@ private val PhiTextColor = Color(0xFF5D4037)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileTab(
-    nickname: String,
+    state: ProfileUiState,
     displayRks: Float,
-    challengeModeRank: Int,
-    moneyString: String,
-    clearCounts: Map<String, Int>,
-    fcCount: Int,
-    phiCount: Int,
-    avatarUri: String?,
-    lastSyncTime: Long?,
-    recentSyncedRecords: List<BestRecord>,
     isSyncing: Boolean,
     onRefresh: () -> Unit,
     onAvatarSelected: (String) -> Unit,
@@ -102,6 +94,15 @@ fun ProfileTab(
     tip: String = "",
     modifier: Modifier = Modifier
 ) {
+    val nickname = state.nickname
+    val challengeModeRank = state.challengeModeRank
+    val moneyString = state.moneyString
+    val clearCounts = state.clearCounts
+    val fcCount = state.fcCount
+    val phiCount = state.phiCount
+    val avatarUri = state.avatarUri
+    val lastSyncTime = state.lastSyncTime
+    val recentSyncedRecords = state.recentSyncedRecords
     val launchPicker = rememberAvatarPicker { uri ->
         uri?.let { onAvatarSelected(it) }
     }

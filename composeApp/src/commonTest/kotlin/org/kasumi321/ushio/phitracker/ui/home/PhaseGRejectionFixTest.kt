@@ -28,15 +28,34 @@ class PhaseGRejectionFixTest {
     @Test
     fun dismissUpdateResultResetsToIdle() {
         val state = HomeUiState(
-            updateCheckState = UpdateCheckState.Available(
-                version = "v1.0.0",
-                htmlUrl = "https://example.test",
-                body = "New version"
+            sync = SyncUiState(
+                updateCheckState = UpdateCheckState.Available(
+                    version = "v1.0.0",
+                    htmlUrl = "https://example.test",
+                    body = "New version"
+                )
             )
         )
-        assertFalse(state.updateCheckState is UpdateCheckState.Idle)
-        val newState = state.copy(updateCheckState = UpdateCheckState.Idle)
-        assertTrue(newState.updateCheckState is UpdateCheckState.Idle)
+        assertFalse(state.sync.updateCheckState is UpdateCheckState.Idle)
+        val newState = state.copy(sync = state.sync.copy(updateCheckState = UpdateCheckState.Idle))
+        assertTrue(newState.sync.updateCheckState is UpdateCheckState.Idle)
+    }
+
+    @Test
+    fun featureStateCopiesIsolateSiblingProgressAndErrors() {
+        val state = HomeUiState(
+            songs = SongsUiState(isPreloading = true, preloadCompleted = 2, preloadTotal = 4),
+            tools = ToolsUiState(suggestTargetInput = "15.25"),
+            sync = SyncUiState(isSyncing = true, error = "retained")
+        )
+
+        val changed = state.copy(tools = state.tools.copy(suggestTargetInput = ""))
+
+        assertEquals(2, changed.songs.preloadCompleted)
+        assertEquals(4, changed.songs.preloadTotal)
+        assertTrue(changed.songs.isPreloading)
+        assertTrue(changed.sync.isSyncing)
+        assertEquals("retained", changed.sync.error)
     }
 
     @Test

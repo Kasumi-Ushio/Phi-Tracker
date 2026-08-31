@@ -37,8 +37,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,7 +55,31 @@ import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
 
+enum class HomeTab {
+    Profile,
+    B30,
+    Songs,
+    Tools
+}
+
+class HomeTabState(initial: HomeTab = HomeTab.Profile) {
+    var selected by mutableStateOf(initial)
+        private set
+
+    fun select(tab: HomeTab) {
+        selected = tab
+    }
+
+    companion object {
+        val Saver = Saver<HomeTabState, Int>(
+            save = { it.selected.ordinal },
+            restore = { HomeTabState(HomeTab.entries[it]) }
+        )
+    }
+}
+
 data class BottomNavItem(
+    val tab: HomeTab,
     val label: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
@@ -63,19 +88,19 @@ data class BottomNavItem(
 @Composable
 private fun MainBottomBar(
     navItems: List<BottomNavItem>,
-    selectedTab: Int,
+    selectedTab: HomeTab,
     reducedMotionEnabled: Boolean,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (HomeTab) -> Unit
 ) {
     if (!reducedMotionEnabled) {
         NavigationBar {
-            navItems.forEachIndexed { index, item ->
+            navItems.forEach { item ->
                 NavigationBarItem(
-                    selected = selectedTab == index,
-                    onClick = { onTabSelected(index) },
+                    selected = selectedTab == item.tab,
+                    onClick = { onTabSelected(item.tab) },
                     icon = {
                         Icon(
-                            imageVector = if (selectedTab == index) item.selectedIcon else item.unselectedIcon,
+                            imageVector = if (selectedTab == item.tab) item.selectedIcon else item.unselectedIcon,
                             contentDescription = item.label
                         )
                     },
@@ -95,11 +120,11 @@ private fun MainBottomBar(
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            navItems.forEachIndexed { index, item ->
-                TextButton(onClick = { onTabSelected(index) }) {
+            navItems.forEach { item ->
+                TextButton(onClick = { onTabSelected(item.tab) }) {
                     Text(
                         text = item.label,
-                        color = if (selectedTab == index) {
+                        color = if (selectedTab == item.tab) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant
@@ -123,34 +148,34 @@ fun MainScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val tabState = rememberSaveable(saver = HomeTabState.Saver) { HomeTabState() }
+    val selectedTab = tabState.selected
     val tip = remember(selectedTab) { viewModel.getRandomTip() }
     val reducedMotionEnabled = rememberReducedMotionEnabled()
 
     val navItems = listOf(
-        BottomNavItem("首页", Icons.Filled.Home, Icons.Outlined.Home),
-        BottomNavItem("B30", Icons.Filled.Star, Icons.Outlined.StarBorder),
-        BottomNavItem("曲目", Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
-        BottomNavItem("工具", Icons.Filled.Build, Icons.Outlined.Build)
+        BottomNavItem(HomeTab.Profile, "首页", Icons.Filled.Home, Icons.Outlined.Home),
+        BottomNavItem(HomeTab.B30, "B30", Icons.Filled.Star, Icons.Outlined.StarBorder),
+        BottomNavItem(HomeTab.Songs, "曲目", Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
+        BottomNavItem(HomeTab.Tools, "工具", Icons.Filled.Build, Icons.Outlined.Build)
     )
 
-    LaunchedEffect(state.isLoggedOut) {
-        if (state.isLoggedOut) onLogout()
+    LaunchedEffect(state.sync.isLoggedOut) {
+        if (state.sync.isLoggedOut) onLogout()
     }
 
     LaunchedEffect(selectedTab) {
         val tabName = when (selectedTab) {
-            0 -> "profile"
-            1 -> "b30"
-            2 -> "songs"
-            3 -> "tools"
-            else -> "unknown"
+            HomeTab.Profile -> "profile"
+            HomeTab.B30 -> "b30"
+            HomeTab.Songs -> "songs"
+            HomeTab.Tools -> "tools"
         }
         AppLogger.event("navigation", "tab_switched", mapOf("tab" to tabName))
     }
 
-    LaunchedEffect(state.error) {
-        state.error?.let {
+    LaunchedEffect(state.sync.error) {
+        state.sync.error?.let {
             snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
@@ -158,7 +183,7 @@ fun MainScreen(
 
     // Home-visible update dialog (Blocker 1 fix)
     // Composed BEFORE early returns so Available state is visible even during preload/loading
-    val updateState = state.updateCheckState
+    val updateState = state.sync.updateCheckState
     if (updateState is UpdateCheckState.Available) {
         UpdateResultDialog(
             version = updateState.version,
@@ -172,12 +197,12 @@ fun MainScreen(
         )
     }
 
-    if (state.showPreloadDialog) {
+    if (state.songs.showPreloadDialog) {
         IllustrationPreloadDialog(
-            isPreloading = state.isPreloading,
-            progress = state.preloadProgress,
-            completed = state.preloadCompleted,
-            total = state.preloadTotal,
+            isPreloading = state.songs.isPreloading,
+            progress = state.songs.preloadProgress,
+            completed = state.songs.preloadCompleted,
+            total = state.songs.preloadTotal,
             onStartDownload = { viewModel.startPreloadIllustrations() },
             onDismiss = { viewModel.dismissPreload() }
         )
@@ -190,23 +215,15 @@ fun MainScreen(
                 navItems = navItems,
                 selectedTab = selectedTab,
                 reducedMotionEnabled = reducedMotionEnabled,
-                onTabSelected = { selectedTab = it }
+                onTabSelected = tabState::select
             )
         }
     ) { innerPadding ->
         when (selectedTab) {
-            0 -> ProfileTab(
-                nickname = state.nickname,
-                displayRks = state.displayRks,
-                challengeModeRank = state.challengeModeRank,
-                moneyString = state.moneyString,
-                clearCounts = state.clearCounts,
-                fcCount = state.fcCount,
-                phiCount = state.phiCount,
-                avatarUri = state.avatarUri,
-                lastSyncTime = state.lastSyncTime,
-                recentSyncedRecords = state.recentSyncedRecords,
-                isSyncing = state.isSyncing,
+            HomeTab.Profile -> ProfileTab(
+                state = state.profile,
+                displayRks = state.b30.displayRks,
+                isSyncing = state.sync.isSyncing,
                 onRefresh = { viewModel.refresh() },
                 onAvatarSelected = { viewModel.setAvatarUri(it) },
                 onNavigateToSettings = onNavigateToSettings,
@@ -221,26 +238,25 @@ fun MainScreen(
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
-            1 -> B30Tab(
-                b30 = state.b30,
-                displayRks = state.displayRks,
-                nickname = state.nickname,
-                challengeModeRank = state.challengeModeRank,
+            HomeTab.B30 -> B30Tab(
+                state = state.b30,
+                nickname = state.profile.nickname,
+                challengeModeRank = state.profile.challengeModeRank,
                 onGenerateImage = {
                     onNavigateToB30Image(
                         B30ExportPayload(
-                            b30 = state.b30,
-                            displayRks = state.displayRks,
-                            nickname = state.nickname,
-                            challengeModeRank = state.challengeModeRank,
-                            moneyString = state.moneyString,
-                            clearCounts = state.clearCounts,
-                            fcCount = state.fcCount,
-                            phiCount = state.phiCount,
-                            avatarUri = state.avatarUri,
-                            showB30Overflow = state.showB30Overflow,
-                            overflowCount = state.overflowCount,
-                            themeSettings = state.themeSettings
+                            b30 = state.b30.b30,
+                            displayRks = state.b30.displayRks,
+                            nickname = state.profile.nickname,
+                            challengeModeRank = state.profile.challengeModeRank,
+                            moneyString = state.profile.moneyString,
+                            clearCounts = state.profile.clearCounts,
+                            fcCount = state.profile.fcCount,
+                            phiCount = state.profile.phiCount,
+                            avatarUri = state.profile.avatarUri,
+                            showB30Overflow = state.b30.showB30Overflow,
+                            overflowCount = state.b30.overflowCount,
+                            themeSettings = state.b30.themeSettings
                         )
                     )
                 },
@@ -252,25 +268,16 @@ fun MainScreen(
                         onNavigateToSongDetail(songId)
                     }
                 },
-                showB30Overflow = state.showB30Overflow,
-                overflowCount = state.overflowCount,
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
-            2 -> SongsTab(
-                songs = state.filteredSongs,
-                searchQuery = state.searchQuery,
+            HomeTab.Songs -> SongsTab(
+                state = state.songs,
                 onSearchChange = { viewModel.searchSongs(it) },
-                availableChapters = state.availableChapters,
-                selectedChapters = state.selectedChapters,
                 onToggleChapter = { viewModel.toggleChapter(it) },
                 onClearChapters = { viewModel.resetFilters() },
-                selectedDifficulty = state.selectedDifficulty,
                 onDifficultySelect = { viewModel.filterByDifficulty(it) },
-                minLevel = state.minLevel,
-                maxLevel = state.maxLevel,
                 onLevelRangeSelect = { min, max -> viewModel.filterByLevelRange(min, max) },
-                showFilterSheet = state.showFilterSheet,
                 onToggleFilterSheet = { viewModel.toggleFilterSheet(it) },
                 onResetFilters = { viewModel.resetFilters() },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
@@ -278,19 +285,9 @@ fun MainScreen(
                 tip = tip,
                 modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
             )
-            3 -> ToolsTab(
-                syncSnapshots = viewModel.getToolSnapshots(),
-                sessionToken = state.sessionToken,
-                apiEnabled = state.apiEnabled,
-                useApiData = state.useApiData,
-                defaultRks = state.displayRks,
-                apiRankByUser = state.apiRankByUser,
-                apiRankByPosition = state.apiRankByPosition,
-                apiRksRankResult = state.apiRksRankResult,
-                suggestTargetMode = state.suggestTargetMode,
-                suggestTargetInput = state.suggestTargetInput,
-                suggestTargetError = state.suggestTargetError,
-                suggestItems = state.suggestItems,
+            HomeTab.Tools -> ToolsTab(
+                state = state.tools,
+                defaultRks = state.b30.displayRks,
                 onSuggestTargetModeChange = { viewModel.setSuggestTargetMode(it) },
                 onSuggestTargetInputChange = { viewModel.setSuggestTargetInput(it) },
                 onFetchRankByUser = { viewModel.fetchApiRankByUser() },
