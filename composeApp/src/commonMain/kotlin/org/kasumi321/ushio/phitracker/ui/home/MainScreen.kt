@@ -48,7 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
-import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
+import org.kasumi321.ushio.phitracker.ui.b30.B30ExportPayload
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
@@ -114,20 +114,7 @@ private fun MainBottomBar(
 @Composable
 fun MainScreen(
     onLogout: () -> Unit,
-    onNavigateToB30Image: (
-        b30: List<org.kasumi321.ushio.phitracker.domain.model.BestRecord>,
-        displayRks: Float,
-        nickname: String,
-        challengeModeRank: Int,
-        moneyString: String,
-        clearCounts: Map<String, Int>,
-        fcCount: Int,
-        phiCount: Int,
-        avatarUri: String?,
-        showB30Overflow: Boolean,
-        overflowCount: Int,
-        themeSettings: PhiTrackerThemeSettings
-    ) -> Unit,
+    onNavigateToB30Image: (B30ExportPayload) -> Unit,
     onNavigateToSongDetail: (String) -> Unit,
     onNavigateToSongDetailWithDifficulty: (String, org.kasumi321.ushio.phitracker.domain.model.Difficulty?) -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -241,11 +228,20 @@ fun MainScreen(
                 challengeModeRank = state.challengeModeRank,
                 onGenerateImage = {
                     onNavigateToB30Image(
-                        state.b30, state.displayRks, state.nickname,
-                        state.challengeModeRank, state.moneyString,
-                        state.clearCounts, state.fcCount, state.phiCount,
-                        state.avatarUri, state.showB30Overflow, state.overflowCount,
-                        state.themeSettings
+                        B30ExportPayload(
+                            b30 = state.b30,
+                            displayRks = state.displayRks,
+                            nickname = state.nickname,
+                            challengeModeRank = state.challengeModeRank,
+                            moneyString = state.moneyString,
+                            clearCounts = state.clearCounts,
+                            fcCount = state.fcCount,
+                            phiCount = state.phiCount,
+                            avatarUri = state.avatarUri,
+                            showB30Overflow = state.showB30Overflow,
+                            overflowCount = state.overflowCount,
+                            themeSettings = state.themeSettings
+                        )
                     )
                 },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },

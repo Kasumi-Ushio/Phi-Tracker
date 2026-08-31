@@ -23,12 +23,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -41,8 +40,10 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.toRoute
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
-import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
 import org.kasumi321.ushio.phitracker.ui.b30.B30ImageScreen
+import org.kasumi321.ushio.phitracker.ui.b30.B30NavigationCoordinator
+import org.kasumi321.ushio.phitracker.ui.b30.B30NavigationGateway
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.home.MainScreen
 import org.kasumi321.ushio.phitracker.ui.login.LoginScreen
@@ -57,8 +58,8 @@ import org.kasumi321.ushio.phitracker.ui.settings.SettingsScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailViewModel
-import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -73,22 +74,6 @@ sealed class Screen(val route: String) {
     data object PrivacyPolicy : Screen("privacy_policy")
     data object Settings : Screen("settings")
 }
-
-/** Simple holder for B30 state passed from Home to B30Image screen. */
-private data class B30ImageState(
-    val b30: List<BestRecord> = emptyList(),
-    val displayRks: Float = 0f,
-    val nickname: String = "",
-    val challengeModeRank: Int = 0,
-    val moneyString: String = "",
-    val clearCounts: Map<String, Int> = emptyMap(),
-    val fcCount: Int = 0,
-    val phiCount: Int = 0,
-    val avatarUri: String? = null,
-    val showB30Overflow: Boolean = false,
-    val overflowCount: Int = 9,
-    val themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings()
-)
 
 private const val NavTransitionDurationMillis = 250
 
@@ -136,7 +121,41 @@ private fun popExitTransition(reducedMotionEnabled: Boolean): ExitTransition =
 fun PhiTrackerNavHost() {
     AppLogger.event("startup", "NavHost.enter")
     val navController = rememberNavController()
-    var b30ImageState by remember { mutableStateOf(B30ImageState()) }
+    val b30Navigation = remember(navController) {
+        B30NavigationCoordinator(
+            object : B30NavigationGateway {
+                override fun navigateB30() {
+                    navController.navigate(Screen.B30Image.route)
+                }
+
+                override fun navigateHomeReplacingLogin() {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                }
+
+                override fun navigateLoginReplacingHome() {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+                }
+
+                override fun popCurrent() {
+                    navController.popBackStack()
+                }
+
+                override fun popToHome(): Boolean =
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
+
+                override fun navigateLoginClearingGraph() {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
+            }
+        )
+    }
     val reducedMotionEnabled = rememberReducedMotionEnabled()
 
     NavHost(
@@ -158,11 +177,7 @@ fun PhiTrackerNavHost() {
             val loginViewModel: LoginViewModel = koinViewModel()
             AppLogger.event("startup", "Login.afterViewModel")
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
-                },
+                onLoginSuccess = b30Navigation::loginSuccess,
                 viewModel = loginViewModel
             )
         }
@@ -176,28 +191,8 @@ fun PhiTrackerNavHost() {
             LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_home") }
             val homeViewModel: HomeViewModel = koinViewModel()
             MainScreen(
-                onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                    }
-                },
-                onNavigateToB30Image = { b30, displayRks, nickname, challengeModeRank, moneyString, clearCounts, fcCount, phiCount, avatarUri, showB30Overflow, overflowCount, themeSettings ->
-                    b30ImageState = B30ImageState(
-                        b30 = b30,
-                        displayRks = displayRks,
-                        nickname = nickname,
-                        challengeModeRank = challengeModeRank,
-                        moneyString = moneyString,
-                        clearCounts = clearCounts,
-                        fcCount = fcCount,
-                        phiCount = phiCount,
-                        avatarUri = avatarUri,
-                        showB30Overflow = showB30Overflow,
-                        overflowCount = overflowCount,
-                        themeSettings = themeSettings
-                    )
-                    navController.navigate(Screen.B30Image.route)
-                },
+                onLogout = b30Navigation::homeLogout,
+                onNavigateToB30Image = b30Navigation::openB30,
                 onNavigateToSongDetail = { songId ->
                     navController.navigate(SongDetailRoute.from(songId = songId, difficulty = null))
                 },
@@ -219,26 +214,37 @@ fun PhiTrackerNavHost() {
             exitTransition = { forwardExitTransition(reducedMotionEnabled) },
             popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
-        ) {
+        ) { backStackEntry ->
             LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_b30image") }
-            val parentEntry = remember { navController.getBackStackEntry(Screen.Home.route) }
-            val homeViewModel: HomeViewModel = koinViewModel(viewModelStoreOwner = parentEntry)
+            DisposableEffect(backStackEntry) {
+                onDispose {
+                    b30Navigation.destinationDisposed()
+                }
+            }
+            val payload = b30Navigation.payload
+            if (payload == null) {
+                LaunchedEffect(backStackEntry) {
+                    b30Navigation.recoverMissingPayload()
+                }
+                return@composable
+            }
+            val illustrationResolver: IllustrationUriResolver = koinInject()
             B30ImageScreen(
-                b30 = b30ImageState.b30,
-                displayRks = b30ImageState.displayRks,
-                nickname = b30ImageState.nickname,
-                challengeModeRank = b30ImageState.challengeModeRank,
-                moneyString = b30ImageState.moneyString,
-                clearCounts = b30ImageState.clearCounts,
-                fcCount = b30ImageState.fcCount,
-                phiCount = b30ImageState.phiCount,
-                avatarUri = b30ImageState.avatarUri,
-                showB30Overflow = b30ImageState.showB30Overflow,
-                overflowCount = b30ImageState.overflowCount,
-                themeSettings = b30ImageState.themeSettings,
-                getLowIllustrationUrl = { homeViewModel.getLowIllustrationUrl(it) },
-                getStandardIllustrationUrl = { homeViewModel.getCachedOrStandardIllustrationUri(it) },
-                onBack = { navController.popBackStack() }
+                b30 = payload.b30,
+                displayRks = payload.displayRks,
+                nickname = payload.nickname,
+                challengeModeRank = payload.challengeModeRank,
+                moneyString = payload.moneyString,
+                clearCounts = payload.clearCounts,
+                fcCount = payload.fcCount,
+                phiCount = payload.phiCount,
+                avatarUri = payload.avatarUri,
+                showB30Overflow = payload.showB30Overflow,
+                overflowCount = payload.overflowCount,
+                themeSettings = payload.themeSettings,
+                getLowIllustrationUrl = illustrationResolver::lowUri,
+                getStandardIllustrationUrl = illustrationResolver::standardUri,
+                onBack = b30Navigation::toolbarBack
             )
         }
         composable(
@@ -303,11 +309,7 @@ fun PhiTrackerNavHost() {
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAbout = { navController.navigate(Screen.About.route) },
-                onLogout = {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                    }
-                }
+                onLogout = b30Navigation::settingsLogout
             )
         }
         composable(
