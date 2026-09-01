@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.api.tasks.testing.Test
 import java.util.Properties
 
 plugins {
@@ -101,6 +102,10 @@ aboutLibraries {
 // do not trigger "uses this output without declaring an explicit or implicit dependency".
 tasks.matching { it.name.startsWith("copy") && it.name.endsWith("ForCommonMain") }.configureEach {
     mustRunAfter(tasks.named("exportLibraryDefinitions"))
+}
+
+tasks.withType<Test>().configureEach {
+    systemProperty("phitracker.projectDir", rootProject.projectDir.absolutePath)
 }
 
 val keystoreProperties = Properties().apply {
