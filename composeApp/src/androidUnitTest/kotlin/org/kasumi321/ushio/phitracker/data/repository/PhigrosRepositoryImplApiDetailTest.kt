@@ -16,6 +16,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -106,13 +107,13 @@ class PhigrosRepositoryImplApiDetailTest {
         val first = viewModel(repository, settings)
         advanceUntilIdle()
         first.loadSongApiDetail(Difficulty.IN)
-        advanceUntilIdle()
+        first.uiState.first { it.apiDetails[Difficulty.IN]?.isLoading == false }
 
         // When
         val second = viewModel(repository, settings)
         advanceUntilIdle()
         second.loadSongApiDetail(Difficulty.IN)
-        advanceUntilIdle()
+        second.uiState.first { it.apiDetails[Difficulty.IN]?.isLoading == false }
 
         // Then
         assertEquals(7, first.getSongApiDetail(Difficulty.IN).userRank)
