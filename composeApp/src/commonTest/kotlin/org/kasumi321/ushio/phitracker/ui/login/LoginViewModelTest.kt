@@ -260,7 +260,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun qrLoginCancellationWhilePollingSurfacesErrorWithoutPersisting() = runTest(dispatcher) {
+    fun cancellingQrLoginWhilePollingLeavesIdleWithoutPersisting() = runTest(dispatcher) {
         val pollStarted = CompletableDeferred<Unit>()
         val repo = FakeRepo(savedToken = null, syncOk = true)
         val api = TapTapQrLoginApi(
@@ -290,9 +290,10 @@ class LoginViewModelTest {
         assertEquals(QrStatus.WaitingScan, vm.uiState.value.qrStatus)
 
         vm.cancelQrLogin()
+        assertEquals(QrStatus.Idle, vm.uiState.value.qrStatus)
         runCurrent()
-        assertEquals(QrStatus.Error, vm.uiState.value.qrStatus)
-        assertNotNull(vm.uiState.value.qrError)
+        assertEquals(QrStatus.Idle, vm.uiState.value.qrStatus, "cancelled QR login must not overwrite Idle with Error")
+        assertEquals(null, vm.uiState.value.qrError)
         assertTrue(repo.persistedTokens.isEmpty())
     }
 

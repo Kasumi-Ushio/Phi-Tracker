@@ -3,7 +3,9 @@ package org.kasumi321.ushio.phitracker.ui.login
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -232,6 +234,7 @@ class LoginViewModel(
                 _uiState.update { it.copy(qrStatus = QrStatus.Expired, qrRemainingSeconds = 0) }
 
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
                 _uiState.update {
                     it.copy(
                         qrStatus = QrStatus.Error,

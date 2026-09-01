@@ -119,7 +119,7 @@ class LoginViewModelQrRepositoryTest {
     }
 
     @Test
-    fun qrCancellationStopsPollingAndPreservesCurrentErrorTerminalState() = runTest(dispatcher) {
+    fun cancellingQrLoginWhilePollingLeavesIdleInsteadOfError() = runTest(dispatcher) {
         val phigros = FakePhigrosRepository(syncOk = true)
         val qr = FakeQrRepository(expiresAt = 30_000, suspendPoll = true)
         val vm = viewModelLifecycle.track(
@@ -131,13 +131,49 @@ class LoginViewModelQrRepositoryTest {
         runCurrent()
         assertEquals(1, qr.pollTimes.size)
         vm.cancelQrLogin()
+        assertEquals(QrStatus.Idle, vm.uiState.value.qrStatus)
         runCurrent()
 
-        assertEquals(QrStatus.Error, vm.uiState.value.qrStatus)
-        assertNotNull(vm.uiState.value.qrError)
+        assertEquals(QrStatus.Idle, vm.uiState.value.qrStatus, "cancelled QR login must not overwrite Idle with Error")
+        assertEquals(null, vm.uiState.value.qrError)
         advanceTimeBy(10_000)
         runCurrent()
         assertEquals(1, qr.pollTimes.size)
+        assertTrue(phigros.persistedTokens.isEmpty())
+    }
+
+    @Test
+    fun cancelledOldQrLoginCannotOverwriteNewAttemptState() = runTest(dispatcher) {
+        val phigros = FakePhigrosRepository(syncOk = true)
+        val qr = FakeQrRepository(expiresAt = 30_000, suspendPoll = true, suspendRequestAttempt = 2)
+        val vm = viewModelLifecycle.track(
+            LoginViewModel(phigros, SyncSaveUseCase(phigros), qr) { testScheduler.currentTime }
+        )
+        advanceUntilIdle()
+
+        vm.startQrLogin()
+        runCurrent()
+        assertEquals(QrStatus.WaitingScan, vm.uiState.value.qrStatus)
+
+        vm.startQrLogin()
+        assertEquals(QrStatus.Loading, vm.uiState.value.qrStatus)
+        runCurrent()
+        assertEquals(
+            QrStatus.Loading,
+            vm.uiState.value.qrStatus,
+            "cancelled old QR login must not overwrite the newer attempt's Loading state"
+        )
+
+        vm.cancelQrLogin()
+        runCurrent()
+        assertEquals(QrStatus.Idle, vm.uiState.value.qrStatus)
+
+        vm.startQrLogin()
+        runCurrent()
+        assertEquals(QrStatus.WaitingScan, vm.uiState.value.qrStatus)
+        vm.cancelQrLogin()
+        runCurrent()
+        assertEquals(QrStatus.Idle, vm.uiState.value.qrStatus)
         assertTrue(phigros.persistedTokens.isEmpty())
     }
 
@@ -186,13 +222,17 @@ class LoginViewModelQrRepositoryTest {
         private val requestFailure: Throwable? = null,
         private val pollFailure: Throwable? = null,
         private val exchangeFailure: Throwable? = null,
-        private val suspendPoll: Boolean = false
+        private val suspendPoll: Boolean = false,
+        private val suspendRequestAttempt: Int? = null
     ) : QrLoginRepository {
         val pollTimes = mutableListOf<Long>()
         val exchanges = mutableListOf<QrAuthorizationId>()
         val requestedServers = mutableListOf<Server>()
+        private var requestAttempts = 0
 
         override suspend fun requestChallenge(server: Server): QrLoginChallenge {
+            requestAttempts += 1
+            if (requestAttempts == suspendRequestAttempt) awaitCancellation()
             requestFailure?.let { throw it }
             requestedServers += server
             return QrLoginChallenge(QrChallengeId("challenge-opaque"), "https://qr.test/challenge", expiresAt)
