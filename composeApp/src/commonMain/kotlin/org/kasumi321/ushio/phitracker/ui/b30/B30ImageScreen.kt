@@ -36,6 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -78,7 +80,12 @@ import org.kasumi321.ushio.phitracker.data.platform.saveB30ImageToPictures
 import org.kasumi321.ushio.phitracker.data.platform.shareB30Image
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.ui.glass.GlassBottomBar
+import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
+import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
@@ -228,25 +235,33 @@ fun B30ImageScreen(
         isGenerating = false
     }
 
+    // Page-level HazeState, independent from the home one: the generated image
+    // preview is the source, the top bar and the action bar float above it
+    val hazeState = rememberHazeState()
+    val glassStyle = rememberGlassHazeStyle()
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("B30 图片") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showBackgroundDialog = true }) {
-                        Icon(Icons.Filled.Image, contentDescription = "选择背景")
-                    }
-                }
-            )
+            GlassTopBar(hazeState = hazeState, style = glassStyle) {
+                TopAppBar(
+                    title = { Text("B30 图片") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { showBackgroundDialog = true }) {
+                            Icon(Icons.Filled.Image, contentDescription = "选择背景")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                )
+            }
         },
         bottomBar = {
             if (export != null && !isGenerating) {
-                Surface(tonalElevation = 4.dp) {
+                GlassBottomBar(hazeState = hazeState, style = glassStyle) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -301,11 +316,14 @@ fun B30ImageScreen(
                 }
             }
         }
-    ) { innerPadding ->
+    ) {
+        // Full-bleed preview: the generated image extends behind the glass bars.
+        // The off-screen export path never touches this haze source, so exported
+        // pixels stay identical to before.
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .hazeSource(state = hazeState),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (isGenerating) {

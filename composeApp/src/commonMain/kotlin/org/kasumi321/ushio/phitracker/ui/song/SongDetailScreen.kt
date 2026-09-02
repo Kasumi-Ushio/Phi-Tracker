@@ -66,6 +66,8 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.launch
 import org.kasumi321.ushio.phitracker.data.platform.saveArtworkToPictures
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
@@ -73,6 +75,8 @@ import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.ui.common.SpringPagerIndicator
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
+import org.kasumi321.ushio.phitracker.ui.glass.GlassCapsule
+import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import kotlin.math.roundToInt
 import kotlin.time.Instant
 
@@ -261,6 +265,10 @@ fun SongDetailScreen(
                 onDismissRequest = { showImagePreview = false },
                 properties = DialogProperties(usePlatformDefaultWidth = false)
             ) {
+                // Dialog-local HazeState: the illustration is the source, the
+                // action buttons float on a glass capsule above it
+                val previewHazeState = rememberHazeState()
+                val previewGlassStyle = rememberGlassHazeStyle()
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -286,6 +294,7 @@ fun SongDetailScreen(
                         contentDescription = "Full Illustration",
                         modifier = Modifier
                             .fillMaxSize()
+                            .hazeSource(state = previewHazeState)
                             .pointerInput(Unit) {
                                 detectTransformGestures { _, _, zoom, _ ->
                                     scale = (scale * zoom).coerceIn(0.5f, 5f)
@@ -295,7 +304,9 @@ fun SongDetailScreen(
                         contentScale = ContentScale.Fit
                     )
 
-                    Row(
+                    GlassCapsule(
+                        hazeState = previewHazeState,
+                        style = previewGlassStyle,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(16.dp)
