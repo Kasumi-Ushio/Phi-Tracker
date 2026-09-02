@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
+import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
@@ -53,7 +53,7 @@ class SongDetailViewModel(
     private val repository: PhigrosRepository,
     private val settingsRepository: SettingsRepository,
     private val songDataProvider: SongDataProvider,
-    private val illustrationProvider: IllustrationProvider
+    private val illustrationUriResolver: IllustrationUriResolver
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(SongDetailUiState(initialDifficulty = initialDifficulty))
     val uiState: StateFlow<SongDetailUiState> = mutableUiState.asStateFlow()
@@ -106,8 +106,8 @@ class SongDetailViewModel(
                     isLoading = false,
                     notFound = songInfo == null,
                     songInfo = songInfo,
-                    lowIllustrationUrl = songInfo?.let { info -> illustrationProvider.getLowUrl(info.id) },
-                    standardIllustrationUrl = songInfo?.let { info -> illustrationProvider.getStandardUrl(info.id) }
+                    lowIllustrationUrl = songInfo?.let { info -> illustrationUriResolver.lowUri(info.id) },
+                    standardIllustrationUrl = songInfo?.let { info -> illustrationUriResolver.standardUri(info.id) }
                 )
             }
             if (songInfo == null) return@launch

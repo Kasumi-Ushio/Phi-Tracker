@@ -39,7 +39,7 @@ val appModule = module {
             repository = get(),
             settingsRepository = get(),
             songDataProvider = get(),
-            illustrationProvider = get()
+            illustrationUriResolver = get()
         )
     }
     viewModel {

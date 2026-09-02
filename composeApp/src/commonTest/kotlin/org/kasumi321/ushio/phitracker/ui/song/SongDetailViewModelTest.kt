@@ -8,7 +8,10 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
+import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
+import org.kasumi321.ushio.phitracker.data.platform.NoOpStandardArtworkCache
+import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongApiDetail
 import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
@@ -190,18 +193,70 @@ class SongDetailViewModelTest {
         assertFalse(viewModel.uiState.value.standardIllustrationUrl.orEmpty().contains("/cache/"))
     }
 
+    @Test
+    fun localPersistentArtworkUrisWinOverRemoteFallbacks() = runTest(dispatcher) {
+        // Given
+        val cache = RouteArtworkCache(
+            thumbnailUri = "/persistent/thumbnail/song-a.0.png",
+            standardUri = "/persistent/standard/song-a.0.png"
+        )
+        val viewModel = createViewModel(
+            songId = "song-a.0",
+            illustrationUriResolver = IllustrationUriResolver(cache, IllustrationProvider())
+        )
+
+        // When
+        advanceUntilIdle()
+
+        // Then
+        assertEquals("/persistent/thumbnail/song-a.0.png", viewModel.uiState.value.lowIllustrationUrl)
+        assertEquals("/persistent/standard/song-a.0.png", viewModel.uiState.value.standardIllustrationUrl)
+        assertEquals(0, cache.downloadCalls)
+    }
+
     private fun createViewModel(
         songId: String,
         repository: FakePhigrosRepository = FakePhigrosRepository(),
-        settingsRepository: FakeSettingsRepository = FakeSettingsRepository()
+        settingsRepository: FakeSettingsRepository = FakeSettingsRepository(),
+        illustrationUriResolver: IllustrationUriResolver = IllustrationUriResolver(
+            NoOpStandardArtworkCache,
+            IllustrationProvider()
+        )
     ): SongDetailViewModel = SongDetailViewModel(
         songId = songId,
         initialDifficulty = Difficulty.IN,
         repository = repository,
         settingsRepository = settingsRepository,
         songDataProvider = SongDataProvider(assetReader = TestAssets),
-        illustrationProvider = IllustrationProvider()
+        illustrationUriResolver = illustrationUriResolver
     )
+
+    private class RouteArtworkCache(
+        private val thumbnailUri: String? = null,
+        private val standardUri: String? = null
+    ) : StandardArtworkCache {
+        var downloadCalls = 0
+            private set
+
+        override suspend fun getOrDownloadThumbnail(songId: String, url: String): String {
+            downloadCalls += 1
+            return url
+        }
+
+        override fun getThumbnailIfPresent(songId: String): String? = thumbnailUri
+        override fun hasAllThumbnails(songIds: Iterable<String>): Boolean = false
+        override fun clearThumbnails(songIds: Iterable<String>) = Unit
+        override fun clearAllThumbnails() = Unit
+
+        override suspend fun getOrDownloadStandard(songId: String, url: String): String {
+            downloadCalls += 1
+            return url
+        }
+
+        override fun getStandardIfPresent(songId: String): String? = standardUri
+        override fun clearStandard(songIds: Iterable<String>) = Unit
+        override fun clearAllStandard() = Unit
+    }
 
     private fun historyEntry(snapshotId: Long) = SongSyncHistoryEntry(
         id = snapshotId,

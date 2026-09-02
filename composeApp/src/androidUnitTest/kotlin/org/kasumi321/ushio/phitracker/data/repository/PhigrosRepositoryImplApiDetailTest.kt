@@ -32,8 +32,10 @@ import org.kasumi321.ushio.phitracker.data.parser.SaveParser
 import org.kasumi321.ushio.phitracker.data.platform.SecureKeyValueStorage
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
 import org.kasumi321.ushio.phitracker.data.platform.TokenManager
-import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
+import org.kasumi321.ushio.phitracker.data.platform.NoOpStandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
+import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
+import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.Server
@@ -425,7 +427,7 @@ class PhigrosRepositoryImplApiDetailTest {
         repository = repository,
         settingsRepository = settings,
         songDataProvider = SongDataProvider(assetReader = TestAssets),
-        illustrationProvider = IllustrationProvider()
+        illustrationUriResolver = IllustrationUriResolver(NoOpStandardArtworkCache, IllustrationProvider())
     )
 
     private fun MockRequestHandleScope.jsonResponse(body: String) = respond(
