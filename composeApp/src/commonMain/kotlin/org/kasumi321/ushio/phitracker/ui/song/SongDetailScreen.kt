@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -35,10 +36,12 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +53,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -76,6 +81,7 @@ import org.kasumi321.ushio.phitracker.ui.common.SpringPagerIndicator
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.glass.GlassCapsule
+import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import kotlin.math.roundToInt
 import kotlin.time.Instant
@@ -126,26 +132,55 @@ fun SongDetailScreen(
         }
     }
 
+    // Page-level HazeState, independent from the home one. The detail content is
+    // the haze source; the info header slides up behind the progressive glass
+    // top bar as the difficulty page scrolls, so the blur always has real
+    // moving content to sample instead of being a plain color swap.
+    val detailHazeState = rememberHazeState()
+    val detailGlassStyle = rememberGlassHazeStyle()
+    val contentScrollState = rememberScrollState()
+    var infoHeaderHeightPx by remember { mutableIntStateOf(0) }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("曲目详情") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                }
-            )
+            GlassTopBar(hazeState = detailHazeState, style = detailGlassStyle) {
+                TopAppBar(
+                    title = { Text("曲目详情") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                )
+            }
         }
     ) { innerPadding ->
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .hazeSource(state = detailHazeState)
         ) {
+            Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
+
+            // Collapsing header: the layout shrinks while the content translates
+            // up behind the glass bar; no clip so the sliding header stays
+            // visible under the bar until fully collapsed
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val offset = contentScrollState.value.coerceIn(0, infoHeaderHeightPx)
+                        layout(placeable.width, (placeable.height - offset).coerceAtLeast(0)) {
+                            placeable.placeRelative(0, -offset)
+                        }
+                    }
+            ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .onSizeChanged { infoHeaderHeightPx = it.height }
                     .padding(16.dp),
                 verticalAlignment = Alignment.Top
             ) {
@@ -210,6 +245,7 @@ fun SongDetailScreen(
                     )
                 }
             }
+            }
 
             if (availableDifficulties.isNotEmpty()) {
                 TabRow(
@@ -253,7 +289,10 @@ fun SongDetailScreen(
                         apiEnabled = apiEnabled,
                         useApiData = useApiData,
                         songApiDetail = getSongApiDetail(pageDifficulty),
-                        syncHistory = syncHistory
+                        syncHistory = syncHistory,
+                        // Shared across pages so the info header collapse follows
+                        // whichever difficulty page the user is scrolling
+                        scrollState = contentScrollState
                     )
                 }
             }
@@ -366,12 +405,13 @@ private fun DifficultyContent(
     useApiData: Boolean,
     songApiDetail: SongApiDetailState,
     syncHistory: List<SongSyncHistoryEntry>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    scrollState: ScrollState = rememberScrollState()
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
         val charter = songInfo.charters[difficulty] ?: "未知"
         val notes = songInfo.noteCounts[difficulty]
