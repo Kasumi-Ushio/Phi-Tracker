@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.settings
 
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -17,11 +18,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.materialkolor.PaletteStyle
 import com.materialkolor.ktx.themeColor
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -35,6 +39,8 @@ import org.kasumi321.ushio.phitracker.data.platform.shouldShowThemeColorSourceSe
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformAlert
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
+import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
+import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_IMAGE
 import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_SYSTEM
 import org.kasumi321.ushio.phitracker.ui.theme.argbToColor
@@ -155,41 +161,60 @@ fun SettingsTab(
         }
     }
 
+    // Page-level HazeState, independent from the home one: the scrolling
+    // settings content is the haze source and slides up behind the progressive
+    // glass top bar, same pattern as the song detail page
+    val settingsHazeState = rememberHazeState()
+    val settingsGlassStyle = rememberGlassHazeStyle()
+
     Scaffold(
             modifier = modifier.fillMaxSize(),
             topBar = {
-                TopAppBar(
-                        title = {
-                            Column {
-                                Text("设置")
-                                if (tip.isNotBlank()) {
-                                    Text(
-                                            text = tip,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.fillMaxWidth(0.75f)
-                                    )
+                GlassTopBar(hazeState = settingsHazeState, style = settingsGlassStyle) {
+                    TopAppBar(
+                            title = {
+                                Column {
+                                    Text("设置")
+                                    if (tip.isNotBlank()) {
+                                        Text(
+                                                text = tip,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                modifier =
+                                                        Modifier.fillMaxWidth(0.75f)
+                                                                .basicMarquee()
+                                        )
+                                    }
                                 }
-                            }
-                        },
-                        navigationIcon = {
-                            if (onNavigateBack != null) {
-                                IconButton(onClick = onNavigateBack) {
-                                    Icon(
-                                            Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "返回"
-                                    )
+                            },
+                            navigationIcon = {
+                                if (onNavigateBack != null) {
+                                    IconButton(onClick = onNavigateBack) {
+                                        Icon(
+                                                Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = "返回"
+                                        )
+                                    }
                                 }
-                            }
-                        }
-                )
+                            },
+                            colors =
+                                    TopAppBarDefaults.topAppBarColors(
+                                            containerColor = Color.Transparent
+                                    )
+                    )
+                }
             }
     ) { innerPadding ->
         Column(
                 modifier =
                         Modifier.fillMaxSize()
+                                .hazeSource(state = settingsHazeState)
                                 .verticalScroll(rememberScrollState())
-                                .padding(innerPadding)
+                                .padding(
+                                        top = innerPadding.calculateTopPadding(),
+                                        bottom = innerPadding.calculateBottomPadding()
+                                )
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             CategoryTitle("界面与主题")

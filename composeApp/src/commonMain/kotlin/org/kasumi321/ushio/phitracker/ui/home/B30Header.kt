@@ -69,27 +69,41 @@ fun B30Header(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Best 30",
-                style = MaterialTheme.typography.titleLarge
-            )
+            // Title slot mirrors the other tabs' top bar: the tip hugs the title
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Best 30",
+                        style = MaterialTheme.typography.titleLarge
+                    )
 
-            // Collapsed keeps the most critical info inline: current RKS
-            androidx.compose.animation.AnimatedVisibility(
-                visible = !expanded,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Text(
-                    text = "RKS ${state.displayRks.formatFour()}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 12.dp)
-                )
+                    // Collapsed keeps the most critical info inline: current RKS
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = !expanded,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        Text(
+                            text = "RKS ${state.displayRks.formatFour()}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 12.dp)
+                        )
+                    }
+                }
+                if (tip.isNotBlank()) {
+                    Text(
+                        text = tip,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .basicMarquee()
+                    )
+                }
             }
-
-            Spacer(modifier = Modifier.weight(1f))
 
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowDown,
@@ -104,18 +118,6 @@ fun B30Header(
             ) {
                 Icon(Icons.Filled.Image, contentDescription = "生成图片")
             }
-        }
-
-        if (tip.isNotBlank()) {
-            Text(
-                text = tip,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .basicMarquee()
-            )
         }
 
         ExpandableGlassSection(expanded = expanded) {

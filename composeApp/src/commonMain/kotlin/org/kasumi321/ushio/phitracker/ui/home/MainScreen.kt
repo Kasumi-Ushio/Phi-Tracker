@@ -275,8 +275,9 @@ fun MainScreen(
         }
     }
     var songsSearchOpen by remember { mutableStateOf(false) }
-    LaunchedEffect(songsAtTop) {
-        if (songsAtTop) songsSearchOpen = false
+    // Any scroll while the reopened search field is visible collapses it again
+    LaunchedEffect(songsListState.isScrollInProgress) {
+        if (songsListState.isScrollInProgress) songsSearchOpen = false
     }
     val songsActiveFilterCount = remember(
         state.songs.selectedChapters,
