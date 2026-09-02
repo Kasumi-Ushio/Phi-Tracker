@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -15,6 +16,8 @@ import org.kasumi321.ushio.phitracker.data.platform.ConfigureCoilImageLoader
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.ui.PhiTrackerNavHost
 import org.kasumi321.ushio.phitracker.ui.components.PlatformAlertHost
+import org.kasumi321.ushio.phitracker.ui.glass.GlassSettings
+import org.kasumi321.ushio.phitracker.ui.glass.LocalGlassSettings
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerTheme
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.koin.compose.koinInject
@@ -33,6 +36,8 @@ fun App() {
     val imageSeedColorArgb by settingsRepository.themeImageSeedColorArgb.collectAsState(initial = null)
     val imageUri by settingsRepository.themeImageUri.collectAsState(initial = null)
     val paletteStyleName by settingsRepository.paletteStyleName.collectAsState(initial = "TonalSpot")
+    val hazeBlurEnabled by settingsRepository.hazeBlurEnabled.collectAsState(initial = true)
+    val hazeBlurStrength by settingsRepository.hazeBlurStrength.collectAsState(initial = 1f)
 
     val darkTheme = when (themeMode) {
         1 -> false
@@ -50,13 +55,20 @@ fun App() {
     )
 
     PhiTrackerTheme(darkTheme = darkTheme, isAmoled = isAmoled, settings = themeSettings) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+        CompositionLocalProvider(
+            LocalGlassSettings provides GlassSettings(
+                blurEnabled = hazeBlurEnabled,
+                blurStrength = hazeBlurStrength
+            )
         ) {
-            PhiTrackerNavHost()
-            PlatformAlertHost()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background)
+            ) {
+                PhiTrackerNavHost()
+                PlatformAlertHost()
+            }
         }
     }
 }

@@ -29,10 +29,14 @@ fun GlassTopBar(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val glassBlurEnabled = rememberGlassBlurEnabled()
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .hazeEffect(state = hazeState, style = style) { applyTopBarProgressive() }
+            .hazeEffect(state = hazeState, style = style) {
+                applyTopBarProgressive()
+                blurEnabled = glassBlurEnabled
+            }
     ) {
         content()
     }

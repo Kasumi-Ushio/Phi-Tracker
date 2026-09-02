@@ -39,6 +39,16 @@ fun SettingsViewModel.setOverflowCount(value: Int) = launchSetting {
     settingsRepository.setOverflowCount(value)
 }
 
+fun SettingsViewModel.setHazeBlurEnabled(value: Boolean) = launchSetting {
+    AppLogger.event("settings", "haze_blur_enabled_changed", mapOf("enabled" to value.toString()))
+    settingsRepository.setHazeBlurEnabled(value)
+}
+
+fun SettingsViewModel.setHazeBlurStrength(value: Float) = launchSetting {
+    AppLogger.event("settings", "haze_blur_strength_changed", mapOf("strength" to value.toString()))
+    settingsRepository.setHazeBlurStrength(value)
+}
+
 fun SettingsViewModel.setApiEnabled(value: Boolean) = launchSetting {
     AppLogger.event("settings", "api_enabled_changed", mapOf("enabled" to value.toString()))
     settingsRepository.setApiEnabled(value)

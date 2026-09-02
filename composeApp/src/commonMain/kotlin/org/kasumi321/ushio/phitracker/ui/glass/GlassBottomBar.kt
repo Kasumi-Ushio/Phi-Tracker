@@ -21,10 +21,11 @@ fun GlassBottomBar(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val glassBlurEnabled = rememberGlassBlurEnabled()
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .hazeEffect(state = hazeState, style = style)
+            .hazeEffect(state = hazeState, style = style) { blurEnabled = glassBlurEnabled }
     ) {
         content()
     }

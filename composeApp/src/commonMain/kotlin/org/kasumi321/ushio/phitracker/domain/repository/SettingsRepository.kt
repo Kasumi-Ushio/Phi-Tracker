@@ -12,6 +12,11 @@ interface SettingsRepository {
     val showB30Overflow: Flow<Boolean>
     val overflowCount: Flow<Int>
 
+    val hazeBlurEnabled: Flow<Boolean>
+    val hazeBlurStrength: Flow<Float>
+    suspend fun setHazeBlurEnabled(enabled: Boolean)
+    suspend fun setHazeBlurStrength(strength: Float)
+
     suspend fun setThemeMode(mode: Int)
     suspend fun setThemeColorSource(source: String)
     suspend fun setSeedColorArgb(argb: Int)
@@ -20,8 +25,7 @@ interface SettingsRepository {
     suspend fun setPaletteStyleName(name: String)
     suspend fun setShowB30Overflow(show: Boolean)
     suspend fun setOverflowCount(count: Int)
-    suspend fun getPreloadDone(): Boolean
-    suspend fun setPreloadDone(done: Boolean)
+    suspend fun getPreloadDone(): Boolean    suspend fun setPreloadDone(done: Boolean)
 
     val avatarUri: Flow<String?>
     suspend fun setAvatarUri(uri: String?)

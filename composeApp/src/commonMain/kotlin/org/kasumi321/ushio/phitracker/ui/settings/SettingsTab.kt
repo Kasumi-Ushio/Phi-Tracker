@@ -53,6 +53,8 @@ fun SettingsTab(
         paletteStyleName: String = PaletteStyle.TonalSpot.name,
         showB30Overflow: Boolean,
         overflowCount: Int,
+        hazeBlurEnabled: Boolean = true,
+        hazeBlurStrength: Float = 1f,
         onThemeModeChange: (Int) -> Unit,
         onThemeColorSourceChange: (String) -> Unit = {},
         onSeedColorArgbChange: (Int) -> Unit = {},
@@ -61,6 +63,8 @@ fun SettingsTab(
         onPaletteStyleNameChange: (String) -> Unit = {},
         onShowB30OverflowChange: (Boolean) -> Unit,
         onOverflowCountChange: (Int) -> Unit,
+        onHazeBlurEnabledChange: (Boolean) -> Unit = {},
+        onHazeBlurStrengthChange: (Float) -> Unit = {},
         isCachingB30Artwork: Boolean = false,
         b30ArtworkCacheCompleted: Int = 0,
         b30ArtworkCacheTotal: Int = 0,
@@ -317,10 +321,50 @@ fun SettingsTab(
                 }
             }
 
+            Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("毛玻璃效果", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                            text = "为导航栏与悬浮按钮启用背景模糊，关闭后使用实色遮罩",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(checked = hazeBlurEnabled, onCheckedChange = { onHazeBlurEnabledChange(it) })
+            }
+
+            if (hazeBlurEnabled) {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                    Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("模糊强度")
+                        Text(
+                                text = "${(hazeBlurStrength * 100).roundToInt()}%",
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Slider(
+                            value = hazeBlurStrength,
+                            onValueChange = { onHazeBlurStrengthChange(it) },
+                            valueRange =
+                                    SettingsConstants.HAZE_STRENGTH_MIN..SettingsConstants
+                                            .HAZE_STRENGTH_MAX,
+                            steps = SettingsConstants.HAZE_SLIDER_STEPS,
+                            modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
             CategoryTitle("B30 设置")
-
             Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,

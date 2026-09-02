@@ -290,4 +290,58 @@ class SettingsRepositoryImplTest {
         repo.setOverflowCount(15)
         assertEquals(15, repo.overflowCount.first())
     }
+
+    @Test
+    fun defaultsHazeBlurEnabledTrue(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals(true, repo.hazeBlurEnabled.first())
+    }
+
+    @Test
+    fun defaultsHazeBlurStrengthOne(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals(1f, repo.hazeBlurStrength.first())
+    }
+
+    @Test
+    fun setAndReadHazeBlurSettings(): Unit = runTest {
+        val repo = createRepo()
+        repo.setHazeBlurEnabled(false)
+        repo.setHazeBlurStrength(1.5f)
+        assertEquals(false, repo.hazeBlurEnabled.first())
+        assertEquals(1.5f, repo.hazeBlurStrength.first())
+    }
+
+    @Test
+    fun hazeBlurSettingsPersistBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setHazeBlurEnabled(false)
+        repo1.setHazeBlurStrength(1.75f)
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(false, repo2.hazeBlurEnabled.first())
+        assertEquals(1.75f, repo2.hazeBlurStrength.first())
+    }
+
+    @Test
+    fun setHazeBlurStrengthClampsValue(): Unit = runTest {
+        val repo = createRepo()
+        repo.setHazeBlurStrength(3f)
+        assertEquals(2f, repo.hazeBlurStrength.first())
+        repo.setHazeBlurStrength(0.1f)
+        assertEquals(0.5f, repo.hazeBlurStrength.first())
+    }
+
+    @Test
+    fun hazeBlurStrengthClampedOnReadFromStorage(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+        storage.putString("haze_blur_strength", "5.0")
+
+        val repo = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(2f, repo.hazeBlurStrength.first())
+    }
 }

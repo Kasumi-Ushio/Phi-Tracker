@@ -84,6 +84,8 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepository.paletteStyleName.collect { value -> mutableUiState.update { it.copy(paletteStyleName = value) } } }
         viewModelScope.launch { settingsRepository.showB30Overflow.collect { value -> mutableUiState.update { it.copy(showB30Overflow = value) } } }
         viewModelScope.launch { settingsRepository.overflowCount.collect { value -> mutableUiState.update { it.copy(overflowCount = value) } } }
+        viewModelScope.launch { settingsRepository.hazeBlurEnabled.collect { value -> mutableUiState.update { it.copy(hazeBlurEnabled = value) } } }
+        viewModelScope.launch { settingsRepository.hazeBlurStrength.collect { value -> mutableUiState.update { it.copy(hazeBlurStrength = value) } } }
         viewModelScope.launch { settingsRepository.apiEnabled.collect { value -> mutableUiState.update { it.copy(apiEnabled = value) } } }
         viewModelScope.launch { settingsRepository.useApiData.collect { value -> mutableUiState.update { it.copy(useApiData = value) } } }
         viewModelScope.launch { settingsRepository.apiId.collect { value -> mutableUiState.update { it.copy(apiUserId = value) } } }

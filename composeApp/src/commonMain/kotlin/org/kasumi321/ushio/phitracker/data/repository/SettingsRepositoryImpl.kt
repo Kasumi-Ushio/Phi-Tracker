@@ -85,6 +85,25 @@ class SettingsRepositoryImpl(
         overflowCountState.value = normalized
     }
 
+    private val hazeBlurEnabledState = MutableStateFlow(storage.getString(KEY_HAZE_BLUR_ENABLED)?.toBooleanStrictOrNull() ?: true)
+    override val hazeBlurEnabled: Flow<Boolean> = hazeBlurEnabledState.asStateFlow()
+
+    private val hazeBlurStrengthState = MutableStateFlow(
+        storage.getString(KEY_HAZE_BLUR_STRENGTH)?.toFloatOrNull()?.coerceIn(0.5f, 2f) ?: 1f
+    )
+    override val hazeBlurStrength: Flow<Float> = hazeBlurStrengthState.asStateFlow()
+
+    override suspend fun setHazeBlurEnabled(enabled: Boolean) {
+        storage.putString(KEY_HAZE_BLUR_ENABLED, enabled.toString())
+        hazeBlurEnabledState.value = enabled
+    }
+
+    override suspend fun setHazeBlurStrength(strength: Float) {
+        val normalized = strength.coerceIn(0.5f, 2f)
+        storage.putString(KEY_HAZE_BLUR_STRENGTH, normalized.toString())
+        hazeBlurStrengthState.value = normalized
+    }
+
     override suspend fun getPreloadDone(): Boolean = preloadStorage.getString(KEY_PRELOAD_DONE)?.toBooleanStrictOrNull() ?: false
 
     override suspend fun setPreloadDone(done: Boolean) {
@@ -199,5 +218,7 @@ class SettingsRepositoryImpl(
         const val KEY_API_PLATFORM = "api_platform"
         const val KEY_API_PLATFORM_ID = "api_platform_id"
         const val KEY_CRASH_NOTIFICATION_GUIDE_SHOWN = "crash_notification_guide_shown"
+        const val KEY_HAZE_BLUR_ENABLED = "haze_blur_enabled"
+        const val KEY_HAZE_BLUR_STRENGTH = "haze_blur_strength"
     }
 }

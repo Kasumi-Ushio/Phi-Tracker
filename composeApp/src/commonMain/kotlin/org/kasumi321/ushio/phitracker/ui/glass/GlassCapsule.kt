@@ -22,10 +22,11 @@ fun GlassCapsule(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit
 ) {
+    val glassBlurEnabled = rememberGlassBlurEnabled()
     Row(
         modifier = modifier
             .clip(CircleShape)
-            .hazeEffect(state = hazeState, style = style),
+            .hazeEffect(state = hazeState, style = style) { blurEnabled = glassBlurEnabled },
         verticalAlignment = Alignment.CenterVertically,
         content = content
     )
