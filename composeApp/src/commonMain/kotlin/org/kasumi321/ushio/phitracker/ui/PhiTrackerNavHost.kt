@@ -355,7 +355,7 @@ fun PhiTrackerNavHost() {
                     syncHistory = state.syncHistory,
                     apiEnabled = state.apiEnabled,
                     useApiData = state.useApiData,
-                    apiRequestKey = "${state.apiPlatform.trim()}\u0000${state.apiPlatformId.trim()}\u0000${state.displayRks}",
+                    apiRequestKey = "${state.apiPlatform.trim()}\u0000${state.apiPlatformId.trim()}\u0000${state.apiUserId.trim()}\u0000${state.displayRks}",
                     getSongApiDetail = viewModel::getSongApiDetail,
                     onLoadSongApiDetail = viewModel::loadSongApiDetail,
                     getLowIllustrationUrl = { state.lowIllustrationUrl },

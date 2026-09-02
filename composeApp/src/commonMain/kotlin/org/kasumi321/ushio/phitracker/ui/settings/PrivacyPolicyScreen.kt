@@ -65,14 +65,14 @@ fun PrivacyPolicyScreen(
             PolicyText("2. Phigros 游戏存档：包括您的游戏昵称、课题模式评级、游玩记录（成绩、准确率、Full Combo 状态等）和 RKS 数值。")
             PolicyText("3. 本地设置偏好：包括您选择的主题模式、自定义头像的本地 URI、B30 溢出显示设置等。")
             PolicyText("4. 运行日志（仅 Debug 版本）：Debug 版本提供导出运行日志功能。该日志用于排查故障，可能包含网络请求相关技术信息（在特定情况下可能出现账号凭证字段，如 sessionToken）。请仅在您信任的渠道中分享日志，并在公开前自行检查和脱敏。")
-            PolicyText("5. Phi-Plugin\u300C滦鸠\u300D联合查分 API 请求凭证（可选）：当您选择在设置页面中开启\u201C启用查分 API\u201D功能时，本应用将根据您填写的\u201C平台名称\u201D和\u201C平台 ID\u201D向该 API 发送请求，以获取对应的查分数据。")
+            PolicyText("5. Phi-Plugin\u300C滦鸠\u300D联合查分 API 请求凭证（可选）：当您选择在设置页面中开启\u201C启用查分 API\u201D功能时，本应用将根据您填写的\u201C平台名称\u201D、\u201C平台 ID\u201D和\u201CAPI 用户 ID\u201D向该 API 发送请求，以获取对应的查分数据。")
 
             PolicyTitle("二、数据的使用方式")
             PolicyText("您的数据仅用于以下目的：")
             PolicyText("• 读取并展示您的 Phigros 游戏存档与成绩分析（B30、RKS 计算等）。")
             PolicyText("• 存储您的个性化设置，以便在下次启动时恢复。")
             PolicyText("• 缓存曲绘资源，减少网络流量消耗。")
-            PolicyText("• 根据您开启查分 API 功能后填写的平台名称和平台 ID，向该 API 发送请求，以获取对应的查分数据。")
+            PolicyText("• 根据您开启查分 API 功能后填写的平台名称、平台 ID 和 API 用户 ID，向该 API 发送请求，以获取对应的查分数据。")
 
             PolicyTitle("三、数据的存储与安全")
             PolicyText("所有数据均存储在您的设备本地。本应用不会将您的数据上传至任何我们所控制的远程服务器。")

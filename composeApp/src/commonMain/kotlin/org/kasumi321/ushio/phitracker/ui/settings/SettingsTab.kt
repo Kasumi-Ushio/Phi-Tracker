@@ -35,12 +35,12 @@ import org.kasumi321.ushio.phitracker.data.platform.shouldShowThemeColorSourceSe
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformAlert
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
-import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
-import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_IMAGE
 import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_SYSTEM
 import org.kasumi321.ushio.phitracker.ui.theme.argbToColor
 import org.kasumi321.ushio.phitracker.ui.theme.colorToArgb
+import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,12 +73,14 @@ fun SettingsTab(
         tip: String = "",
         apiEnabled: Boolean = false,
         useApiData: Boolean = false,
+        apiUserId: String = "",
         apiPlatform: String = "",
         apiPlatformId: String = "",
         isApiTesting: Boolean = false,
         apiTestMessage: String? = null,
         onApiEnabledChange: (Boolean) -> Unit = {},
         onUseApiDataChange: (Boolean) -> Unit = {},
+        onApiUserIdChange: (String) -> Unit = {},
         onApiPlatformChange: (String) -> Unit = {},
         onApiPlatformIdChange: (String) -> Unit = {},
         onApiTestConnection: () -> Unit = {},
@@ -392,7 +394,8 @@ fun SettingsTab(
 
             if (apiEnabled) {
                 Text(
-                        text = "要确定您的平台名称和平台 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令以确定。",
+                        text =
+                                "要确定您的平台名称、平台 ID 与 API 用户 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令 和 /sessiontoken 命令以确定。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -420,6 +423,15 @@ fun SettingsTab(
                             modifier = Modifier.weight(1f)
                     )
                 }
+
+                OutlinedTextField(
+                        value = apiUserId,
+                        onValueChange = onApiUserIdChange,
+                        label = { Text("API 用户 ID") },
+                        placeholder = { Text("api_user_id") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -546,9 +558,7 @@ fun SettingsTab(
                                     if (result.isSuccess) {
                                         showPlatformMessage("曲绘预加载完成")
                                     } else {
-                                        showPlatformMessage(
-                                                "预加载失败，请重试"
-                                        )
+                                        showPlatformMessage("预加载失败，请重试")
                                     }
                                 }
                             }
@@ -779,7 +789,9 @@ fun SettingsTab(
                 icon = { Icon(Icons.Default.Warning, contentDescription = null) },
                 title = { Text("启用查分 API") },
                 text = {
-                    Text("启用查分 API 将通过第三方接口获取额外统计数据。您的平台名称和平台 ID 会通过加密通道发送至 API 服务器。请确认您了解并接受该风险。")
+                    Text(
+                            "启用查分 API 将通过第三方接口获取额外统计数据。您的平台名称、平台 ID 和 API 用户 ID 会通过加密通道发送至 API 服务器。请确认您了解并接受该风险。"
+                    )
                 },
                 confirmButton = {
                     TextButton(

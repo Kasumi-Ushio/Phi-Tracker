@@ -98,6 +98,7 @@ class SongDetailViewModelTest {
         val settings = FakeSettingsRepository().apply {
             setApiEnabled(true)
             setUseApiData(true)
+            setApiId(" api-user ")
             setApiPlatform(" taptap ")
             setApiPlatformId(" player-id ")
         }
@@ -122,6 +123,7 @@ class SongDetailViewModelTest {
         val request = repository.songApiDetailRequests.single()
         assertEquals("taptap", request.platform)
         assertEquals("player-id", request.platformId)
+        assertEquals("api-user", request.apiUserId)
         assertEquals("song-a.0", request.songId)
         assertEquals((viewModel.uiState.value.displayRks - 0.015f).coerceAtLeast(0f), request.minRks)
         assertEquals(viewModel.uiState.value.displayRks + 0.015f, request.maxRks)
@@ -153,6 +155,7 @@ class SongDetailViewModelTest {
         val settings = FakeSettingsRepository().apply {
             setApiEnabled(true)
             setUseApiData(true)
+            setApiId("api-user")
             setApiPlatform("taptap")
             setApiPlatformId("account-a")
         }

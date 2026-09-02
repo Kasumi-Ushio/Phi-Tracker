@@ -69,7 +69,7 @@ class PhigrosRepositoryImpl(
     private val apiDetailMutex = Mutex()
     private val apiDetailCache = mutableMapOf<ApiDetailCacheKey, SongApiDetail>()
     private var apiDetailEpoch = 0L
-    private var apiDetailIdentity: Pair<String, String>? = null
+    private var apiDetailIdentity: Triple<String, String, String>? = null
 
     override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> = runCatching {
         val userInfo = apiClient.getUserInfo(sessionToken, server)
@@ -209,9 +209,10 @@ class PhigrosRepositoryImpl(
         val normalizedKey = key.copy(
             platform = key.platform.trim(),
             platformId = key.platformId.trim(),
+            apiUserId = key.apiUserId.trim(),
             songId = key.songId.trim()
         )
-        val identity = normalizedKey.platform to normalizedKey.platformId
+        val identity = Triple(normalizedKey.platform, normalizedKey.platformId, normalizedKey.apiUserId)
         val epochAtStart: Long
         apiDetailMutex.withLock {
             if (apiDetailIdentity != null && apiDetailIdentity != identity) {
@@ -227,6 +228,7 @@ class PhigrosRepositoryImpl(
             val rank = phiPluginApi.getRank(
                 normalizedKey.platform,
                 normalizedKey.platformId,
+                normalizedKey.apiUserId,
                 normalizedKey.songId,
                 difficulty
             )
@@ -239,6 +241,7 @@ class PhigrosRepositoryImpl(
             val history = phiPluginApi.getScoreHistory(
                 normalizedKey.platform,
                 normalizedKey.platformId,
+                normalizedKey.apiUserId,
                 normalizedKey.songId,
                 difficulty
             )
@@ -261,12 +264,24 @@ class PhigrosRepositoryImpl(
     override suspend fun apiGetSaveHistory(
         platform: String,
         platformId: String,
+        apiUserId: String,
         request: List<String>
     ): Result<JsonObject> =
-        runCatching { phiPluginApi.getSaveHistory(platform.trim(), platformId.trim(), request.map { it.trim() }) }
+        runCatching {
+            phiPluginApi.getSaveHistory(
+                platform.trim(),
+                platformId.trim(),
+                apiUserId.trim(),
+                request.map { it.trim() }
+            )
+        }
 
-    override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
-        runCatching { phiPluginApi.getRankByUser(platform.trim(), platformId.trim()) }
+    override suspend fun apiGetRankByUser(
+        platform: String,
+        platformId: String,
+        apiUserId: String
+    ): Result<JsonObject> =
+        runCatching { phiPluginApi.getRankByUser(platform.trim(), platformId.trim(), apiUserId.trim()) }
 
     override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
         runCatching { phiPluginApi.getRankByPosition(position) }

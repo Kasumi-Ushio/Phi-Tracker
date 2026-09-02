@@ -177,6 +177,12 @@ class HomeViewModel(
             }
         }
         viewModelScope.launch {
+            settingsRepository.apiId.collect { apiUserId ->
+                updateTools { it.copy(apiUserId = apiUserId) }
+                refreshApiToolData()
+            }
+        }
+        viewModelScope.launch {
             settingsRepository.apiPlatform.collect { platform ->
                 updateTools { it.copy(apiPlatform = platform) }
                 refreshApiToolData()
@@ -782,14 +788,15 @@ class HomeViewModel(
         if (!state.apiEnabled || !state.useApiData) return
         val platform = state.apiPlatform.trim()
         val platformId = state.apiPlatformId.trim()
-        if (platform.isBlank() || platformId.isBlank()) {
-            updateTools { it.copy(apiRankByUser = ApiToolResult(message = "请先填写平台名称与平台 ID")) }
+        val apiUserId = state.apiUserId.trim()
+        if (platform.isBlank() || platformId.isBlank() || apiUserId.isBlank()) {
+            updateTools { it.copy(apiRankByUser = ApiToolResult(message = "请先填写平台名称、平台 ID 与 API 用户 ID")) }
             return
         }
 
         viewModelScope.launch {
             updateTools { it.copy(apiRankByUser = ApiToolResult(isLoading = true)) }
-            val result = repository.apiGetRankByUser(platform, platformId)
+            val result = repository.apiGetRankByUser(platform, platformId, apiUserId)
             if (result.isFailure) {
                 updateTools {
                     it.copy(
@@ -947,10 +954,11 @@ class HomeViewModel(
         val state = _uiState.value.tools
         val platform = state.apiPlatform.trim()
         val platformId = state.apiPlatformId.trim()
-        if (platform.isBlank() || platformId.isBlank()) return
+        val apiUserId = state.apiUserId.trim()
+        if (platform.isBlank() || platformId.isBlank() || apiUserId.isBlank()) return
 
         viewModelScope.launch {
-            val result = repository.apiGetSaveHistory(platform, platformId, listOf("rks"))
+            val result = repository.apiGetSaveHistory(platform, platformId, apiUserId, listOf("rks"))
             if (result.isFailure) {
                 return@launch
             }

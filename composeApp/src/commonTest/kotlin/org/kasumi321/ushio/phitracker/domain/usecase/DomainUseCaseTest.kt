@@ -496,10 +496,10 @@ class DomainUseCaseTest {
         override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
-        override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
+        override suspend fun apiGetSaveHistory(platform: String, platformId: String, apiUserId: String, request: List<String>): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
-        override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
+        override suspend fun apiGetRankByUser(platform: String, platformId: String, apiUserId: String): Result<JsonObject> =
             Result.failure(IllegalStateException("Not implemented in Phase B"))
 
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =

@@ -36,8 +36,13 @@ interface PhigrosRepository {
     suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject>
     suspend fun getSongApiDetail(key: ApiDetailCacheKey): Result<SongApiDetail>
     suspend fun apiGetRksAbove(rks: Float): Result<JsonObject>
-    suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String> = emptyList()): Result<JsonObject>
-    suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject>
+    suspend fun apiGetSaveHistory(
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        request: List<String> = emptyList()
+    ): Result<JsonObject>
+    suspend fun apiGetRankByUser(platform: String, platformId: String, apiUserId: String): Result<JsonObject>
     suspend fun apiGetRankByPosition(position: Int): Result<JsonObject>
 
     suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo>

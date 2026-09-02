@@ -3,6 +3,7 @@ package org.kasumi321.ushio.phitracker.domain.model
 data class ApiDetailCacheKey(
     val platform: String,
     val platformId: String,
+    val apiUserId: String,
     val songId: String,
     val difficulty: Difficulty,
     val minRks: Float,

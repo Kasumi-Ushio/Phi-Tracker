@@ -26,6 +26,12 @@ class PhiPluginApi(
         put("platform_id", platformId)
     }
 
+    private fun userAuthBody(platform: String, platformId: String, apiUserId: String): JsonObject = buildJsonObject {
+        put("platform", platform)
+        put("platform_id", platformId)
+        put("api_user_id", apiUserId)
+    }
+
     private inline fun <reified T> HttpRequestBuilder.setJsonBody(body: T) {
         contentType(ContentType.Application.Json)
         setBody(body)
@@ -59,13 +65,21 @@ class PhiPluginApi(
         setJsonBody(authBody(platform, platformId))
     }.body()
 
-    suspend fun getRank(platform: String, platformId: String, songId: String, difficulty: String): JsonObject =
+    suspend fun getRank(
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        songId: String,
+        difficulty: String
+    ): JsonObject =
         httpClient.post("$BASE_URL/get/scoreList/user") {
             setJsonBody(buildJsonObject {
                 put("platform", platform)
                 put("platform_id", platformId)
+                put("api_user_id", apiUserId)
                 put("songId", songId)
                 put("rank", difficulty)
+                put("orderBy", "acc")
             })
         }.body()
 
@@ -102,11 +116,17 @@ class PhiPluginApi(
             })
         }.body()
 
-    suspend fun getSaveHistory(platform: String, platformId: String, request: List<String> = emptyList()): JsonObject =
+    suspend fun getSaveHistory(
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        request: List<String> = emptyList()
+    ): JsonObject =
         httpClient.post("$BASE_URL/get/history/history") {
             setJsonBody(buildJsonObject {
                 put("platform", platform)
                 put("platform_id", platformId)
+                put("api_user_id", apiUserId)
                 if (request.isNotEmpty()) {
                     putJsonArray("request") {
                         request.forEach { add(JsonPrimitive(it)) }
@@ -118,12 +138,14 @@ class PhiPluginApi(
     suspend fun getScoreHistory(
         platform: String,
         platformId: String,
+        apiUserId: String,
         songId: String? = null,
         difficulty: String? = null
     ): JsonObject = httpClient.post("$BASE_URL/get/history/record") {
         setJsonBody(buildJsonObject {
             put("platform", platform)
             put("platform_id", platformId)
+            put("api_user_id", apiUserId)
             if (!songId.isNullOrBlank()) {
                 put("song_id", songId)
             }
@@ -133,9 +155,10 @@ class PhiPluginApi(
         })
     }.body()
 
-    suspend fun getRankByUser(platform: String, platformId: String): JsonObject = httpClient.post("$BASE_URL/get/ranklist/user") {
-        setJsonBody(authBody(platform, platformId))
-    }.body()
+    suspend fun getRankByUser(platform: String, platformId: String, apiUserId: String): JsonObject =
+        httpClient.post("$BASE_URL/get/ranklist/user") {
+            setJsonBody(userAuthBody(platform, platformId, apiUserId))
+        }.body()
 
     suspend fun getRankByPosition(position: Int): JsonObject =
         httpClient.post("$BASE_URL/get/ranklist/rank") {

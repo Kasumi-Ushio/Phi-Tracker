@@ -597,6 +597,7 @@ class HomeViewModelPreloadTest {
         includePreRelease: Boolean = false,
         apiEnabled: Boolean = false,
         useApiData: Boolean = false,
+        apiUserId: String = "",
         apiPlatform: String = "",
         apiPlatformId: String = ""
     ) : SettingsRepository {
@@ -645,7 +646,7 @@ class HomeViewModelPreloadTest {
         override suspend fun setApiEnabled(enabled: Boolean) = Unit
         override val useApiData: Flow<Boolean> = flowOf(useApiData)
         override suspend fun setUseApiData(useApiData: Boolean) = Unit
-        override val apiId: Flow<String> = flowOf("")
+        override val apiId: Flow<String> = flowOf(apiUserId)
         override suspend fun setApiId(apiId: String) = Unit
         override val apiPlatform: Flow<String> = flowOf(apiPlatform)
         override suspend fun setApiPlatform(platform: String) = Unit
@@ -707,9 +708,9 @@ class HomeViewModelPreloadTest {
             Result.failure(IllegalStateException("Song detail is route-owned"))
         override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
-        override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> =
+        override suspend fun apiGetSaveHistory(platform: String, platformId: String, apiUserId: String, request: List<String>): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
-        override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> =
+        override suspend fun apiGetRankByUser(platform: String, platformId: String, apiUserId: String): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))

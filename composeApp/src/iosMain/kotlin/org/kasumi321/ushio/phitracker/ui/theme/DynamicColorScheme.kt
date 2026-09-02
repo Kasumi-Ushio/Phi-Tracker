@@ -1,7 +1,7 @@
 package org.kasumi321.ushio.phitracker.ui.theme
 
-import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 
 @Composable
-internal actual fun dynamicColorScheme(darkTheme: Boolean): ColorScheme? = null
+internal actual fun systemSeedColor(): Color? = null

@@ -436,8 +436,8 @@ class LoginViewModelTest {
         override suspend fun apiGetBindInfo(platform: String, platformId: String): Result<JsonObject> = offline()
         override suspend fun getSongApiDetail(key: org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey): Result<org.kasumi321.ushio.phitracker.domain.model.SongApiDetail> = offline()
         override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> = offline()
-        override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> = offline()
-        override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> = offline()
+        override suspend fun apiGetSaveHistory(platform: String, platformId: String, apiUserId: String, request: List<String>): Result<JsonObject> = offline()
+        override suspend fun apiGetRankByUser(platform: String, platformId: String, apiUserId: String): Result<JsonObject> = offline()
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = offline()
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> = offline()
     }

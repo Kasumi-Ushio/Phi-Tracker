@@ -24,10 +24,12 @@ fun PhiTrackerTheme(
     } else {
         THEME_COLOR_SOURCE_SYSTEM
     }
+    val systemSeed = if (effectiveColorSource == THEME_COLOR_SOURCE_SYSTEM) systemSeedColor() else null
 
     val materialKolorScheme = rememberDynamicColorScheme(
         seedColor = when (effectiveColorSource) {
             THEME_COLOR_SOURCE_IMAGE -> argbToColor(settings.imageSeedColorArgb ?: settings.seedColorArgb)
+            THEME_COLOR_SOURCE_SYSTEM -> systemSeed ?: argbToColor(settings.seedColorArgb)
             else -> argbToColor(settings.seedColorArgb)
         },
         isDark = darkTheme,
@@ -36,7 +38,7 @@ fun PhiTrackerTheme(
     )
 
     val baseColorScheme = when (effectiveColorSource) {
-        THEME_COLOR_SOURCE_SYSTEM -> dynamicColorScheme(darkTheme) ?: materialKolorScheme
+        THEME_COLOR_SOURCE_SYSTEM -> materialKolorScheme
         THEME_COLOR_SOURCE_SEED, THEME_COLOR_SOURCE_IMAGE -> materialKolorScheme
         else -> if (darkTheme) DarkColorScheme else LightColorScheme
     }

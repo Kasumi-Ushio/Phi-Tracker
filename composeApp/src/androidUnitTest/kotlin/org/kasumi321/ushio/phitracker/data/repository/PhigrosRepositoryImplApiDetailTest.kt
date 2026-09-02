@@ -103,6 +103,7 @@ class PhigrosRepositoryImplApiDetailTest {
         val settings = FakeSettingsRepository().apply {
             setApiEnabled(true)
             setUseApiData(true)
+            setApiId("api-user-a")
             setApiPlatform("taptap")
             setApiPlatformId("account-a")
         }
@@ -438,9 +439,10 @@ class PhigrosRepositoryImplApiDetailTest {
     private fun key(
         platform: String = " taptap ",
         platformId: String = " account-a ",
+        apiUserId: String = " api-user-a ",
         minRks: Float = 14.985f,
         maxRks: Float = 15.015f
-    ) = ApiDetailCacheKey(platform, platformId, " song-a.0 ", Difficulty.IN, minRks, maxRks)
+    ) = ApiDetailCacheKey(platform, platformId, apiUserId, " song-a.0 ", Difficulty.IN, minRks, maxRks)
 
     private data class CapturedRequest(val path: String, val body: String)
 

@@ -49,6 +49,7 @@ fun SettingsViewModel.setUseApiData(value: Boolean) = launchSetting {
     settingsRepository.setUseApiData(value)
 }
 
+fun SettingsViewModel.setApiUserId(value: String) = launchSetting { settingsRepository.setApiId(value) }
 fun SettingsViewModel.setApiPlatform(value: String) = launchSetting { settingsRepository.setApiPlatform(value) }
 fun SettingsViewModel.setApiPlatformId(value: String) = launchSetting { settingsRepository.setApiPlatformId(value) }
 fun SettingsViewModel.setIncludePreRelease(value: Boolean) = launchSetting { settingsRepository.setIncludePreRelease(value) }

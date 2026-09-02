@@ -62,6 +62,7 @@ data class ToolsUiState(
     val sessionToken: String? = null,
     val apiEnabled: Boolean = false,
     val useApiData: Boolean = false,
+    val apiUserId: String = "",
     val apiPlatform: String = "",
     val apiPlatformId: String = "",
     val apiRksRank: Int? = null,

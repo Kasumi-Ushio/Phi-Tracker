@@ -86,6 +86,7 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepository.overflowCount.collect { value -> mutableUiState.update { it.copy(overflowCount = value) } } }
         viewModelScope.launch { settingsRepository.apiEnabled.collect { value -> mutableUiState.update { it.copy(apiEnabled = value) } } }
         viewModelScope.launch { settingsRepository.useApiData.collect { value -> mutableUiState.update { it.copy(useApiData = value) } } }
+        viewModelScope.launch { settingsRepository.apiId.collect { value -> mutableUiState.update { it.copy(apiUserId = value) } } }
         viewModelScope.launch { settingsRepository.apiPlatform.collect { value -> mutableUiState.update { it.copy(apiPlatform = value) } } }
         viewModelScope.launch { settingsRepository.apiPlatformId.collect { value -> mutableUiState.update { it.copy(apiPlatformId = value) } } }
         viewModelScope.launch { settingsRepository.includePreRelease.collect { value -> mutableUiState.update { it.copy(includePreRelease = value) } } }
@@ -101,8 +102,9 @@ class SettingsViewModel(
         viewModelScope.launch {
             val platform = mutableUiState.value.apiPlatform.trim()
             val platformId = mutableUiState.value.apiPlatformId.trim()
-            if (platform.isBlank() || platformId.isBlank()) {
-                mutableUiState.update { it.copy(apiTestMessage = "请先填写平台名称与平台 ID") }
+            val apiUserId = mutableUiState.value.apiUserId.trim()
+            if (platform.isBlank() || platformId.isBlank() || apiUserId.isBlank()) {
+                mutableUiState.update { it.copy(apiTestMessage = "请先填写平台名称、平台 ID 与 API 用户 ID") }
                 return@launch
             }
             mutableUiState.update { it.copy(isApiTesting = true, apiTestMessage = null) }
@@ -114,14 +116,18 @@ class SettingsViewModel(
                 AppLogger.event("api", "test_failed", mapOf("error" to message))
                 return@launch
             }
-            val bind = repository.apiGetBindInfo(platform, platformId)
+            val accountLookup = repository.apiGetRankByUser(platform, platformId, apiUserId)
             mutableUiState.update {
                 it.copy(
                     isApiTesting = false,
-                    apiTestMessage = if (bind.isSuccess) "连接正常" else "已连接，但账号查询失败：${bind.exceptionOrNull()?.message ?: "未知错误"}"
+                    apiTestMessage = if (accountLookup.isSuccess) "连接正常" else "已连接，但账号查询失败：${accountLookup.exceptionOrNull()?.message ?: "未知错误"}"
                 )
             }
-            AppLogger.event("api", if (bind.isSuccess) "test_success" else "test_partial", mapOf("bindSuccess" to bind.isSuccess.toString()))
+            AppLogger.event(
+                "api",
+                if (accountLookup.isSuccess) "test_success" else "test_partial",
+                mapOf("accountLookupSuccess" to accountLookup.isSuccess.toString())
+            )
         }
     }
 

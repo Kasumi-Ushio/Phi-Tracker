@@ -39,6 +39,7 @@ data class SongDetailUiState(
     val displayRks: Float = 0f,
     val apiEnabled: Boolean = false,
     val useApiData: Boolean = false,
+    val apiUserId: String = "",
     val apiPlatform: String = "",
     val apiPlatformId: String = "",
     val apiDetails: Map<Difficulty, SongApiDetailState> = emptyMap(),
@@ -141,22 +142,26 @@ class SongDetailViewModel(
                 combine(
                     settingsRepository.apiEnabled,
                     settingsRepository.useApiData,
+                    settingsRepository.apiId,
                     settingsRepository.apiPlatform,
                     settingsRepository.apiPlatformId
-                ) { enabled, useData, platform, platformId ->
-                    ApiSettings(enabled, useData, platform, platformId)
+                ) { enabled, useData, apiUserId, platform, platformId ->
+                    ApiSettings(enabled, useData, apiUserId, platform, platformId)
                 }.collect { settings ->
                     mutableUiState.update {
                         val identityChanged =
+                            it.apiUserId.trim() != settings.apiUserId.trim() ||
                             it.apiPlatform.trim() != settings.platform.trim() ||
                                 it.apiPlatformId.trim() != settings.platformId.trim()
                         it.copy(
                             apiEnabled = settings.enabled,
                             useApiData = settings.useData,
+                            apiUserId = settings.apiUserId,
                             apiPlatform = settings.platform,
                             apiPlatformId = settings.platformId,
                             apiDetails = if (identityChanged || !(
                                 settings.enabled && settings.useData &&
+                                settings.apiUserId.isNotBlank() &&
                                 settings.platform.isNotBlank() && settings.platformId.isNotBlank()
                             )) emptyMap() else it.apiDetails
                         )
@@ -171,11 +176,13 @@ class SongDetailViewModel(
         if (!state.apiEnabled || !state.useApiData || state.songInfo == null) return null
         val platform = state.apiPlatform.trim()
         val platformId = state.apiPlatformId.trim()
+        val apiUserId = state.apiUserId.trim()
         val normalizedSongId = songId.trim()
-        if (platform.isBlank() || platformId.isBlank() || normalizedSongId.isBlank()) return null
+        if (platform.isBlank() || platformId.isBlank() || apiUserId.isBlank() || normalizedSongId.isBlank()) return null
         return ApiDetailCacheKey(
             platform = platform,
             platformId = platformId,
+            apiUserId = apiUserId,
             songId = normalizedSongId,
             difficulty = difficulty,
             minRks = (state.displayRks - 0.015f).coerceAtLeast(0f),
@@ -186,6 +193,7 @@ class SongDetailViewModel(
     private data class ApiSettings(
         val enabled: Boolean,
         val useData: Boolean,
+        val apiUserId: String,
         val platform: String,
         val platformId: String
     )

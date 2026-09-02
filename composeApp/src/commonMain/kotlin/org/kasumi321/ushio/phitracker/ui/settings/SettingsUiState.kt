@@ -17,6 +17,7 @@ data class SettingsUiState(
     val b30ArtworkCacheError: String? = null,
     val apiEnabled: Boolean = false,
     val useApiData: Boolean = false,
+    val apiUserId: String = "",
     val apiPlatform: String = "",
     val apiPlatformId: String = "",
     val isApiTesting: Boolean = false,

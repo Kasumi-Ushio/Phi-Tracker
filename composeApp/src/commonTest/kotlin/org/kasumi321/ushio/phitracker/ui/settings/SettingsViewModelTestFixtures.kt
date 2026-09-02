@@ -115,6 +115,8 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val apiEnabled: Flow<Boolean> = apiEnabledState
     private val useApiState = MutableStateFlow(false)
     override val useApiData: Flow<Boolean> = useApiState
+    private val apiIdState = MutableStateFlow("")
+    override val apiId: Flow<String> = apiIdState
     private val platformState = MutableStateFlow("")
     override val apiPlatform: Flow<String> = platformState
     private val platformIdState = MutableStateFlow("")
@@ -123,7 +125,6 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val crashNotificationGuideShown: Flow<Boolean> = guideState
     override val avatarUri: Flow<String?> = flowOf(null)
     override val moneyString: Flow<String> = flowOf("")
-    override val apiId: Flow<String> = flowOf("")
     override suspend fun setThemeMode(mode: Int) { themeModeState.value = mode }
     override suspend fun setThemeColorSource(source: String) { colorSourceState.value = source }
     override suspend fun setSeedColorArgb(argb: Int) { seedState.value = argb }
@@ -140,7 +141,7 @@ internal class FakeSettingsRepository : SettingsRepository {
     override suspend fun setAutoCheckUpdate(enabled: Boolean) { autoState.value = enabled }
     override suspend fun setApiEnabled(enabled: Boolean) { apiEnabledState.value = enabled }
     override suspend fun setUseApiData(useApiData: Boolean) { useApiState.value = useApiData }
-    override suspend fun setApiId(apiId: String) = Unit
+    override suspend fun setApiId(apiId: String) { apiIdState.value = apiId.trim() }
     override suspend fun setApiPlatform(platform: String) { platformState.value = platform.trim() }
     override suspend fun setApiPlatformId(platformId: String) { platformIdState.value = platformId.trim() }
     override suspend fun setCrashNotificationGuideShown(shown: Boolean) { guideState.value = shown }
@@ -177,8 +178,8 @@ internal class FakePhigrosRepository : PhigrosRepository {
         return songApiDetail
     }
     override suspend fun apiGetRksAbove(rks: Float): Result<JsonObject> = Result.failure(IllegalStateException())
-    override suspend fun apiGetSaveHistory(platform: String, platformId: String, request: List<String>): Result<JsonObject> = Result.failure(IllegalStateException())
-    override suspend fun apiGetRankByUser(platform: String, platformId: String): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun apiGetSaveHistory(platform: String, platformId: String, apiUserId: String, request: List<String>): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun apiGetRankByUser(platform: String, platformId: String, apiUserId: String): Result<JsonObject> = bind
     override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = Result.failure(IllegalStateException())
     override suspend fun fetchLatestRelease(includePreRelease: Boolean) = release
 }

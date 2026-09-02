@@ -43,6 +43,39 @@ class PhiPluginApiTest {
     }
 
     @Test
+    fun getSongRankUsesAuthenticatedUserEndpoint() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.getRank("qq", "platform-42", "api-7", "song.0", "IN")
+
+        val request = requests.single()
+        assertEquals("POST", request.method)
+        assertEquals("/get/scoreList/user", request.path)
+        assertTrue(request.body.contains("\"platform\":\"qq\""), request.body)
+        assertTrue(request.body.contains("\"platform_id\":\"platform-42\""), request.body)
+        assertTrue(request.body.contains("\"api_user_id\":\"api-7\""), request.body)
+        assertTrue(request.body.contains("\"songId\":\"song.0\""), request.body)
+        assertTrue(request.body.contains("\"rank\":\"IN\""), request.body)
+        assertTrue(request.body.contains("\"orderBy\":\"acc\""), request.body)
+    }
+
+    @Test
+    fun getRankByUserIncludesApiUserIdAuthentication() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.getRankByUser("qq", "platform-42", "api-7")
+
+        val request = requests.single()
+        assertEquals("POST", request.method)
+        assertEquals("/get/ranklist/user", request.path)
+        assertTrue(request.body.contains("\"platform\":\"qq\""), request.body)
+        assertTrue(request.body.contains("\"platform_id\":\"platform-42\""), request.body)
+        assertTrue(request.body.contains("\"api_user_id\":\"api-7\""), request.body)
+    }
+
+    @Test
     fun getRankByPositionUsesPublicRankEndpointAndRequestRank() = runTest {
         val requests = mutableListOf<CapturedRequest>()
         val api = createApi(requests)
