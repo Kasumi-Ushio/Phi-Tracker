@@ -264,14 +264,19 @@ fun MainScreen(
         }
     }
 
-    // Songs header compacts on scroll (tip hidden, title tightened); the search
-    // field and filter entry always stay visible
+    // Songs header compacts on scroll into a title row with a search icon on
+    // the top right; tapping the icon reopens the full search field until the
+    // list returns to the top
     val songsListState = rememberLazyListState()
     val songsAtTop by remember {
         derivedStateOf {
             songsListState.firstVisibleItemIndex == 0 &&
                 songsListState.firstVisibleItemScrollOffset < 48
         }
+    }
+    var songsSearchOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(songsAtTop) {
+        if (songsAtTop) songsSearchOpen = false
     }
     val songsActiveFilterCount = remember(
         state.songs.selectedChapters,
@@ -303,8 +308,9 @@ fun MainScreen(
                         tip = tip,
                         searchQuery = state.songs.searchQuery,
                         activeFilterCount = songsActiveFilterCount,
-                        compact = !songsAtTop,
+                        compact = !songsAtTop && !songsSearchOpen,
                         onSearchChange = { viewModel.searchSongs(it) },
+                        onSearchExpandRequest = { songsSearchOpen = true },
                         onOpenFilter = { viewModel.toggleFilterSheet(true) }
                     )
                     HomeTab.Profile -> HomeGlassTopBar(

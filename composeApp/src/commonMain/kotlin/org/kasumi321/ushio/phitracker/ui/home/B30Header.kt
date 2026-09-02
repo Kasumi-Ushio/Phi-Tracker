@@ -32,10 +32,13 @@ import org.kasumi321.ushio.phitracker.ui.glass.rememberExpansionArrowRotation
 
 /**
  * Collapsible B30 glass header. Replaces the former top bar plus standalone RKS
- * card with one continuous glass surface. Collapsed it keeps the page identity,
- * the current RKS and the image generation entry; expanded it also shows the
- * tip, Best Phi and the B27 tail. The whole header toggles expansion, the arrow
- * hit target is not limited to the icon itself.
+ * card with one continuous glass surface. The tip line hugs the title and stays
+ * visible in both states, like the other tabs' top bars. Collapsed the header
+ * keeps the page identity, the current RKS and the image generation entry;
+ * expanded it also shows Best Phi and the B27 tail, preceded by a reserved gap
+ * where the tip used to sit so the RKS row keeps its distance from the title.
+ * The whole header toggles expansion, the arrow hit target is not limited to
+ * the icon itself.
  */
 @Composable
 fun B30Header(
@@ -103,20 +106,23 @@ fun B30Header(
             }
         }
 
+        if (tip.isNotBlank()) {
+            Text(
+                text = tip,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .basicMarquee()
+            )
+        }
+
         ExpandableGlassSection(expanded = expanded) {
             Column {
-                if (tip.isNotBlank()) {
-                    Text(
-                        text = tip,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .basicMarquee()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+                // Blank gap where the tip line used to sit, keeping the RKS row
+                // at a reasonable distance from the title
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),

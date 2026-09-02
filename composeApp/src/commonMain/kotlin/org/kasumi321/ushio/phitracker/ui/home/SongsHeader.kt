@@ -32,10 +32,11 @@ import org.kasumi321.ushio.phitracker.ui.glass.ExpandableGlassSection
 
 /**
  * Unified songs glass header: title, tip, search field and filter entry share
- * one progressive glass surface. Scrolling the list hides the tip and tightens
- * the title area, but the search field and filter button stay visible in the
- * compact state. Height never reacts to focus or the keyboard, so the query,
- * clear button and filter badge remain usable in every state.
+ * one progressive glass surface. Scrolling the list collapses the header to a
+ * single row holding the tightened title plus a search icon on the top right;
+ * tapping the icon asks the caller to expand the header again, restoring the
+ * full search field. Height never reacts to focus or the keyboard, so the
+ * query, clear button and filter badge remain usable in every state.
  */
 @Composable
 fun SongsHeader(
@@ -45,6 +46,7 @@ fun SongsHeader(
     activeFilterCount: Int,
     compact: Boolean,
     onSearchChange: (String) -> Unit,
+    onSearchExpandRequest: () -> Unit,
     onOpenFilter: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -55,82 +57,137 @@ fun SongsHeader(
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp)
     ) {
-        Text(
-            text = "全部曲目 ($songCount)",
-            style = if (compact) {
-                MaterialTheme.typography.titleMedium
-            } else {
-                MaterialTheme.typography.titleLarge
+        if (compact) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "全部曲目 ($songCount)",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(onClick = onSearchExpandRequest) {
+                    Icon(Icons.Filled.Search, contentDescription = "展开搜索")
+                }
+                SongsFilterEntry(
+                    activeFilterCount = activeFilterCount,
+                    onOpenFilter = onOpenFilter,
+                    compact = true
+                )
             }
-        )
-
-        ExpandableGlassSection(expanded = !compact && tip.isNotBlank()) {
+        } else {
             Text(
-                text = tip,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .basicMarquee()
+                text = "全部曲目 ($songCount)",
+                style = MaterialTheme.typography.titleLarge
             )
+
+            ExpandableGlassSection(expanded = tip.isNotBlank()) {
+                Text(
+                    text = tip,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .basicMarquee()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("搜索曲名或作曲...") },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { onSearchChange("") }) {
+                                Icon(Icons.Filled.Close, contentDescription = "清除搜索")
+                            }
+                        }
+                    },
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                SongsFilterEntry(
+                    activeFilterCount = activeFilterCount,
+                    onOpenFilter = onOpenFilter,
+                    compact = false
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(if (compact) 4.dp else 8.dp))
+        Spacer(modifier = Modifier.height(if (compact) 4.dp else 12.dp))
+    }
+}
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("搜索曲名或作曲...") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { onSearchChange("") }) {
-                            Icon(Icons.Filled.Close, contentDescription = "清除搜索")
-                        }
+/**
+ * Filter entry shared by both header states. The expanded state keeps the
+ * boxed button aligned with the search field; the compact state falls back to
+ * a plain icon so the collapsed row stays slim.
+ */
+@Composable
+private fun SongsFilterEntry(
+    activeFilterCount: Int,
+    onOpenFilter: () -> Unit,
+    compact: Boolean
+) {
+    if (compact) {
+        IconButton(onClick = onOpenFilter) {
+            BadgedBox(
+                badge = {
+                    if (activeFilterCount > 0) {
+                        Badge { Text(activeFilterCount.toString()) }
                     }
-                },
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = onOpenFilter,
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(
-                        if (activeFilterCount > 0)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant
-                    )
+                }
             ) {
-                if (activeFilterCount > 0) {
-                    BadgedBox(
-                        badge = {
-                            Badge { Text(activeFilterCount.toString()) }
-                        }
-                    ) {
-                        Icon(
-                            Icons.Filled.FilterList,
-                            contentDescription = "Filter",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                Icon(
+                    Icons.Filled.FilterList,
+                    contentDescription = "Filter",
+                    tint = if (activeFilterCount > 0)
+                        MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    } else {
+        IconButton(
+            onClick = onOpenFilter,
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(
+                    if (activeFilterCount > 0)
+                        MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surfaceVariant
+                )
+        ) {
+            if (activeFilterCount > 0) {
+                BadgedBox(
+                    badge = {
+                        Badge { Text(activeFilterCount.toString()) }
                     }
-                } else {
+                ) {
                     Icon(
                         Icons.Filled.FilterList,
                         contentDescription = "Filter",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
+            } else {
+                Icon(
+                    Icons.Filled.FilterList,
+                    contentDescription = "Filter",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
     }
 }
