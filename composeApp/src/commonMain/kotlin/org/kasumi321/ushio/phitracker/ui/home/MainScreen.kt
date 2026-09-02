@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
@@ -37,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -236,13 +238,77 @@ fun MainScreen(
         )
     }
 
+    // B30 header collapse state: user intent is saveable UI state (never the
+    // ViewModel); scrolling away from the top auto-collapses, returning to the
+    // top re-expands only when the user did not explicitly collapse
+    val b30ListState = rememberLazyListState()
+    var b30UserCollapsed by rememberSaveable { mutableStateOf(false) }
+    var b30UserExpanded by rememberSaveable { mutableStateOf(false) }
+    val b30AtTop by remember {
+        derivedStateOf {
+            b30ListState.firstVisibleItemIndex == 0 &&
+                b30ListState.firstVisibleItemScrollOffset < 48
+        }
+    }
+    LaunchedEffect(b30AtTop) {
+        if (!b30AtTop) b30UserExpanded = false
+    }
+    val b30HeaderExpanded = !b30UserCollapsed && (b30AtTop || b30UserExpanded)
+    val toggleB30Header = {
+        if (b30HeaderExpanded) {
+            b30UserCollapsed = true
+            b30UserExpanded = false
+        } else {
+            b30UserCollapsed = false
+            b30UserExpanded = true
+        }
+    }
+
+    // Songs header compacts on scroll (tip hidden, title tightened); the search
+    // field and filter entry always stay visible
+    val songsListState = rememberLazyListState()
+    val songsAtTop by remember {
+        derivedStateOf {
+            songsListState.firstVisibleItemIndex == 0 &&
+                songsListState.firstVisibleItemScrollOffset < 48
+        }
+    }
+    val songsActiveFilterCount = remember(
+        state.songs.selectedChapters,
+        state.songs.selectedDifficulty,
+        state.songs.minLevel,
+        state.songs.maxLevel
+    ) {
+        var count = 0
+        if (state.songs.selectedChapters.isNotEmpty()) count += state.songs.selectedChapters.size
+        if (state.songs.selectedDifficulty != null) count++
+        if (state.songs.minLevel > 1 || state.songs.maxLevel < 17) count++
+        count
+    }
+
     HomeGlassScaffold(
         snackbarHostState = snackbarHostState,
         topBar = { hazeState, glassStyle ->
             GlassTopBar(hazeState = hazeState, style = glassStyle) {
-                HomeGlassTopBar(
-                    spec = when (selectedTab) {
-                        HomeTab.Profile -> HomeHeaderSpec(
+                when (selectedTab) {
+                    HomeTab.B30 -> B30Header(
+                        state = state.b30,
+                        tip = tip,
+                        expanded = b30HeaderExpanded,
+                        onToggle = toggleB30Header,
+                        onGenerateImage = generateB30Image
+                    )
+                    HomeTab.Songs -> SongsHeader(
+                        songCount = state.songs.filteredSongs.size,
+                        tip = tip,
+                        searchQuery = state.songs.searchQuery,
+                        activeFilterCount = songsActiveFilterCount,
+                        compact = !songsAtTop,
+                        onSearchChange = { viewModel.searchSongs(it) },
+                        onOpenFilter = { viewModel.toggleFilterSheet(true) }
+                    )
+                    HomeTab.Profile -> HomeGlassTopBar(
+                        spec = HomeHeaderSpec(
                             title = "首页",
                             tip = tip,
                             actions = {
@@ -261,25 +327,11 @@ fun MainScreen(
                                 }
                             }
                         )
-                        HomeTab.B30 -> HomeHeaderSpec(
-                            title = "Best 30",
-                            tip = tip,
-                            actions = {
-                                IconButton(
-                                    onClick = generateB30Image,
-                                    enabled = state.b30.b30.isNotEmpty()
-                                ) {
-                                    Icon(Icons.Filled.Image, contentDescription = "生成图片")
-                                }
-                            }
-                        )
-                        HomeTab.Songs -> HomeHeaderSpec(
-                            title = "全部曲目 (${state.songs.filteredSongs.size})",
-                            tip = tip
-                        )
-                        HomeTab.Tools -> HomeHeaderSpec(title = "工具", tip = tip)
-                    }
-                )
+                    )
+                    HomeTab.Tools -> HomeGlassTopBar(
+                        spec = HomeHeaderSpec(title = "工具", tip = tip)
+                    )
+                }
             }
         },
         bottomBar = { hazeState, glassStyle ->
@@ -320,7 +372,8 @@ fun MainScreen(
                         onNavigateToSongDetail(songId)
                     }
                 },
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                listState = b30ListState
             )
             HomeTab.Songs -> SongsTab(
                 state = state.songs,
@@ -333,7 +386,8 @@ fun MainScreen(
                 onResetFilters = { viewModel.resetFilters() },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
                 onSongClick = { songId, _ -> onNavigateToSongDetail(songId) },
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                listState = songsListState
             )
             HomeTab.Tools -> ToolsTab(
                 state = state.tools,

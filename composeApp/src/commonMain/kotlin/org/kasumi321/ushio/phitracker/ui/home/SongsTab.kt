@@ -16,16 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,7 +33,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -82,101 +79,41 @@ fun SongsTab(
     getIllustrationUrl: (String) -> String?,
     onSongClick: (String, Difficulty?) -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
+    listState: LazyListState = rememberLazyListState(),
     modifier: Modifier = Modifier
 ) {
     val songs = state.filteredSongs
-    val searchQuery = state.searchQuery
     val availableChapters = state.availableChapters
     val selectedChapters = state.selectedChapters
     val selectedDifficulty = state.selectedDifficulty
     val minLevel = state.minLevel
     val maxLevel = state.maxLevel
     val showFilterSheet = state.showFilterSheet
-    // 计算已激活的筛选数
-    val activeFilterCount = remember(selectedChapters, selectedDifficulty, minLevel, maxLevel) {
-        var count = 0
-        if (selectedChapters.isNotEmpty()) count += selectedChapters.size
-        if (selectedDifficulty != null) count++
-        if (minLevel > 1 || maxLevel < 17) count++
-        count
-    }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        // Clears the floating glass top bar; the list scrolls behind it
-        Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))
-
-        // Search field and filter entry
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = onSearchChange,
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("搜索曲名或作曲...") },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                singleLine = true
+    // Title, tip, search and filter live in the floating SongsHeader; the list
+    // scrolls behind it, padded so the first and last songs stay clear
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            end = 16.dp,
+            top = contentPadding.calculateTopPadding() + 8.dp,
+            // Keeps the last song clear of the floating glass bottom bar
+            bottom = contentPadding.calculateBottomPadding() + 8.dp
+        ),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        items(
+            songs,
+            key = { it.id },
+            contentType = { "song_item" }
+        ) { song ->
+            SongItem(
+                song = song,
+                illustrationUrl = getIllustrationUrl(song.id),
+                onSongClick = { songId -> onSongClick(songId, null) }
             )
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(
-                onClick = { onToggleFilterSheet(true) },
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(
-                        if (activeFilterCount > 0)
-                            MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant
-                    )
-            ) {
-                if (activeFilterCount > 0) {
-                    BadgedBox(
-                        badge = {
-                            Badge { Text(activeFilterCount.toString()) }
-                        }
-                    ) {
-                        Icon(
-                            Icons.Filled.FilterList,
-                            contentDescription = "Filter",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                } else {
-                    Icon(
-                        Icons.Filled.FilterList,
-                        contentDescription = "Filter",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LazyColumn(
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 8.dp,
-                // Keeps the last song clear of the floating glass bottom bar
-                bottom = contentPadding.calculateBottomPadding() + 8.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            items(
-                songs,
-                key = { it.id },
-                contentType = { "song_item" }
-            ) { song ->
-                SongItem(
-                    song = song,
-                    illustrationUrl = getIllustrationUrl(song.id),
-                    onSongClick = { songId -> onSongClick(songId, null) }
-                )
-            }
         }
     }
 
