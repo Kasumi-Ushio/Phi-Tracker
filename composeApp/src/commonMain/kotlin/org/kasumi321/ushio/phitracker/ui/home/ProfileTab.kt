@@ -1,12 +1,11 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,17 +20,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -80,18 +73,14 @@ private val FcColor = Color(0xFF4FC3F7)
 private val PhiColor = Color(0xFFFFD54F)
 private val PhiTextColor = Color(0xFF5D4037)
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileTab(
     state: ProfileUiState,
     displayRks: Float,
-    isSyncing: Boolean,
-    onRefresh: () -> Unit,
     onAvatarSelected: (String) -> Unit,
-    onNavigateToSettings: () -> Unit,
     onSongClick: (String, Difficulty?) -> Unit,
     getIllustrationUrl: (String) -> String?,
-    tip: String = "",
+    contentPadding: PaddingValues = PaddingValues(),
     modifier: Modifier = Modifier
 ) {
     val nickname = state.nickname
@@ -107,123 +96,92 @@ fun ProfileTab(
         uri?.let { onAvatarSelected(it) }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Column {
-                    Text("首页")
-                    if (tip.isNotBlank()) {
-                        Text(
-                            text = tip,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            modifier = Modifier
-                                .fillMaxWidth(1f)
-                                .basicMarquee()
-                        )
-                    }
-                }
-            },
-            actions = {
-                if (isSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    IconButton(onClick = onRefresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "同步")
-                    }
-                }
-                IconButton(onClick = onNavigateToSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "设置")
-                }
-            }
+    // Full-bleed scroll: content scrolls behind the floating glass bars, with
+    // spacers keeping the first and last items clear of them
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+    ) {
+        Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))
+
+        ProfileHeaderCard(
+            nickname = nickname,
+            displayRks = displayRks,
+            challengeModeRank = challengeModeRank,
+            moneyString = moneyString,
+            avatarUri = avatarUri,
+            onAvatarClick = { launchPicker() },
+            modifier = Modifier.fillMaxWidth()
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-        ) {
-            ProfileHeaderCard(
-                nickname = nickname,
-                displayRks = displayRks,
-                challengeModeRank = challengeModeRank,
-                moneyString = moneyString,
-                avatarUri = avatarUri,
-                onAvatarClick = { launchPicker() },
-                modifier = Modifier.fillMaxWidth()
-            )
+        Spacer(modifier = Modifier.height(12.dp))
 
-            Spacer(modifier = Modifier.height(12.dp))
+        StatsTableCard(
+            clearCounts = clearCounts,
+            fcCount = fcCount,
+            phiCount = phiCount,
+            modifier = Modifier.fillMaxWidth()
+        )
 
-            StatsTableCard(
-                clearCounts = clearCounts,
-                fcCount = fcCount,
-                phiCount = phiCount,
-                modifier = Modifier.fillMaxWidth()
-            )
+        Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "最近同步",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
+        if (lastSyncTime != null) {
+            val formattedTime = epochMillisToDateTimeString(lastSyncTime)
             Text(
-                text = "最近同步",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                text = "同步时间: $formattedTime",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            if (lastSyncTime != null) {
-                val formattedTime = epochMillisToDateTimeString(lastSyncTime)
-                Text(
-                    text = "同步时间: $formattedTime",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                if (recentSyncedRecords.isNotEmpty()) {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        recentSyncedRecords.forEachIndexed { index, record ->
-                            ScoreCard(
-                                rank = index + 1,
-                                record = record,
-                                illustrationUrl = getIllustrationUrl(record.songId),
-                                onSongClick = onSongClick
-                            )
-                        }
+            if (recentSyncedRecords.isNotEmpty()) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    recentSyncedRecords.forEachIndexed { index, record ->
+                        ScoreCard(
+                            rank = index + 1,
+                            record = record,
+                            illustrationUrl = getIllustrationUrl(record.songId),
+                            onSongClick = onSongClick
+                        )
                     }
-                } else {
-                    Text(
-                        text = "本次同步没有新的成绩变动",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
                 }
             } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
-                ) {
-                    Text(
-                        text = "还没有同步过数据\n点击右上角按钮开始",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(24.dp)
-                    )
-                }
+                Text(
+                    text = "本次同步没有新的成绩变动",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                )
+            ) {
+                Text(
+                    text = "还没有同步过数据\n点击右上角按钮开始",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(24.dp)
+                )
+            }
         }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
     }
 }
 

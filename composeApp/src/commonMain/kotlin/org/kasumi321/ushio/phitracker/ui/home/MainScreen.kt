@@ -1,19 +1,21 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Home
@@ -23,12 +25,11 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -44,12 +45,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.b30.B30ExportPayload
+import org.kasumi321.ushio.phitracker.ui.glass.GlassBottomBar
+import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
+import org.kasumi321.ushio.phitracker.ui.glass.HomeGlassScaffold
+import org.kasumi321.ushio.phitracker.ui.glass.HomeGlassTopBar
+import org.kasumi321.ushio.phitracker.ui.glass.HomeHeaderSpec
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
@@ -92,8 +99,10 @@ private fun MainBottomBar(
     reducedMotionEnabled: Boolean,
     onTabSelected: (HomeTab) -> Unit
 ) {
+    // The surrounding GlassBottomBar supplies the blurred background; both
+    // branches stay transparent so the same glass container shows through.
     if (!reducedMotionEnabled) {
-        NavigationBar {
+        NavigationBar(containerColor = Color.Transparent) {
             navItems.forEach { item ->
                 NavigationBarItem(
                     selected = selectedTab == item.tab,
@@ -112,7 +121,7 @@ private fun MainBottomBar(
     }
 
     Surface(
-        tonalElevation = 3.dp
+        color = Color.Transparent
     ) {
         Row(
             modifier = Modifier
@@ -208,25 +217,87 @@ fun MainScreen(
         )
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        bottomBar = {
-            MainBottomBar(
-                navItems = navItems,
-                selectedTab = selectedTab,
-                reducedMotionEnabled = reducedMotionEnabled,
-                onTabSelected = tabState::select
+    val generateB30Image = {
+        onNavigateToB30Image(
+            B30ExportPayload(
+                b30 = state.b30.b30,
+                displayRks = state.b30.displayRks,
+                nickname = state.profile.nickname,
+                challengeModeRank = state.profile.challengeModeRank,
+                moneyString = state.profile.moneyString,
+                clearCounts = state.profile.clearCounts,
+                fcCount = state.profile.fcCount,
+                phiCount = state.profile.phiCount,
+                avatarUri = state.profile.avatarUri,
+                showB30Overflow = state.b30.showB30Overflow,
+                overflowCount = state.b30.overflowCount,
+                themeSettings = state.b30.themeSettings
             )
+        )
+    }
+
+    HomeGlassScaffold(
+        snackbarHostState = snackbarHostState,
+        topBar = { hazeState, glassStyle ->
+            GlassTopBar(hazeState = hazeState, style = glassStyle) {
+                HomeGlassTopBar(
+                    spec = when (selectedTab) {
+                        HomeTab.Profile -> HomeHeaderSpec(
+                            title = "首页",
+                            tip = tip,
+                            actions = {
+                                if (state.sync.isSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    IconButton(onClick = { viewModel.refresh() }) {
+                                        Icon(Icons.Default.Refresh, contentDescription = "同步")
+                                    }
+                                }
+                                IconButton(onClick = onNavigateToSettings) {
+                                    Icon(Icons.Default.Settings, contentDescription = "设置")
+                                }
+                            }
+                        )
+                        HomeTab.B30 -> HomeHeaderSpec(
+                            title = "Best 30",
+                            tip = tip,
+                            actions = {
+                                IconButton(
+                                    onClick = generateB30Image,
+                                    enabled = state.b30.b30.isNotEmpty()
+                                ) {
+                                    Icon(Icons.Filled.Image, contentDescription = "生成图片")
+                                }
+                            }
+                        )
+                        HomeTab.Songs -> HomeHeaderSpec(
+                            title = "全部曲目 (${state.songs.filteredSongs.size})",
+                            tip = tip
+                        )
+                        HomeTab.Tools -> HomeHeaderSpec(title = "工具", tip = tip)
+                    }
+                )
+            }
+        },
+        bottomBar = { hazeState, glassStyle ->
+            GlassBottomBar(hazeState = hazeState, style = glassStyle) {
+                MainBottomBar(
+                    navItems = navItems,
+                    selectedTab = selectedTab,
+                    reducedMotionEnabled = reducedMotionEnabled,
+                    onTabSelected = tabState::select
+                )
+            }
         }
-    ) { innerPadding ->
+    ) { contentPadding ->
         when (selectedTab) {
             HomeTab.Profile -> ProfileTab(
                 state = state.profile,
                 displayRks = state.b30.displayRks,
-                isSyncing = state.sync.isSyncing,
-                onRefresh = { viewModel.refresh() },
                 onAvatarSelected = { viewModel.setAvatarUri(it) },
-                onNavigateToSettings = onNavigateToSettings,
                 onSongClick = { songId, difficulty ->
                     if (difficulty != null) {
                         onNavigateToSongDetailWithDifficulty(songId, difficulty)
@@ -235,31 +306,12 @@ fun MainScreen(
                     }
                 },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
-                tip = tip,
-                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+                contentPadding = contentPadding
             )
             HomeTab.B30 -> B30Tab(
                 state = state.b30,
                 nickname = state.profile.nickname,
                 challengeModeRank = state.profile.challengeModeRank,
-                onGenerateImage = {
-                    onNavigateToB30Image(
-                        B30ExportPayload(
-                            b30 = state.b30.b30,
-                            displayRks = state.b30.displayRks,
-                            nickname = state.profile.nickname,
-                            challengeModeRank = state.profile.challengeModeRank,
-                            moneyString = state.profile.moneyString,
-                            clearCounts = state.profile.clearCounts,
-                            fcCount = state.profile.fcCount,
-                            phiCount = state.profile.phiCount,
-                            avatarUri = state.profile.avatarUri,
-                            showB30Overflow = state.b30.showB30Overflow,
-                            overflowCount = state.b30.overflowCount,
-                            themeSettings = state.b30.themeSettings
-                        )
-                    )
-                },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
                 onSongClick = { songId, difficulty ->
                     if (difficulty != null) {
@@ -268,8 +320,7 @@ fun MainScreen(
                         onNavigateToSongDetail(songId)
                     }
                 },
-                tip = tip,
-                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+                contentPadding = contentPadding
             )
             HomeTab.Songs -> SongsTab(
                 state = state.songs,
@@ -282,8 +333,7 @@ fun MainScreen(
                 onResetFilters = { viewModel.resetFilters() },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
                 onSongClick = { songId, _ -> onNavigateToSongDetail(songId) },
-                tip = tip,
-                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+                contentPadding = contentPadding
             )
             HomeTab.Tools -> ToolsTab(
                 state = state.tools,
@@ -297,8 +347,7 @@ fun MainScreen(
                     onNavigateToSongDetailWithDifficulty(songId, difficulty)
                 },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
-                tip = tip,
-                modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
+                contentPadding = contentPadding
             )
         }
     }

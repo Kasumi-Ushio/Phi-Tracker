@@ -1,8 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,7 +39,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -71,7 +68,7 @@ private fun Float.formatLevel(): String {
     return "${v / 10}.${kotlin.math.abs(v % 10)}"
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SongsTab(
     state: SongsUiState,
@@ -84,7 +81,7 @@ fun SongsTab(
     onResetFilters: () -> Unit,
     getIllustrationUrl: (String) -> String?,
     onSongClick: (String, Difficulty?) -> Unit,
-    tip: String = "",
+    contentPadding: PaddingValues = PaddingValues(),
     modifier: Modifier = Modifier
 ) {
     val songs = state.filteredSongs
@@ -105,26 +102,10 @@ fun SongsTab(
     }
 
     Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Column {
-                    Text("全部曲目 (${songs.size})")
-                    if (tip.isNotBlank()) {
-                        Text(
-                            text = tip,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            modifier = Modifier
-                                .fillMaxWidth(0.75f)
-                                .basicMarquee()
-                        )
-                    }
-                }
-            }
-        )
+        // Clears the floating glass top bar; the list scrolls behind it
+        Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))
 
-        // 搜索栏与筛选按钮
+        // Search field and filter entry
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -176,7 +157,13 @@ fun SongsTab(
         Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            contentPadding = PaddingValues(
+                start = 16.dp,
+                end = 16.dp,
+                top = 8.dp,
+                // Keeps the last song clear of the floating glass bottom bar
+                bottom = contentPadding.calculateBottomPadding() + 8.dp
+            ),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             items(

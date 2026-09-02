@@ -73,6 +73,7 @@ kotlin {
             implementation(libs.okio)
             implementation(libs.kermit)
             implementation(libs.aboutlibraries.compose.m3)
+            implementation(libs.haze)
         }
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)

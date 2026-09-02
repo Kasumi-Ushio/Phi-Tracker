@@ -1,6 +1,5 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,38 +10,28 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun B30Tab(
     state: B30UiState,
     nickname: String,
     challengeModeRank: Int,
-    onGenerateImage: () -> Unit,
     getIllustrationUrl: (String) -> String?,
     onSongClick: (String, Difficulty?) -> Unit,
-    tip: String = "",
+    contentPadding: PaddingValues = PaddingValues(),
     modifier: Modifier = Modifier
 ) {
     val b30 = state.b30
@@ -55,30 +44,8 @@ fun B30Tab(
     val overflow = if (showB30Overflow) b36.drop(27).take(overflowCount) else emptyList()
 
     Column(modifier = modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Column {
-                    Text("Best 30")
-                    if (tip.isNotBlank()) {
-                        Text(
-                            text = tip,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            modifier = Modifier.fillMaxWidth(0.75f).basicMarquee()
-                        )
-                    }
-                }
-            },
-            actions = {
-                IconButton(
-                    onClick = onGenerateImage,
-                    enabled = b30.isNotEmpty()
-                ) {
-                    Icon(Icons.Filled.Image, contentDescription = "生成图片")
-                }
-            }
-        )
+        // Clears the floating glass top bar; list content scrolls behind it
+        Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))
 
         Card(
             modifier = Modifier
@@ -113,7 +80,7 @@ fun B30Tab(
                     Column(horizontalAlignment = Alignment.End) {
                         if (phi3.isNotEmpty()) {
                             Text(
-                                text = "Best \u03C6",
+                                text = "Best φ",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
@@ -154,13 +121,19 @@ fun B30Tab(
             }
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    // Keeps the last card clear of the floating glass bottom bar
+                    bottom = contentPadding.calculateBottomPadding() + 8.dp
+                ),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (phi3.isNotEmpty()) {
                     item(contentType = "header") {
                         Text(
-                            text = "\u03C6 Best (AP)",
+                            text = "φ Best (AP)",
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,

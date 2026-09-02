@@ -6,11 +6,11 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -49,10 +49,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -104,7 +102,7 @@ fun ToolsTab(
         onFetchRksRank: (Float) -> Unit,
         onSuggestionClick: (String, Difficulty?) -> Unit,
         getIllustrationUrl: (String) -> String?,
-        tip: String,
+        contentPadding: PaddingValues = PaddingValues(),
         modifier: Modifier = Modifier
 ) {
     val syncSnapshots = if (state.apiEnabled && state.useApiData) state.apiHistorySnapshots else state.syncSnapshots
@@ -120,35 +118,16 @@ fun ToolsTab(
     val suggestItems = state.suggestItems
     val scrollState = rememberScrollState()
 
-    Scaffold(
-            topBar = {
-                TopAppBar(
-                        title = {
-                            Column {
-                                Text("工具")
-                                if (tip.isNotBlank()) {
-                                    Text(
-                                            text = tip,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            modifier = Modifier.fillMaxWidth(0.75f).basicMarquee()
-                                    )
-                                }
-                            }
-                        },
-                )
-            }
-    ) { padding ->
-        Column(
-                modifier =
-                        modifier.fillMaxSize()
-                                .padding(padding)
-                                .padding(horizontal = 16.dp)
-                                .verticalScroll(scrollState),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Spacer(modifier = Modifier.height(0.dp))
+    // Full-bleed scroll: content scrolls behind the floating glass bars, with
+    // spacers keeping the first and last cards clear of them
+    Column(
+            modifier =
+                    modifier.fillMaxSize()
+                            .padding(horizontal = 16.dp)
+                            .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))
 
             CollapsibleToolCard(
                     title = "RKS 计算器",
@@ -217,7 +196,7 @@ fun ToolsTab(
             ) { SessionTokenContent(sessionToken) }
 
             Spacer(modifier = Modifier.height(16.dp))
-        }
+            Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
     }
 }
 
