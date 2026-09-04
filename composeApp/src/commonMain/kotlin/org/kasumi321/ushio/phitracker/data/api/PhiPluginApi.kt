@@ -166,4 +166,83 @@ class PhiPluginApi(
                 put("request_rank", position)
             })
         }.body()
+
+    // ── Chart tags (chartsTag) ──────────────────────────────────────
+    // Read endpoints are public; usersVote needs the platform identity
+    // triplet; set/set always requires an api_token.
+
+    suspend fun getChartTagTree(): JsonObject = httpClient.get("$BASE_URL/chartsTag/get/tagTree").body()
+
+    suspend fun getChartTags(songId: String, difficulty: String): JsonObject =
+        httpClient.post("$BASE_URL/chartsTag/get/bySongRank") {
+            setJsonBody(buildJsonObject {
+                put("song_id", songId)
+                put("rank", difficulty)
+            })
+        }.body()
+
+    suspend fun getChartsTagsBatch(requests: List<Pair<String, List<String>>>): JsonObject =
+        httpClient.post("$BASE_URL/chartsTag/get/chartsTags") {
+            setJsonBody(buildJsonObject {
+                putJsonArray("data") {
+                    requests.forEach { (songId, ranks) ->
+                        add(buildJsonObject {
+                            put("song_id", songId)
+                            putJsonArray("rank") {
+                                ranks.forEach { add(JsonPrimitive(it)) }
+                            }
+                        })
+                    }
+                }
+            })
+        }.body()
+
+    suspend fun getMyChartTagVotes(
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        apiToken: String?,
+        songs: List<Pair<String, String>>
+    ): JsonObject = httpClient.post("$BASE_URL/chartsTag/get/usersVote") {
+        setJsonBody(buildJsonObject {
+            put("platform", platform)
+            put("platform_id", platformId)
+            put("api_user_id", apiUserId)
+            if (!apiToken.isNullOrBlank()) put("api_token", apiToken)
+            putJsonArray("data") {
+                songs.forEach { (songId, rank) ->
+                    add(buildJsonObject {
+                        put("song_id", songId)
+                        put("rank", rank)
+                    })
+                }
+            }
+        })
+    }.body()
+
+    suspend fun setChartsTag(
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        apiToken: String,
+        songId: String,
+        difficulty: String,
+        primaryTags: List<String>,
+        secondaryTags: List<String>
+    ): JsonObject = httpClient.post("$BASE_URL/chartsTag/set/set") {
+        setJsonBody(buildJsonObject {
+            put("platform", platform)
+            put("platform_id", platformId)
+            put("api_user_id", apiUserId)
+            put("api_token", apiToken)
+            put("song_id", songId)
+            put("rank", difficulty)
+            putJsonArray("primaryTags") {
+                primaryTags.forEach { add(JsonPrimitive(it)) }
+            }
+            putJsonArray("secondaryTags") {
+                secondaryTags.forEach { add(JsonPrimitive(it)) }
+            }
+        })
+    }.body()
 }

@@ -190,6 +190,15 @@ class SettingsRepositoryImpl(
         apiPlatformIdState.value = trimmed
     }
 
+    private val apiTokenState = MutableStateFlow(storage.getString(KEY_API_TOKEN)?.trim() ?: "")
+    override val apiToken: Flow<String> = apiTokenState.asStateFlow()
+
+    override suspend fun setApiToken(apiToken: String) {
+        val trimmed = apiToken.trim()
+        storage.putString(KEY_API_TOKEN, trimmed)
+        apiTokenState.value = trimmed
+    }
+
     private val crashNotificationGuideShownState = MutableStateFlow(storage.getString(KEY_CRASH_NOTIFICATION_GUIDE_SHOWN)?.toBooleanStrictOrNull() ?: false)
     override val crashNotificationGuideShown: Flow<Boolean> = crashNotificationGuideShownState.asStateFlow()
 
@@ -217,6 +226,7 @@ class SettingsRepositoryImpl(
         const val KEY_API_ID = "api_id"
         const val KEY_API_PLATFORM = "api_platform"
         const val KEY_API_PLATFORM_ID = "api_platform_id"
+        const val KEY_API_TOKEN = "api_token"
         const val KEY_CRASH_NOTIFICATION_GUIDE_SHOWN = "crash_notification_guide_shown"
         const val KEY_HAZE_BLUR_ENABLED = "haze_blur_enabled"
         const val KEY_HAZE_BLUR_STRENGTH = "haze_blur_strength"

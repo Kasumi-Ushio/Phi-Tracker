@@ -45,9 +45,14 @@ import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey
 import org.kasumi321.ushio.phitracker.domain.model.SongApiDetail
+import org.kasumi321.ushio.phitracker.domain.model.B30ChartTagBatch
+import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
 
 class PhigrosRepositoryImpl(
@@ -286,6 +291,141 @@ class PhigrosRepositoryImpl(
     override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
         runCatching { phiPluginApi.getRankByPosition(position) }
 
+    // ── Chart tags (chartsTag) ──────────────────────────────────────
+
+    override suspend fun getChartTagTree(): Result<List<ChartTagTreeNode>> {
+        val now = Clock.System.now()
+        chartTagTreeCache?.let { (cachedAt, cached) ->
+            if (now - cachedAt < CHART_TAG_TREE_TTL) return Result.success(cached)
+        }
+        return runCatching {
+            val response = phiPluginApi.getChartTagTree().also { it.throwOnApiError() }
+            response["data"].asArray()
+                ?.mapNotNull { parseTagTreeNode(it) }
+                .orEmpty()
+                .also { chartTagTreeCache = now to it }
+        }
+    }
+
+    override suspend fun getChartTags(songId: String, difficulty: Difficulty): Result<ChartTagSongData> =
+        runCatching {
+            val response = phiPluginApi.getChartTags(songId.trim(), difficulty.name).also { it.throwOnApiError() }
+            ChartTagSongData(
+                songId = songId.trim(),
+                difficulty = difficulty,
+                tags = parseVoteMap(response["data"]),
+                primary = parseVoteMap(response["primary"]),
+                secondary = parseVoteMap(response["secondary"]),
+                categories = response["tree"].asArray()?.mapNotNull { parseTagTreeNode(it) }.orEmpty()
+            )
+        }
+
+    override suspend fun getMyChartTagVotes(
+        songId: String,
+        difficulty: Difficulty,
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        apiToken: String?
+    ): Result<Set<String>> = runCatching {
+        val response = phiPluginApi.getMyChartTagVotes(
+            platform.trim(),
+            platformId.trim(),
+            apiUserId.trim(),
+            apiToken?.trim()?.takeIf { it.isNotEmpty() },
+            listOf(songId.trim() to difficulty.name)
+        ).also { it.throwOnApiError() }
+        response["data"].asArray().orEmpty().flatMap { entry ->
+            val obj = entry.asObject() ?: return@flatMap emptyList()
+            if (obj["songId"].asString() != songId.trim() || obj["rank"].asString() != difficulty.name) {
+                return@flatMap emptyList()
+            }
+            fun names(key: String) = obj[key].asArray().orEmpty().mapNotNull { it.asString() }
+            names("primaryTags") + names("secondaryTags") + names("tags")
+        }.toSet()
+    }
+
+    override suspend fun getB30ChartTags(records: List<BestRecord>): Result<B30ChartTagBatch> = runCatching {
+        val requests = records
+            .groupBy({ it.songId }, { it.difficulty.name })
+            .map { (songId, ranks) -> songId to ranks.distinct() }
+        if (requests.isEmpty()) return@runCatching B30ChartTagBatch(emptyMap(), emptyMap())
+
+        val response = phiPluginApi.getChartsTagsBatch(requests).also { it.throwOnApiError() }
+        val tags = mutableMapOf<String, Map<Difficulty, Map<String, Int>>>()
+        val categories = mutableMapOf<String, Map<Difficulty, List<ChartTagTreeNode>>>()
+        response["data"].asObject()?.forEach { (songId, byRank) ->
+            tags[songId] = byRank.asObject()?.mapNotNull { (rank, voteMap) ->
+                Difficulty.entries.find { it.name == rank }?.let { it to parseVoteMap(voteMap) }
+            }?.toMap().orEmpty()
+        }
+        response["tree"].asObject()?.forEach { (songId, byRank) ->
+            categories[songId] = byRank.asObject()?.mapNotNull { (rank, nodeArray) ->
+                Difficulty.entries.find { it.name == rank }
+                    ?.let { it to nodeArray.asArray().orEmpty().mapNotNull { node -> parseTagTreeNode(node) } }
+            }?.toMap().orEmpty()
+        }
+        B30ChartTagBatch(tags, categories)
+    }
+
+    override suspend fun voteChartTags(
+        songId: String,
+        difficulty: Difficulty,
+        primaryTags: List<String>,
+        secondaryTags: List<String>,
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        apiToken: String
+    ): Result<Unit> {
+        val token = apiToken.trim()
+        if (token.isEmpty()) return Result.failure(IllegalStateException("缺少 API Token"))
+        return runCatching {
+            phiPluginApi.setChartsTag(
+                platform.trim(),
+                platformId.trim(),
+                apiUserId.trim(),
+                token,
+                songId.trim(),
+                difficulty.name,
+                primaryTags.distinct(),
+                secondaryTags.distinct()
+            ).also { it.throwOnApiError() }
+            chartTagTreeCache = null
+        }
+    }
+
+    private var chartTagTreeCache: Pair<Instant, List<ChartTagTreeNode>>? = null
+
+    private fun parseTagTreeNode(element: JsonElement?): ChartTagTreeNode? {
+        val obj = element.asObject() ?: return null
+        return ChartTagTreeNode(
+            id = obj["id"].asLong() ?: return null,
+            name = obj["name"].asString() ?: return null,
+            description = obj["description"].asString(),
+            sortOrder = obj["sortOrder"].asInt() ?: 0,
+            voteCount = obj["voteCount"].asInt() ?: 0,
+            primaryVoteCount = obj["primaryVoteCount"].asInt() ?: 0,
+            secondaryVoteCount = obj["secondaryVoteCount"].asInt() ?: 0,
+            children = obj["children"].asArray().orEmpty().mapNotNull { parseTagTreeNode(it) }
+        )
+    }
+
+    private fun parseVoteMap(element: JsonElement?): Map<String, Int> =
+        element.asObject()?.mapValues { (_, value) -> value.asInt() ?: 0 }.orEmpty()
+
+    /**
+     * phi-plugin-api returns non-2xx responses without a Ktor exception
+     * (the client does not enable expectSuccess); errors arrive as
+     * { "error": "..." } bodies. Convert them into exceptions here.
+     */
+    private fun JsonObject.throwOnApiError() {
+        val error = this["error"].asString()
+        if (error != null) throw IllegalStateException(error)
+    }
+
+    private val CHART_TAG_TREE_TTL = 1.hours
+
     override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> =
         runCatching {
             val response = httpClient.get("https://api.github.com/repos/Kasumi-Ushio/Ushio-Prober-Phigros/releases") {
@@ -358,6 +498,7 @@ class PhigrosRepositoryImpl(
     private fun JsonElement?.asArray(): JsonArray? = runCatching { this?.jsonArray }.getOrNull()
     private fun JsonElement?.asString(): String? = this?.jsonPrimitive?.contentOrNull
     private fun JsonElement?.asInt(): Int? = asString()?.toIntOrNull()
+    private fun JsonElement?.asLong(): Long? = asString()?.toLongOrNull()
     private fun JsonElement?.asFloat(): Float? = asString()?.toFloatOrNull()
     private fun JsonElement?.asBoolean(): Boolean? = asString()?.toBooleanStrictOrNull()
 }

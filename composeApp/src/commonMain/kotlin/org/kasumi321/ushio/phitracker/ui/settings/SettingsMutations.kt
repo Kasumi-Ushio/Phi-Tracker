@@ -62,6 +62,7 @@ fun SettingsViewModel.setUseApiData(value: Boolean) = launchSetting {
 fun SettingsViewModel.setApiUserId(value: String) = launchSetting { settingsRepository.setApiId(value) }
 fun SettingsViewModel.setApiPlatform(value: String) = launchSetting { settingsRepository.setApiPlatform(value) }
 fun SettingsViewModel.setApiPlatformId(value: String) = launchSetting { settingsRepository.setApiPlatformId(value) }
+fun SettingsViewModel.setApiToken(value: String) = launchSetting { settingsRepository.setApiToken(value) }
 fun SettingsViewModel.setIncludePreRelease(value: Boolean) = launchSetting { settingsRepository.setIncludePreRelease(value) }
 fun SettingsViewModel.setAutoCheckUpdate(value: Boolean) = launchSetting { settingsRepository.setAutoCheckUpdate(value) }
 fun SettingsViewModel.setCrashNotificationGuideShown() = launchSetting { settingsRepository.setCrashNotificationGuideShown(true) }

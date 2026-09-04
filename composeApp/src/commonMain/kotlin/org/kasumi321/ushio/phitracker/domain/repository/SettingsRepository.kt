@@ -53,6 +53,9 @@ interface SettingsRepository {
     val apiPlatformId: Flow<String>
     suspend fun setApiPlatformId(platformId: String)
 
+    val apiToken: Flow<String>
+    suspend fun setApiToken(apiToken: String)
+
     val crashNotificationGuideShown: Flow<Boolean>
     suspend fun setCrashNotificationGuideShown(shown: Boolean)
 }

@@ -13,6 +13,10 @@ import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey
 import org.kasumi321.ushio.phitracker.domain.model.SongApiDetail
+import org.kasumi321.ushio.phitracker.domain.model.B30ChartTagBatch
+import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
 
 interface PhigrosRepository {
     suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile>
@@ -44,6 +48,32 @@ interface PhigrosRepository {
     ): Result<JsonObject>
     suspend fun apiGetRankByUser(platform: String, platformId: String, apiUserId: String): Result<JsonObject>
     suspend fun apiGetRankByPosition(position: Int): Result<JsonObject>
+
+    // ── Chart tags (chartsTag) ──────────────────────────────────────
+    // Read endpoints are public; getMyChartTagVotes needs the platform
+    // identity triplet; voteChartTags always requires an api_token.
+
+    suspend fun getChartTagTree(): Result<List<ChartTagTreeNode>>
+    suspend fun getChartTags(songId: String, difficulty: Difficulty): Result<ChartTagSongData>
+    suspend fun getMyChartTagVotes(
+        songId: String,
+        difficulty: Difficulty,
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        apiToken: String?
+    ): Result<Set<String>>
+    suspend fun getB30ChartTags(records: List<BestRecord>): Result<B30ChartTagBatch>
+    suspend fun voteChartTags(
+        songId: String,
+        difficulty: Difficulty,
+        primaryTags: List<String>,
+        secondaryTags: List<String>,
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        apiToken: String
+    ): Result<Unit>
 
     suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo>
 }

@@ -91,6 +91,7 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepository.apiId.collect { value -> mutableUiState.update { it.copy(apiUserId = value) } } }
         viewModelScope.launch { settingsRepository.apiPlatform.collect { value -> mutableUiState.update { it.copy(apiPlatform = value) } } }
         viewModelScope.launch { settingsRepository.apiPlatformId.collect { value -> mutableUiState.update { it.copy(apiPlatformId = value) } } }
+        viewModelScope.launch { settingsRepository.apiToken.collect { value -> mutableUiState.update { it.copy(apiToken = value) } } }
         viewModelScope.launch { settingsRepository.includePreRelease.collect { value -> mutableUiState.update { it.copy(includePreRelease = value) } } }
         viewModelScope.launch { settingsRepository.autoCheckUpdate.collect { value -> mutableUiState.update { it.copy(autoCheckUpdate = value) } } }
         viewModelScope.launch { settingsRepository.crashNotificationGuideShown.collect { value -> mutableUiState.update { it.copy(crashNotificationGuideShown = value) } } }

@@ -4,10 +4,13 @@ import org.kasumi321.ushio.phitracker.data.logging.CrashReportExporter
 import org.kasumi321.ushio.phitracker.data.logging.LoggingStateHolder
 import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.GetChartTagsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.AnalyzeB30TagsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
@@ -21,6 +24,9 @@ val appModule = module {
     single { GetSuggestUseCase() }
     single { SearchSongUseCase() }
     single { CheckForUpdateUseCase(get()) }
+    single { GetChartTagsUseCase(get()) }
+    single { VoteChartTagsUseCase(get()) }
+    single { AnalyzeB30TagsUseCase() }
     single {
         val store = LoggingStateHolder.state?.store
             ?: error("LoggingState not initialised. Call createLoggingState() before initKoin().")

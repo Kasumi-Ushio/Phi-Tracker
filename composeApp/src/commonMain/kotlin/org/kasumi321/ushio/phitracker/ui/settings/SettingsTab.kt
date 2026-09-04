@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.materialkolor.PaletteStyle
@@ -87,6 +91,7 @@ fun SettingsTab(
         apiUserId: String = "",
         apiPlatform: String = "",
         apiPlatformId: String = "",
+        apiToken: String = "",
         isApiTesting: Boolean = false,
         apiTestMessage: String? = null,
         onApiEnabledChange: (Boolean) -> Unit = {},
@@ -94,6 +99,7 @@ fun SettingsTab(
         onApiUserIdChange: (String) -> Unit = {},
         onApiPlatformChange: (String) -> Unit = {},
         onApiPlatformIdChange: (String) -> Unit = {},
+        onApiTokenChange: (String) -> Unit = {},
         onApiTestConnection: () -> Unit = {},
         isUpdatingData: Boolean = false,
         updateDataProgress: Int = 0,
@@ -473,7 +479,7 @@ fun SettingsTab(
             if (apiEnabled) {
                 Text(
                         text =
-                                "要确定您的平台名称、平台 ID 与 API 用户 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令 和 /sessiontoken 命令以确定。",
+                                "要确定您的平台名称、平台 ID 与 API 用户 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令 和 /sessiontoken 命令以确定。\n参与谱面标签投票还需要 API Token：向任意 Phi-Plugin 机器人发送 /setApiToken <自定义Token> 设置后，将 Token 填入下方。Token 仅用于查分 API 鉴权，我们不会上传你的 sessionToken。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -508,6 +514,31 @@ fun SettingsTab(
                         label = { Text("API 用户 ID") },
                         placeholder = { Text("api_user_id") },
                         singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                )
+
+                var apiTokenVisible by remember { mutableStateOf(false) }
+                OutlinedTextField(
+                        value = apiToken,
+                        onValueChange = onApiTokenChange,
+                        label = { Text("API Token（谱面标签投票）") },
+                        placeholder = { Text("api_token") },
+                        singleLine = true,
+                        visualTransformation =
+                                if (apiTokenVisible) VisualTransformation.None
+                                else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { apiTokenVisible = !apiTokenVisible }) {
+                                Icon(
+                                        imageVector =
+                                                if (apiTokenVisible) Icons.Default.VisibilityOff
+                                                else Icons.Default.Visibility,
+                                        contentDescription =
+                                                if (apiTokenVisible) "隐藏 API Token"
+                                                else "显示 API Token"
+                                )
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth()
                 )
 

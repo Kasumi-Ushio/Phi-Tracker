@@ -22,6 +22,7 @@ data class SettingsUiState(
     val apiUserId: String = "",
     val apiPlatform: String = "",
     val apiPlatformId: String = "",
+    val apiToken: String = "",
     val isApiTesting: Boolean = false,
     val apiTestMessage: String? = null,
     val isUpdatingData: Boolean = false,

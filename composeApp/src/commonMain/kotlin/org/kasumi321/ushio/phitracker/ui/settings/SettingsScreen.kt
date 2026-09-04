@@ -70,6 +70,7 @@ fun SettingsScreen(
         onApiUserIdChange = { viewModel.setApiUserId(it) },
         onApiPlatformChange = { viewModel.setApiPlatform(it) },
         onApiPlatformIdChange = { viewModel.setApiPlatformId(it) },
+        onApiTokenChange = { viewModel.setApiToken(it) },
         onApiTestConnection = { viewModel.testApiConnection() },
         isUpdatingData = state.isUpdatingData,
         updateDataProgress = state.updateDataProgress,
