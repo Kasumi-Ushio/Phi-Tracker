@@ -407,7 +407,8 @@ fun MainScreen(
                     }
                 },
                 contentPadding = contentPadding,
-                listState = b30ListState
+                listState = b30ListState,
+                onRetryTagAnalysis = { viewModel.retryTagAnalysis() }
             )
             HomeTab.Songs -> SongsTab(
                 state = state.songs,

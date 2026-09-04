@@ -52,6 +52,7 @@ import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.AnalyzeB30TagsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.toUpdateCheckState
@@ -81,12 +82,16 @@ class HomeViewModel(
     private val thumbnailPreloader: IllustrationThumbnailPreloader = CoilIllustrationThumbnailPreloader,
     private val checkForUpdateUseCase: CheckForUpdateUseCase = CheckForUpdateUseCase(repository),
     private val appVersionNameProvider: () -> String = { getAppMetadata().versionName },
+    private val analyzeB30TagsUseCase: AnalyzeB30TagsUseCase = AnalyzeB30TagsUseCase(),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var b30Job: Job? = null
     private var suggestJob: Job? = null
+    private var tagAnalysisJob: Job? = null
+    private var tagAnalysisKey: String? = null
+    private var lastAnalysisRecords: List<BestRecord>? = null
 
     init {
         loadSongs()
@@ -290,8 +295,60 @@ class HomeViewModel(
                             sync = state.sync.copy(isLoading = false)
                         )
                     }
+                    refreshTagAnalysis(b30)
                 }
         }
+    }
+
+    /**
+     * Recomputes the B30 chart-tag cluster analysis when the B30 content
+     * changes and the API switch is on. Skips duplicate refreshes keyed by
+     * the (song, difficulty) list so recomposition does not refetch.
+     */
+    private fun refreshTagAnalysis(b30: List<BestRecord>) {
+        if (!_uiState.value.tools.apiEnabled || b30.isEmpty()) {
+            tagAnalysisJob?.cancel()
+            tagAnalysisKey = null
+            lastAnalysisRecords = null
+            updateB30 { it.copy(tagAnalysis = B30TagAnalysisState()) }
+            return
+        }
+        val records = b30.filter { it.isPhi }.take(3) + b30.filter { !it.isPhi }.take(27)
+        val key = records.joinToString("\u0000") { "${it.songId}:${it.difficulty.name}" }
+        if (key == tagAnalysisKey) return
+        tagAnalysisKey = key
+        lastAnalysisRecords = records
+        tagAnalysisJob?.cancel()
+        updateB30 { it.copy(tagAnalysis = it.tagAnalysis.copy(isLoading = true, error = null)) }
+        tagAnalysisJob = viewModelScope.launch {
+            val result = repository.getB30ChartTags(records)
+            if (tagAnalysisKey != key) return@launch
+            result.fold(
+                onSuccess = { batch ->
+                    updateB30 {
+                        it.copy(
+                            tagAnalysis = B30TagAnalysisState(
+                                analysis = analyzeB30TagsUseCase(records, batch)
+                            )
+                        )
+                    }
+                },
+                onFailure = {
+                    updateB30 {
+                        it.copy(
+                            tagAnalysis = B30TagAnalysisState(
+                                error = "标签统计获取失败，请稍后重试"
+                            )
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun retryTagAnalysis() {
+        tagAnalysisKey = null
+        lastAnalysisRecords?.let { refreshTagAnalysis(_uiState.value.b30.b30) }
     }
 
     private data class SuggestBuildResult(
@@ -930,6 +987,7 @@ class HomeViewModel(
     }
 
     private fun refreshApiToolData() {
+        refreshTagAnalysis(_uiState.value.b30.b30)
         val state = _uiState.value.tools
         if (!state.apiEnabled || !state.useApiData) {
             updateTools {

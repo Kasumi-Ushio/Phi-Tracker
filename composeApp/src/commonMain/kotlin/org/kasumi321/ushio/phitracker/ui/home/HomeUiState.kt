@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
@@ -54,7 +55,14 @@ data class B30UiState(
     val displayRks: Float = 0f,
     val themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings(),
     val showB30Overflow: Boolean = false,
-    val overflowCount: Int = 9
+    val overflowCount: Int = 9,
+    val tagAnalysis: B30TagAnalysisState = B30TagAnalysisState()
+)
+
+data class B30TagAnalysisState(
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val analysis: B30TagAnalysis? = null
 )
 
 data class ToolsUiState(

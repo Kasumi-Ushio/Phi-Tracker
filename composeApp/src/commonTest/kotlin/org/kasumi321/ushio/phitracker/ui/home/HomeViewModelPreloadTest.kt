@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -421,7 +423,7 @@ class HomeViewModelPreloadTest {
         val repository = FakePhigrosRepositoryForSync(
             syncResult = Result.success(saveWithRks(15.5f)),
             recordDao = recordDao,
-            cachedSave = cachedSave,
+            initialCachedSave = cachedSave,
             changedEntryCount = 1,
             snapshotCreated = true
         ).apply {
@@ -453,6 +455,86 @@ class HomeViewModelPreloadTest {
         assertEquals(2_000L, viewModel.uiState.value.profile.lastSyncTime)
         assertEquals(listOf("song-a.0"), viewModel.uiState.value.profile.recentSyncedRecords.map { it.songId })
         assertEquals(listOf(1L), repository.getSyncSnapshotsOnce().map { it.id })
+    }
+
+    @Test
+    fun b30TagAnalysisLoadsOncePerContentAndRetryRefetches(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false, apiEnabled = true)
+        val repository = FakePhigrosRepository().apply {
+            cachedSave = saveWithRecord("song-a.0", Difficulty.IN, 990_000, 99f, isFullCombo = false)
+        }
+        val viewModel = createViewModel(settings, repository = repository)
+        awaitB30(viewModel)
+
+        val keys = viewModel.uiState.value.b30.b30.map { it.songId to it.difficulty }
+        assertTrue(keys.isNotEmpty())
+        assertEquals(listOf(keys), repository.b30ChartTagRequests)
+        assertEquals("标签统计获取失败，请稍后重试", viewModel.uiState.value.b30.tagAnalysis.error)
+
+        // Given a successful batch for the current B30 content
+        repository.b30ChartTags = Result.success(b30TagBatchFixture(keys))
+
+        // When retrying after a failure
+        viewModel.retryTagAnalysis()
+        advanceUntilIdle()
+
+        // Then the analysis is computed from the batch
+        val analysis = viewModel.uiState.value.b30.tagAnalysis.analysis
+        assertNotNull(analysis)
+        assertFalse(analysis.insufficient)
+        assertEquals(140, analysis.totalVotes)
+        val chartRks = viewModel.uiState.value.b30.b30.single().rks
+        assertEquals(chartRks, analysis.averageRks, absoluteTolerance = 1e-5f)
+        assertEquals(listOf("高速", "连打", "多指"), analysis.strong.map { it.name })
+        assertEquals(listOf(40, 30, 25), analysis.strong.map { it.votes })
+        assertEquals(listOf("爆发", "停顿", "散打"), analysis.weak.map { it.name })
+        assertEquals(listOf(10, 15, 20), analysis.weak.map { it.votes })
+        assertEquals(listOf("配置", "手法"), analysis.categories.map { it.name })
+        assertEquals(2, repository.b30ChartTagRequests.size)
+    }
+
+    @Test
+    fun b30TagAnalysisSkipsRequestWhileApiSwitchIsOff(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false, apiEnabled = false)
+        val repository = FakePhigrosRepository().apply {
+            cachedSave = saveWithRecord("song-a.0", Difficulty.IN, 990_000, 99f, isFullCombo = false)
+        }
+
+        val viewModel = createViewModel(settings, repository = repository)
+        awaitB30(viewModel)
+
+        assertTrue(viewModel.uiState.value.b30.b30.isNotEmpty())
+        assertTrue(repository.b30ChartTagRequests.isEmpty())
+        assertNull(viewModel.uiState.value.b30.tagAnalysis.analysis)
+        assertNull(viewModel.uiState.value.b30.tagAnalysis.error)
+    }
+
+    /**
+     * The B30 collect recomputes suggestions inside withContext(Dispatchers.Default),
+     * which runs on a real background thread and is not driven by the test
+     * scheduler, so poll in real time before advancing virtual time.
+     */
+    private suspend fun TestScope.awaitB30(viewModel: HomeViewModel) {
+        withContext(Dispatchers.Default) {
+            val deadline = System.currentTimeMillis() + 5_000
+            while (viewModel.uiState.value.b30.b30.isEmpty() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(10)
+            }
+        }
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.b30.b30.isNotEmpty(), "B30 should populate from the cached save")
+    }
+
+    private fun b30TagBatchFixture(keys: List<Pair<String, Difficulty>>): B30ChartTagBatch {
+        val votes = mapOf("高速" to 40, "连打" to 30, "多指" to 25, "散打" to 20, "停顿" to 15, "爆发" to 10)
+        val categories = listOf(
+            ChartTagTreeNode(id = 1L, name = "配置", description = null, sortOrder = 0, voteCount = 70),
+            ChartTagTreeNode(id = 2L, name = "手法", description = null, sortOrder = 1, voteCount = 30)
+        )
+        return B30ChartTagBatch(
+            tags = keys.associate { (songId, difficulty) -> songId to mapOf(difficulty to votes) },
+            categories = keys.associate { (songId, difficulty) -> songId to mapOf(difficulty to categories) }
+        )
     }
 
     private fun createViewModel(
@@ -675,6 +757,9 @@ class HomeViewModelPreloadTest {
         var snapshots: List<SyncSnapshot> = emptyList()
         var songHistory: Map<String, List<SongSyncHistoryEntry>> = emptyMap()
         var historyBySnapshot: Map<Long, List<SongSyncHistoryEntry>> = emptyMap()
+        var b30ChartTags: Result<B30ChartTagBatch> = Result.failure(UnsupportedOperationException())
+        val b30ChartTagRequests = mutableListOf<List<Pair<String, Difficulty>>>()
+        var cachedSave: Save? = emptySave()
         override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> {
             networkCallCount++
             error("Not needed for this test")
@@ -703,7 +788,7 @@ class HomeViewModelPreloadTest {
         override fun observeSongSyncHistory(songId: String): Flow<List<SongSyncHistoryEntry>> = flowOf(songHistory[songId].orEmpty())
         override suspend fun getSyncHistoryForSnapshot(snapshotId: Long): List<SongSyncHistoryEntry> = historyBySnapshot[snapshotId].orEmpty()
 
-        override fun getCachedSave(): Flow<Save?> = MutableStateFlow(emptySave())
+        override fun getCachedSave(): Flow<Save?> = MutableStateFlow(cachedSave)
         override fun getUserProfile(): Flow<UserProfile?> = flowOf(null)
         override suspend fun saveSessionToken(token: String, server: Server) = Unit
         override suspend fun getSessionToken(): Pair<String, Server>? = Pair("fake-token", Server.CN)
@@ -740,8 +825,10 @@ class HomeViewModelPreloadTest {
             apiToken: String?
         ): Result<Set<String>> = Result.failure(UnsupportedOperationException())
 
-        override suspend fun getB30ChartTags(records: List<BestRecord>): Result<B30ChartTagBatch> =
-            Result.failure(UnsupportedOperationException())
+        override suspend fun getB30ChartTags(records: List<BestRecord>): Result<B30ChartTagBatch> {
+            b30ChartTagRequests += records.map { it.songId to it.difficulty }
+            return b30ChartTags
+        }
 
         override suspend fun voteChartTags(
             songId: String,
@@ -833,13 +920,13 @@ class HomeViewModelPreloadTest {
     private class FakePhigrosRepositoryForSync(
         private val syncResult: Result<Save>,
         private val recordDao: StatefulRecordDao,
-        private val cachedSave: Save? = emptySave(),
+        private val initialCachedSave: Save? = emptySave(),
         private val committedAt: Long = 2_000L,
         private val changedEntryCount: Int = 0,
         private val snapshotCreated: Boolean = false
     ) : FakePhigrosRepository() {
         val syncModes = mutableListOf<SyncMode>()
-        override fun getCachedSave(): Flow<Save?> = flowOf(cachedSave)
+        override fun getCachedSave(): Flow<Save?> = flowOf(initialCachedSave)
 
         override suspend fun syncSave(
             sessionToken: String,
@@ -1059,7 +1146,7 @@ class HomeViewModelPreloadTest {
         val repository = FakePhigrosRepositoryForSync(
             syncResult = Result.success(saveWithRks(15.5f)),
             recordDao = recordDao,
-            cachedSave = null
+            initialCachedSave = null
         )
         val logFileStore = createTestLogFileStore()
 
@@ -1100,7 +1187,7 @@ class HomeViewModelPreloadTest {
         val repository = FakePhigrosRepositoryForSync(
             syncResult = Result.success(saveWithRks(15.5f)),
             recordDao = recordDao,
-            cachedSave = cachedSave
+            initialCachedSave = cachedSave
         )
         val logFileStore = createTestLogFileStore()
 

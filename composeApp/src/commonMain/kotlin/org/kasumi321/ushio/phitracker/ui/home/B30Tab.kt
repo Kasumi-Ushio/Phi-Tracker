@@ -1,23 +1,44 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.ui.b30.B30TagAnalysisContent
 
 @Composable
 fun B30Tab(
@@ -28,6 +49,7 @@ fun B30Tab(
     onSongClick: (String, Difficulty?) -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
     listState: LazyListState = rememberLazyListState(),
+    onRetryTagAnalysis: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val b30 = state.b30
@@ -37,6 +59,8 @@ fun B30Tab(
     val b36 = b30.filter { !it.isPhi }
     val b27 = b36.take(27)
     val overflow = if (showB30Overflow) b36.drop(27).take(overflowCount) else emptyList()
+    val tagAnalysis = state.tagAnalysis
+    val showTagSection = tagAnalysis.isLoading || tagAnalysis.error != null || tagAnalysis.analysis != null
 
     // The RKS summary lives in the floating B30Header; the list scrolls behind
     // it and the glass bottom bar, padded so the first and last cards stay clear
@@ -67,6 +91,15 @@ fun B30Tab(
             ),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (showTagSection) {
+                item(contentType = "tag_analysis") {
+                    CollapsibleTagAnalysis(
+                        state = tagAnalysis,
+                        onRetry = onRetryTagAnalysis
+                    )
+                }
+            }
+
             if (phi3.isNotEmpty()) {
                 item(contentType = "header") {
                     Text(
@@ -134,6 +167,76 @@ fun B30Tab(
                         illustrationUrl = getIllustrationUrl(record.songId),
                         onSongClick = onSongClick
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Collapsible B30 tag-analysis block. Behaves like the Tools-tab
+ * CollapsibleToolCard interaction (collapsed by default, expandVertically),
+ * but sits in the score-card list without a card background. While loading
+ * it stays collapsed; once the analysis first arrives it auto-expands once,
+ * after which the manual user toggle wins.
+ */
+@Composable
+private fun CollapsibleTagAnalysis(
+    state: B30TagAnalysisState,
+    onRetry: () -> Unit
+) {
+    var userExpanded by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    val autoExpanded = !state.isLoading && state.analysis != null
+    val expanded = userExpanded ?: autoExpanded
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { userExpanded = !expanded }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "谱面标签统计",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            if (state.isLoading) {
+                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = if (expanded) Icons.Default.KeyboardArrowUp
+                else Icons.Default.KeyboardArrowDown,
+                contentDescription = if (expanded) "折叠" else "展开",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(),
+            exit = shrinkVertically()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp)
+            ) {
+                when {
+                    state.error != null -> Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = state.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = onRetry) { Text("重试") }
+                    }
+                    state.analysis != null -> B30TagAnalysisContent(analysis = state.analysis)
                 }
             }
         }
