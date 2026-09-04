@@ -31,10 +31,7 @@ actual object CrashHookInstaller {
         val parent = path.parent ?: return
         if (!fs.exists(parent)) fs.createDirectories(parent)
 
-        val instant = Clock.System.now()
-        val epochMs = instant.toEpochMilliseconds()
-        val kxInstant = kotlinx.datetime.Instant.fromEpochMilliseconds(epochMs)
-        val local = kxInstant.toLocalDateTime(TimeZone.currentSystemDefault())
+        val local = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         val time = "${local.date} ${local.hour.toString().padStart(2, '0')}:" +
                 "${local.minute.toString().padStart(2, '0')}:${local.second.toString().padStart(2, '0')}"
 

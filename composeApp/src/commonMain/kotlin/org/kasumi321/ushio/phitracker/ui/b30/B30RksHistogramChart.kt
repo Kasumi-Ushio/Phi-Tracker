@@ -16,6 +16,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -42,6 +43,7 @@ fun B30RksHistogramChart(
     val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
     val averageColor = MaterialTheme.colorScheme.onSurfaceVariant
     val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
@@ -67,6 +69,11 @@ fun B30RksHistogramChart(
             )
         }
         Canvas(modifier = Modifier.fillMaxWidth().height(chartHeight)) {
+            // dp-based strokes so the export render at B30ExportSpec.DENSITY
+            // keeps the same relative line weight as the preview.
+            val hairline = with(density) { 0.4.dp.toPx() }
+            val averageStroke = with(density) { 0.75.dp.toPx() }
+            val plotPadding = with(density) { 3.dp.toPx() }
             val tickLayout = histogram.ticks.map { tick ->
                 val textLayout = textMeasurer.measure(tick.label, style = labelStyle.copy(color = labelColor))
                 tick to textLayout
@@ -74,7 +81,7 @@ fun B30RksHistogramChart(
             val labelWidth = tickLayout.maxOfOrNull { it.second.size.width }?.toFloat() ?: 0f
             val labelHeight = tickLayout.maxOfOrNull { it.second.size.height }?.toFloat() ?: 0f
             val bottomPadding = labelHeight * 1.4f
-            val plotLeft = labelWidth + 8f
+            val plotLeft = labelWidth + plotPadding
             val plotRight = size.width
             val plotTop = 0f
             val plotBottom = size.height - bottomPadding
@@ -88,7 +95,7 @@ fun B30RksHistogramChart(
                     color = gridColor,
                     start = Offset(plotLeft, y),
                     end = Offset(plotRight, y),
-                    strokeWidth = 1f
+                    strokeWidth = hairline
                 )
                 drawText(
                     textLayout,
@@ -122,8 +129,13 @@ fun B30RksHistogramChart(
                 color = averageColor,
                 start = Offset(plotLeft, averageY),
                 end = Offset(plotRight, averageY),
-                strokeWidth = 2f,
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f))
+                strokeWidth = averageStroke,
+                pathEffect = PathEffect.dashPathEffect(
+                    floatArrayOf(
+                        with(density) { 4.dp.toPx() },
+                        with(density) { 3.dp.toPx() }
+                    )
+                )
             )
             val averageLabel = textMeasurer.measure("AVG", style = labelStyle.copy(color = averageColor))
             drawText(

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -132,6 +133,8 @@ fun SettingsTab(
     var showClearCacheDialog by remember { mutableStateOf(false) }
     var showRedownloadDialog by remember { mutableStateOf(false) }
     var showApiRiskDialog by remember { mutableStateOf(false) }
+    var showApiCredentialDialog by remember { mutableStateOf(false) }
+    var apiTokenVisible by remember { mutableStateOf(false) }
     var showUpdateDataDialog by remember { mutableStateOf(false) }
     var notificationPermissionGranted by remember {
         mutableStateOf(hasCrashNotificationPermission())
@@ -477,96 +480,21 @@ fun SettingsTab(
             }
 
             if (apiEnabled) {
-                Text(
-                        text =
-                                "要确定您的平台名称、平台 ID 与 API 用户 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令 和 /sessiontoken 命令以确定。\n参与谱面标签投票还需要 API Token：向任意 Phi-Plugin 机器人发送 /setApiToken <自定义Token> 设置后，将 Token 填入下方。Token 仅用于查分 API 鉴权，我们不会上传你的 sessionToken。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                val credentialsConfigured = apiPlatform.isNotBlank() &&
+                        apiPlatformId.isNotBlank() && apiUserId.isNotBlank() && apiToken.isNotBlank()
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                            value = apiPlatform,
-                            onValueChange = onApiPlatformChange,
-                            label = { Text("平台名称") },
-                            placeholder = { Text("platform") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                            value = apiPlatformId,
-                            onValueChange = onApiPlatformIdChange,
-                            label = { Text("平台 ID") },
-                            placeholder = { Text("platform_id") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                    )
-                }
-
-                OutlinedTextField(
-                        value = apiUserId,
-                        onValueChange = onApiUserIdChange,
-                        label = { Text("API 用户 ID") },
-                        placeholder = { Text("api_user_id") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                )
-
-                var apiTokenVisible by remember { mutableStateOf(false) }
-                OutlinedTextField(
-                        value = apiToken,
-                        onValueChange = onApiTokenChange,
-                        label = { Text("API Token（谱面标签投票）") },
-                        placeholder = { Text("api_token") },
-                        singleLine = true,
-                        visualTransformation =
-                                if (apiTokenVisible) VisualTransformation.None
-                                else PasswordVisualTransformation(),
-                        trailingIcon = {
-                            IconButton(onClick = { apiTokenVisible = !apiTokenVisible }) {
-                                Icon(
-                                        imageVector =
-                                                if (apiTokenVisible) Icons.Default.VisibilityOff
-                                                else Icons.Default.Visibility,
-                                        contentDescription =
-                                                if (apiTokenVisible) "隐藏 API Token"
-                                                else "显示 API Token"
-                                )
-                            }
+                CenteredListItem(
+                        headlineContent = { Text("API 凭据") },
+                        supportingContent = {
+                            Text(
+                                    text =
+                                            if (credentialsConfigured) "已配置，点击查看或修改"
+                                            else "未配置，点击查看引导并填写",
+                                    style = MaterialTheme.typography.bodySmall
+                            )
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.clickable { showApiCredentialDialog = true }
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedButton(
-                        onClick = onApiTestConnection,
-                        enabled = !isApiTesting,
-                        modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (isApiTesting) {
-                        CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Text(if (isApiTesting) "测试中..." else "测试连接")
-                }
-
-                if (!apiTestMessage.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                            text = apiTestMessage,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -587,7 +515,7 @@ fun SettingsTab(
                 }
 
                 Text(
-                        text = "社区数据与本地数据可能有差异，切换数据源不会影响你的本地记录。",
+                        text = "社区数据与本地数据可能有差异，切换数据源不会影响您的本地记录。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -912,6 +840,101 @@ fun SettingsTab(
                 },
                 dismissButton = {
                     TextButton(onClick = { showApiRiskDialog = false }) { Text("取消") }
+                }
+        )
+    }
+
+    if (showApiCredentialDialog) {
+        AlertDialog(
+                onDismissRequest = { showApiCredentialDialog = false },
+                icon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
+                title = { Text("查分 API 凭据") },
+                text = {
+                    Column(
+                            modifier = Modifier.verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                                text =
+                                        "要确定您的平台名称、平台 ID 与 API 用户 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令 和 /sessiontoken 命令以确定。\n\n参与谱面标签投票还需要 API Token，请向任意 Phi-Plugin 机器人发送 /setApiToken <自定义Token> 以设置，然后将 Token 填入下方。Token 仅用于查分 API 鉴权，我们不会上传您的 sessionToken。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        OutlinedTextField(
+                                value = apiPlatform,
+                                onValueChange = onApiPlatformChange,
+                                label = { Text("平台名称") },
+                                placeholder = { Text("platform") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                                value = apiPlatformId,
+                                onValueChange = onApiPlatformIdChange,
+                                label = { Text("平台 ID") },
+                                placeholder = { Text("platform_id") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                                value = apiUserId,
+                                onValueChange = onApiUserIdChange,
+                                label = { Text("API 用户 ID") },
+                                placeholder = { Text("api_user_id") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                                value = apiToken,
+                                onValueChange = onApiTokenChange,
+                                label = { Text("API Token") },
+                                placeholder = { Text("api_token") },
+                                singleLine = true,
+                                visualTransformation =
+                                        if (apiTokenVisible) VisualTransformation.None
+                                        else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { apiTokenVisible = !apiTokenVisible }) {
+                                        Icon(
+                                                imageVector =
+                                                        if (apiTokenVisible) Icons.Default.VisibilityOff
+                                                        else Icons.Default.Visibility,
+                                                contentDescription =
+                                                        if (apiTokenVisible) "隐藏 API Token"
+                                                        else "显示 API Token"
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                        )
+
+                        OutlinedButton(
+                                onClick = onApiTestConnection,
+                                enabled = !isApiTesting,
+                                modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (isApiTesting) {
+                                CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            Text(if (isApiTesting) "测试中..." else "测试连接")
+                        }
+
+                        if (!apiTestMessage.isNullOrBlank()) {
+                            Text(
+                                    text = apiTestMessage,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showApiCredentialDialog = false }) { Text("完成") }
                 }
         )
     }

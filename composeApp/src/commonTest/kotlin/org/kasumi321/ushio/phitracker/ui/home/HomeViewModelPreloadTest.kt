@@ -1362,7 +1362,7 @@ class HomeViewModelPreloadTest {
         val state = viewModel.uiState.value.sync.updateCheckState
         assertTrue(state is UpdateCheckState.Available,
             "Should be Available when a newer version is returned")
-        val available = state as UpdateCheckState.Available
+        val available = state
         assertEquals("v9.9.9", available.version)
         assertEquals("https://example.test/release/v9.9.9", available.htmlUrl)
         assertEquals("New version available", available.body)

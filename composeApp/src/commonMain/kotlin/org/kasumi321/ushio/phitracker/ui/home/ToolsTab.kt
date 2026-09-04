@@ -35,7 +35,7 @@ import androidx.compose.material.icons.filled.DataThresholding
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -139,7 +139,7 @@ fun ToolsTab(
             CollapsibleToolCard(
                     title = "推分建议",
                     subtitle = "根据你的成绩数据，推荐值得挑战的曲目",
-                    icon = Icons.Default.ShowChart
+                    icon = Icons.AutoMirrored.Filled.ShowChart
             ) {
                 SuggestionContent(
                         targetMode = suggestTargetMode,
@@ -156,7 +156,7 @@ fun ToolsTab(
             CollapsibleToolCard(
                     title = "RKS 成长轨迹",
                     subtitle = "查看 RKS 随时间的变化趋势",
-                    icon = Icons.Default.ShowChart
+                    icon = Icons.AutoMirrored.Filled.ShowChart
             ) { RksHistoryChartContent(syncSnapshots) }
 
             if (apiEnabled && useApiData) {

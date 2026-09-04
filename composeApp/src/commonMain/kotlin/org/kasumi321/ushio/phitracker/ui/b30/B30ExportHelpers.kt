@@ -31,8 +31,7 @@ fun buildB30ExportFilename(
     timeZone: TimeZone = TimeZone.UTC
 ): String {
     val safe = sanitizeNicknameForFilename(nickname)
-    val kxInstant = kotlinx.datetime.Instant.fromEpochMilliseconds(instant.toEpochMilliseconds())
-    val dt = kxInstant.toLocalDateTime(timeZone)
+    val dt = instant.toLocalDateTime(timeZone)
     val timestamp = "${dt.year.toString().padStart(4, '0')}-" +
         "${(dt.month.ordinal + 1).toString().padStart(2, '0')}-" +
         "${dt.day.toString().padStart(2, '0')}-" +

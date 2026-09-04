@@ -51,6 +51,10 @@ class MainActivity : ComponentActivity() {
         anrWatchDog?.stop()
     }
 
+    // Framework permission callbacks are deprecated in favor of the Activity
+    // Result API, but the notification permission flow predates it; keep the
+    // override as the framework still delivers results here.
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<String>,

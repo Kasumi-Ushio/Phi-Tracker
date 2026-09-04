@@ -52,7 +52,8 @@ internal fun B30ExportLayout(
             .clipToBounds()
     ) {
         // Pre-blurred bitmap supplied by the platform renderer.
-        // Android provides a StackBlur(radius=50) bitmap via B30ImageGenerator.android;
+        // Android provides a StackBlur bitmap (radius from
+        // B30ExportData.backgroundBlurRadius) via B30ImageGenerator.android;
         // iOS also preloads and supplies a blurred bitmap before capturing this
         // shared layout. Production code MUST supply backgroundBitmap — when absent, no image
         // background is rendered (only the white overlay below contributes).
@@ -187,7 +188,7 @@ internal fun B30ExportLayout(
                     ) {
                         val analysis = data.tagAnalysis
                         if (analysis != null) {
-                            Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                            Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
                                 B30TagAnalysisPanelHeader(totalVotes = analysis.totalVotes)
                                 Spacer(modifier = Modifier.height(4.dp))
                                 ChartTagInsufficientScrim(
@@ -236,7 +237,7 @@ internal fun B30ExportLayout(
                             B30RksHistogramChart(
                                 histogram = histogram,
                                 chartHeight = 132.dp,
-                                modifier = Modifier.fillMaxSize().padding(8.dp)
+                                modifier = Modifier.fillMaxSize().padding(16.dp)
                             )
                         }
                     }

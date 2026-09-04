@@ -40,7 +40,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -152,29 +152,10 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            TabRow(
-                selectedTabIndex = selectedTab,
-                modifier = Modifier.fillMaxWidth(),
-                indicator = { tabPositions ->
-                    SpringTabIndicator(
-                        selectedTabIndex = selectedTab,
-                        positions = tabPositions
-                    )
-                }
-            ) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("扫码登录") },
-                    icon = { Icon(Icons.Default.QrCode2, contentDescription = null) }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("Token 登录") },
-                    icon = { Icon(Icons.Default.VpnKey, contentDescription = null) }
-                )
-            }
+            LoginTabRow(
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it }
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
@@ -474,5 +455,35 @@ private fun QrCodeImage(url: String, onClick: (() -> Unit)? = null) {
                     .clip(RoundedCornerShape(8.dp)),
             )
         }
+    }
+}
+
+/**
+ * Login method tabs with a spring-animated selection indicator.
+ */
+@Composable
+private fun LoginTabRow(
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit
+) {
+    PrimaryTabRow(
+        selectedTabIndex = selectedTab,
+        modifier = Modifier.fillMaxWidth(),
+        indicator = {
+            SpringTabIndicator(selectedTabIndex = selectedTab)
+        }
+    ) {
+        Tab(
+            selected = selectedTab == 0,
+            onClick = { onTabSelected(0) },
+            text = { Text("扫码登录") },
+            icon = { Icon(Icons.Default.QrCode2, contentDescription = null) }
+        )
+        Tab(
+            selected = selectedTab == 1,
+            onClick = { onTabSelected(1) },
+            text = { Text("Token 登录") },
+            icon = { Icon(Icons.Default.VpnKey, contentDescription = null) }
+        )
     }
 }

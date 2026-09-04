@@ -14,6 +14,12 @@ plugins {
 }
 
 kotlin {
+    // expect/actual classes are still Beta (KT-61573); the flag silences the
+    // diagnostic for the expect objects and KSP-generated actuals.
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)

@@ -15,8 +15,11 @@ object B30ExportSpec {
     // ─── beta5 baseline derived constants ───────────────────────────────
     // These are computed from the authoritative WIDTH_PX / DENSITY pair
     // using the beta5 formula and MUST NOT drift across platform renderers.
-    const val WIDTH_PX = 2400
-    const val DENSITY = 2.6666667f
+    // The pair controls rasterization resolution only: 3600 @ density 4
+    // keeps the exact same 900 dp canvas (868 dp content width) as the
+    // previous 2400 @ 2.6666667, while sharpening text and charts 1.5x.
+    const val WIDTH_PX = 3600
+    const val DENSITY = 4f
     const val FONT_SCALE = 1f
     const val PAGE_PADDING_DP = 16f
     const val CARD_GAP_DP = 9.6f

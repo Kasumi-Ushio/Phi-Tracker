@@ -63,8 +63,7 @@ class FileLogWriter(
     ): String {
         val instant = Clock.System.now()
         val epochMs = instant.toEpochMilliseconds()
-        val kxInstant = kotlinx.datetime.Instant.fromEpochMilliseconds(epochMs)
-        val local = kxInstant.toLocalDateTime(TimeZone.currentSystemDefault())
+        val local = instant.toLocalDateTime(TimeZone.currentSystemDefault())
         val millis = epochMs % 1000
         val time = "${local.date} ${local.hour.toString().padStart(2, '0')}:" +
                 "${local.minute.toString().padStart(2, '0')}:" +

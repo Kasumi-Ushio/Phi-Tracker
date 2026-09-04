@@ -11,9 +11,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.TabIndicatorScope
+import androidx.compose.material3.TabPosition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -22,155 +27,121 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 
 /**
- * Spring-animated tab indicator that follows a [PagerState] during drag/settle.
+ * Spring-animated tab indicators for the TabIndicatorScope-based tab rows
+ * ([androidx.compose.material3.PrimaryTabRow] / [androidx.compose.material3.SecondaryTabRow]).
  *
- * Used with [androidx.compose.foundation.pager.HorizontalPager] backed tab rows.
- * The indicator position and width are derived from tab [positions] and animated
- * with a spring spec for a responsive, "follow-the-finger" feel.
+ * The modern [TabIndicatorScope] does not expose tab positions to composition;
+ * they are only available inside [TabIndicatorScope.tabIndicatorLayout]'s measure
+ * lambda. Both indicators capture them into local state from that lambda and drive
+ * the spring from composition, preserving the feel of the previous list-based
+ * implementation.
+ */
+
+/**
+ * Spring-animated indicator that follows a [PagerState] during drag and settle.
  *
  * @param pagerState the pager state driving the indicator position
- * @param positions list of tab positions from TabRow's indicator lambda
  * @param height height of the indicator bar
  */
 @Composable
-fun SpringPagerIndicator(
+fun TabIndicatorScope.SpringPagerIndicator(
     pagerState: PagerState,
-    positions: List<androidx.compose.material3.TabPosition>,
     height: Dp = 3.dp
 ) {
+    SpringIndicator(
+        targetFraction = pagerState.currentPage + pagerState.currentPageOffsetFraction,
+        height = height
+    )
+}
+
+/**
+ * Spring-animated indicator for simple (non-pager) tab rows.
+ *
+ * Animates between tab positions using a spring spec when the selection changes.
+ *
+ * @param selectedTabIndex the currently selected tab index
+ * @param height height of the indicator bar
+ */
+@Composable
+fun TabIndicatorScope.SpringTabIndicator(
+    selectedTabIndex: Int,
+    height: Dp = 3.dp
+) {
+    SpringIndicator(targetFraction = selectedTabIndex.toFloat(), height = height)
+}
+
+@Composable
+private fun TabIndicatorScope.SpringIndicator(
+    targetFraction: Float,
+    height: Dp
+) {
+    // Tab positions arrive at measure time only; capture them so composition
+    // can compute animation targets. The equality guard keeps measure passes
+    // from scheduling recompositions once positions stabilize.
+    var tabPositions by remember { mutableStateOf<List<TabPosition>>(emptyList()) }
     val density = LocalDensity.current
 
     val leftAnim = remember { Animatable(0f) }
     val rightAnim = remember { Animatable(0f) }
 
-    // Calculate target positions from pager state
-    val currentPage = pagerState.currentPage
-    val pageOffset = pagerState.currentPageOffsetFraction
-    val targetFraction = currentPage + pageOffset
-
-    val targetLeftPx: Float
-    val targetRightPx: Float
-
-    if (positions.isNotEmpty()) {
-        val clampedFraction = targetFraction.coerceIn(0f, (positions.size - 1).toFloat())
-        val leftIndex = clampedFraction.toInt().coerceIn(0, positions.size - 1)
-        val rightIndex = (leftIndex + 1).coerceAtMost(positions.size - 1)
+    if (tabPositions.isNotEmpty()) {
+        val clampedFraction = targetFraction.coerceIn(0f, (tabPositions.size - 1).toFloat())
+        val leftIndex = clampedFraction.toInt().coerceIn(0, tabPositions.size - 1)
+        val rightIndex = (leftIndex + 1).coerceAtMost(tabPositions.size - 1)
         val ratio = clampedFraction - leftIndex
 
-        val leftPos = positions[leftIndex]
-        val rightPos = positions[rightIndex]
+        val leftPos = tabPositions[leftIndex]
+        val rightPos = tabPositions[rightIndex]
 
-        targetLeftPx = with(density) {
-            (leftPos.left.toPx() + (rightPos.left.toPx() - leftPos.left.toPx()) * ratio).coerceAtLeast(0f)
+        val targetLeftPx = with(density) {
+            (leftPos.left.toPx() + (rightPos.left.toPx() - leftPos.left.toPx()) * ratio)
+                .coerceAtLeast(0f)
         }
-        targetRightPx = with(density) {
-            (leftPos.right.toPx() + (rightPos.right.toPx() - leftPos.right.toPx()) * ratio).coerceAtMost(
-                positions.last().right.toPx()
-            )
+        val targetRightPx = with(density) {
+            (leftPos.right.toPx() + (rightPos.right.toPx() - leftPos.right.toPx()) * ratio)
+                .coerceAtMost(tabPositions.last().right.toPx())
         }
-    } else {
-        targetLeftPx = 0f
-        targetRightPx = 0f
-    }
 
-    LaunchedEffect(targetLeftPx, targetRightPx) {
-        launch {
-            leftAnim.animateTo(
-                targetValue = targetLeftPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+        LaunchedEffect(targetLeftPx, targetRightPx) {
+            launch {
+                leftAnim.animateTo(
+                    targetValue = targetLeftPx,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
                 )
-            )
-        }
-        launch {
-            rightAnim.animateTo(
-                targetValue = targetRightPx,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioNoBouncy,
-                    stiffness = Spring.StiffnessMediumLow
+            }
+            launch {
+                rightAnim.animateTo(
+                    targetValue = targetRightPx,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
                 )
-            )
+            }
         }
     }
-
-    val indicatorWidth = with(density) { (rightAnim.value - leftAnim.value).toDp() }
-    val indicatorOffset = with(density) { leftAnim.value.toDp() }
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .tabIndicatorLayout { measurable, constraints, positions ->
+                if (positions.isNotEmpty() && positions != tabPositions) {
+                    tabPositions = positions
+                }
+                val placeable = measurable.measure(constraints)
+                layout(placeable.width, placeable.height) {
+                    placeable.place(0, 0)
+                }
+            }
+            .fillMaxSize(),
         contentAlignment = Alignment.BottomStart
     ) {
         Box(
             modifier = Modifier
-                .offset(x = indicatorOffset)
-                .width(indicatorWidth)
-                .height(height)
-                .background(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = MaterialTheme.shapes.extraSmall
-                )
-        )
-    }
-}
-
-/**
- * Spring-animated tab indicator for simple (non-pager) tab rows.
- *
- * Animates between tab positions using a spring spec when [selectedTabIndex] changes.
- *
- * @param selectedTabIndex the currently selected tab index
- * @param positions list of tab positions from TabRow's indicator lambda
- * @param height height of the indicator bar
- */
-@Composable
-fun SpringTabIndicator(
-    selectedTabIndex: Int,
-    positions: List<androidx.compose.material3.TabPosition>,
-    height: Dp = 3.dp
-) {
-    if (positions.isEmpty()) return
-
-    val density = LocalDensity.current
-    val targetPosition = positions[selectedTabIndex.coerceIn(0, positions.size - 1)]
-
-    val leftAnim = remember { Animatable(with(density) { targetPosition.left.toPx() }) }
-    val rightAnim = remember { Animatable(with(density) { targetPosition.right.toPx() }) }
-
-    val targetLeftPx = with(density) { targetPosition.left.toPx() }
-    val targetRightPx = with(density) { targetPosition.right.toPx() }
-
-    LaunchedEffect(targetLeftPx) {
-        leftAnim.animateTo(
-            targetValue = targetLeftPx,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            )
-        )
-    }
-
-    LaunchedEffect(targetRightPx) {
-        rightAnim.animateTo(
-            targetValue = targetRightPx,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            )
-        )
-    }
-
-    val indicatorWidth = with(density) { (rightAnim.value - leftAnim.value).toDp() }
-    val indicatorOffset = with(density) { leftAnim.value.toDp() }
-
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomStart
-    ) {
-        Box(
-            modifier = Modifier
-                .offset(x = indicatorOffset)
-                .width(indicatorWidth)
+                .offset(x = with(density) { leftAnim.value.toDp() })
+                .width(with(density) { (rightAnim.value - leftAnim.value).toDp() })
                 .height(height)
                 .background(
                     color = MaterialTheme.colorScheme.primary,

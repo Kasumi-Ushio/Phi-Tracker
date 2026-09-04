@@ -60,8 +60,9 @@ actual object B30ImageGenerator {
      * Renders [B30ExportLayout] off-screen into a software [Bitmap] at
      * [B30ExportSpec.WIDTH_PX] px wide.
      *
-     * The background is pre-loaded and stack-blurred (radius 50) before the
-     * Compose composition to avoid weak composable background timing risk. The
+     * The background is pre-loaded and stack-blurred (radius configurable via
+     * [B30ExportData.backgroundBlurRadius]) before the Compose composition to
+     * avoid weak composable background timing risk. The
      * container is hidden off-screen (alpha=0, translated far left) to
      * eliminate visible flicker during capture.
      *
@@ -82,7 +83,7 @@ actual object B30ImageGenerator {
             )
 
         val preBlurredBg = data.backgroundUri?.let { uri ->
-            loadAndBlurBackground(activity, uri)?.asImageBitmap()
+            loadAndBlurBackground(activity, uri, data.backgroundBlurRadius)?.asImageBitmap()
         }
 
         val augmentedData = if (preBlurredBg != null) {
@@ -165,7 +166,8 @@ actual object B30ImageGenerator {
 
     private suspend fun loadAndBlurBackground(
         context: android.content.Context,
-        uri: String
+        uri: String,
+        blurRadius: Int
     ): Bitmap? = withContext(Dispatchers.IO) {
         var loaded: Bitmap? = null
         var bounded: Bitmap? = null
@@ -187,10 +189,11 @@ actual object B30ImageGenerator {
             } else {
                 loaded
             }
-            val blurred = stackBlur(bounded, 50)
-            // Recycle the intermediate downscaled copy only if we created it.
+            val blurred = if (blurRadius > 0) stackBlur(bounded, blurRadius) else bounded
+            // Recycle the intermediate downscaled copy only if we created it
+            // and didn't hand it straight back as the unblurred result.
             // Never recycle the Coil bitmap — it may be managed internally.
-            if (bounded !== loaded) bounded.recycle()
+            if (bounded !== loaded && blurred !== bounded) bounded.recycle()
             blurred
         } catch (e: Exception) {
             Log.e("B30ImageGenerator", "Failed to preload/blur background: ${e.message}", e)

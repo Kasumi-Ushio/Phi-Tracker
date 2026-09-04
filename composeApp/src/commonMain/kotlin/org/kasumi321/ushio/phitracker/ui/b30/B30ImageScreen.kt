@@ -2,8 +2,11 @@ package org.kasumi321.ushio.phitracker.ui.b30
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,8 +37,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -48,19 +53,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import kotlin.math.roundToInt
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlinx.datetime.TimeZone
@@ -112,8 +120,11 @@ fun B30ImageScreen(
     var isGenerating by remember { mutableStateOf(true) }
     var generationFailed by remember { mutableStateOf(false) }
     var zoomFactor by remember { mutableFloatStateOf(1f) }
+    var panOffset by remember { mutableStateOf(Offset.Zero) }
+    var previewSize by remember { mutableStateOf(IntSize.Zero) }
     var backgroundMode by remember { mutableStateOf<B30BackgroundMode>(B30BackgroundMode.Auto) }
     var customBackgroundUri by remember { mutableStateOf<String?>(null) }
+    var backgroundBlurRadius by remember { mutableFloatStateOf(50f) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val systemDark = isSystemInDarkTheme()
@@ -143,6 +154,7 @@ fun B30ImageScreen(
         clearCounts, fcCount, phiCount, avatarUri,
         showB30Overflow, overflowCount, getLowIllustrationUrl,
         getStandardIllustrationUrl, backgroundMode, customBackgroundUri,
+        backgroundBlurRadius,
         exportDarkTheme, exportAmoled, themeSettings, tagAnalysis
     ) {
         val dateText = runCatching {
@@ -150,7 +162,7 @@ fun B30ImageScreen(
             val localDt = now.toLocalDateTime(TimeZone.currentSystemDefault())
             "${localDt.year.toString().padStart(4, '0')}." +
                 "${(localDt.month.ordinal + 1).toString().padStart(2, '0')}." +
-                "${localDt.dayOfMonth.toString().padStart(2, '0')} " +
+                "${localDt.day.toString().padStart(2, '0')} " +
                 "${localDt.hour.toString().padStart(2, '0')}:" +
                 "${localDt.minute.toString().padStart(2, '0')}:" +
                 "${localDt.second.toString().padStart(2, '0')}"
@@ -195,6 +207,7 @@ fun B30ImageScreen(
             phiCount = phiCount,
             avatarUri = avatarUri,
             backgroundUri = resolvedBg,
+            backgroundBlurRadius = backgroundBlurRadius.roundToInt(),
             dateText = dateText,
             darkTheme = exportDarkTheme,
             isAmoled = exportAmoled,
@@ -207,6 +220,7 @@ fun B30ImageScreen(
         isGenerating = true
         generationFailed = false
         zoomFactor = 1f
+        panOffset = Offset.Zero
         export = null
         AppLogger.event(
             "b30_export",
@@ -350,24 +364,60 @@ fun B30ImageScreen(
                 }
             } else {
                 export?.let { exp ->
+                    val preview = exp.preview
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .pointerInput(exp.preview) {
-                                detectTransformGestures { _, _, zoom, _ ->
-                                    zoomFactor = (zoomFactor * zoom).coerceIn(1f, 2.5f)
+                            .onSizeChanged { previewSize = it }
+                            .pointerInput(preview) {
+                                // Double tap toggles between fit and 2x, since
+                                // pinch is not the only way users expect to zoom.
+                                detectTapGestures(
+                                    onDoubleTap = {
+                                        val newZoom = if (zoomFactor > 1.5f) 1f else 2f
+                                        zoomFactor = newZoom
+                                        if (newZoom == 1f) panOffset = Offset.Zero
+                                    }
+                                )
+                            }
+                            .pointerInput(preview) {
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    val newZoom = (zoomFactor * zoom).coerceIn(1f, 2.5f)
+                                    zoomFactor = newZoom
+                                    // Clamp the pan so the fitted image edge
+                                    // never travels inside the viewport.
+                                    val containerW = previewSize.width.toFloat()
+                                    val containerH = previewSize.height.toFloat()
+                                    if (containerW > 0f && containerH > 0f) {
+                                        val fitScale = minOf(
+                                            containerW / preview.width,
+                                            containerH / preview.height
+                                        )
+                                        val maxX = (
+                                            preview.width * fitScale * newZoom - containerW
+                                            ).coerceAtLeast(0f) / 2f
+                                        val maxY = (
+                                            preview.height * fitScale * newZoom - containerH
+                                            ).coerceAtLeast(0f) / 2f
+                                        panOffset = Offset(
+                                            x = (panOffset.x + pan.x).coerceIn(-maxX, maxX),
+                                            y = (panOffset.y + pan.y).coerceIn(-maxY, maxY)
+                                        )
+                                    }
                                 }
                             },
                         contentAlignment = Alignment.Center
                     ) {
                         androidx.compose.foundation.Image(
-                            bitmap = exp.preview,
+                            bitmap = preview,
                             contentDescription = "B30 预览",
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer(
                                     scaleX = zoomFactor,
-                                    scaleY = zoomFactor
+                                    scaleY = zoomFactor,
+                                    translationX = panOffset.x,
+                                    translationY = panOffset.y
                                 ),
                             contentScale = ContentScale.Fit
                         )
@@ -382,6 +432,7 @@ fun B30ImageScreen(
         BackgroundPickerDialog(
             distinctSongs = distinctSongs,
             selectedSongId = selectedSongId,
+            blurRadius = backgroundBlurRadius,
             getLowIllustrationUrl = getLowIllustrationUrl,
             onSelectDefault = {
                 AppLogger.event("b30_export", "background_selected", mapOf("type" to "auto"))
@@ -399,6 +450,10 @@ fun B30ImageScreen(
                 backgroundMode = B30BackgroundMode.SongBackground(songId)
                 customBackgroundUri = null
                 showBackgroundDialog = false
+            },
+            onBlurRadiusChange = { radius ->
+                backgroundBlurRadius = radius
+                AppLogger.event("b30_export", "background_blur_changed", mapOf("radius" to radius.roundToInt().toString()))
             },
             onDismiss = { showBackgroundDialog = false }
         )
@@ -475,35 +530,41 @@ private suspend fun preloadB30ExportImages(exportData: B30ExportData) {
 private fun BackgroundPickerDialog(
     distinctSongs: List<Pair<String, String>>,
     selectedSongId: String?,
+    blurRadius: Float,
     getLowIllustrationUrl: (String) -> String?,
     onSelectDefault: () -> Unit,
     onSelectAlbum: () -> Unit,
     onSelectSong: (String) -> Unit,
+    onBlurRadiusChange: (Float) -> Unit,
     onDismiss: () -> Unit
 ) {
     val platformContext = LocalPlatformContext.current
+    // Local drag state so the export preview only regenerates once per release
+    // instead of on every slider movement.
+    var blurDragValue by remember { mutableFloatStateOf(blurRadius) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shape = MaterialTheme.shapes.large,
-            tonalElevation = 8.dp
-        ) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Filled.Image, contentDescription = null) },
+        title = { Text("选择背景") },
+        text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("选择背景", style = MaterialTheme.typography.titleMedium)
-                Spacer(modifier = Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onSelectDefault) { Text("默认背景") }
-                    OutlinedButton(onClick = onSelectAlbum) { Text("相册图片") }
+                    OutlinedButton(onClick = onSelectDefault, modifier = Modifier.weight(1f)) {
+                        Text("默认背景")
+                    }
+                    OutlinedButton(onClick = onSelectAlbum, modifier = Modifier.weight(1f)) {
+                        Text("相册图片")
+                    }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = Modifier.height(360.dp),
+                    modifier = Modifier.height(300.dp),
                     contentPadding = PaddingValues(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -520,9 +581,35 @@ private fun BackgroundPickerDialog(
                         )
                     }
                 }
+
+                Text(
+                    text = "背景模糊强度",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Slider(
+                        value = blurDragValue,
+                        onValueChange = { blurDragValue = it },
+                        onValueChangeFinished = { onBlurRadiusChange(blurDragValue) },
+                        valueRange = 0f..100f,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = blurDragValue.roundToInt().toString(),
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
             }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
         }
-    }
+    )
 }
 
 @Composable

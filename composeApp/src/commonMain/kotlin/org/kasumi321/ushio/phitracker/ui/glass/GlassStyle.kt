@@ -31,8 +31,8 @@ private const val STRENGTH_REGULAR_MAX = 1.375f
 
 private val GlassBlurRadius = 24.dp
 
-/** Frosted grain level; Haze's own default is 0.15f, we triple it for a more matte look. */
-private const val GLASS_NOISE_FACTOR = 0.45f
+/** Frosted grain level; Haze's own default is 0.15f, we double it for a more matte look. */
+private const val GLASS_NOISE_FACTOR = 0.3f
 
 /**
  * Material-like glass tier: an opaque themed background plus a tint derived

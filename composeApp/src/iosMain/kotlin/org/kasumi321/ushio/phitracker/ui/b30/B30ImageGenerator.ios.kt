@@ -81,7 +81,7 @@ actual object B30ImageGenerator {
         try {
             val backgroundBitmap = exportData.backgroundUri?.let { uri ->
                 withContext(Dispatchers.Default) {
-                    loadAndBlurBackground(uri)?.toComposeImageBitmap()
+                    loadAndBlurBackground(uri, exportData.backgroundBlurRadius)?.toComposeImageBitmap()
                 }
             }
             val renderData = if (backgroundBitmap != null) {
@@ -246,7 +246,7 @@ actual object B30ImageGenerator {
         return h.toDouble().coerceAtLeast(1.0)
     }
 
-    private suspend fun loadAndBlurBackground(uri: String): SkiaImage? {
+    private suspend fun loadAndBlurBackground(uri: String, blurRadius: Int): SkiaImage? {
         val original = loadSkiaImage(uri) ?: return null
         val maxDim = MAX_BLUR_BITMAP_DIM
         val scale = if (maxOf(original.width, original.height) <= maxDim) {
@@ -263,8 +263,12 @@ actual object B30ImageGenerator {
         }
         downSurface.canvas.drawImage(original, 0f, 0f)
         val downscaled = downSurface.makeImageSnapshot()
+        if (blurRadius <= 0) return downscaled
 
-        val blurFilter = ImageFilter.makeBlur(15f, 15f, FilterTileMode.CLAMP, null)
+        // Gaussian sigma scaled to match the Android StackBlur radius
+        // (Android radius 50 corresponds to the previous fixed sigma 15).
+        val sigma = blurRadius * 0.3f
+        val blurFilter = ImageFilter.makeBlur(sigma, sigma, FilterTileMode.CLAMP, null)
         val blurPaint = Paint().apply {
             imageFilter = blurFilter
             isAntiAlias = true

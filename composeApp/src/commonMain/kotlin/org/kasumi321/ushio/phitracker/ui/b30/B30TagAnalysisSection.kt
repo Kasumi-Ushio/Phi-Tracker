@@ -22,11 +22,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
@@ -47,14 +49,22 @@ fun TagRadarChart(
     averageRks: Float,
     modifier: Modifier = Modifier,
     lineColor: Color = MaterialTheme.colorScheme.primary,
-    labelStyle: TextStyle = MaterialTheme.typography.labelSmall
+    // lineHeight must shrink along with fontSize: keeping labelSmall's 16sp
+    // line height would leave several sp of invisible padding inside every
+    // measured label and break the vertical rhythm of the name/score stack.
+    labelStyle: TextStyle = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp, lineHeight = 12.sp)
 ) {
     if (categories.isEmpty()) return
     val textMeasurer = rememberTextMeasurer()
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val gridColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+    val density = LocalDensity.current
 
     Canvas(modifier = modifier) {
+        // dp-based strokes so the export render at B30ExportSpec.DENSITY and
+        // the on-screen tab keep the same relative line weight.
+        val hairline = with(density) { 0.4.dp.toPx() }
+        val outline = with(density) { 1.dp.toPx() }
         val count = categories.size
         val center = Offset(size.width / 2f, size.height / 2f)
         val radius = min(size.width, size.height) / 2f * 0.72f
@@ -78,21 +88,26 @@ fun TagRadarChart(
                 }
                 close()
             }
-            drawPath(path, color = gridColor, style = Stroke(width = 1f))
+            drawPath(path, color = gridColor, style = Stroke(width = hairline))
         }
 
         // Axes, category labels and per-category scores
         categories.forEachIndexed { index, category ->
             val tip = vertexAt(index, 1f)
-            drawLine(color = gridColor, start = center, end = tip, strokeWidth = 1f)
+            drawLine(color = gridColor, start = center, end = tip, strokeWidth = hairline)
             val labelPos = vertexAt(index, 1.18f)
             val nameLayout = textMeasurer.measure(category.name, style = labelStyle.copy(color = labelColor))
             val scoreLayout = textMeasurer.measure(
                 "%.2f".format(category.rks),
                 style = labelStyle.copy(color = labelColor)
             )
-            val stackHeight = nameLayout.size.height + scoreLayout.size.height
-            val nameTop = labelPos.y - stackHeight / 2f
+            val labelGap = with(density) { 2.dp.toPx() }
+            val stackHeight = nameLayout.size.height + labelGap + scoreLayout.size.height
+            // Clamp the stack as a whole, then place the score relative to the
+            // clamped name top: clamping both texts independently would squash
+            // the name/score gap for labels near the canvas edges.
+            val stackTop = (labelPos.y - stackHeight / 2f)
+                .coerceIn(0f, (size.height - stackHeight).coerceAtLeast(0f))
             // In the export card the canvas can be narrower than a measured
             // label; coerceIn throws when max < min, so clamp the upper bound.
             fun clampedX(left: Float, width: Int): Float =
@@ -101,14 +116,15 @@ fun TagRadarChart(
                 nameLayout,
                 topLeft = Offset(
                     x = clampedX(labelPos.x - nameLayout.size.width / 2f, nameLayout.size.width),
-                    y = nameTop.coerceIn(0f, (size.height - stackHeight).coerceAtLeast(0f))
+                    y = stackTop
                 )
             )
             drawText(
                 scoreLayout,
                 topLeft = Offset(
                     x = clampedX(labelPos.x - scoreLayout.size.width / 2f, scoreLayout.size.width),
-                    y = (nameTop + nameLayout.size.height).coerceIn(0f, (size.height - scoreLayout.size.height).coerceAtLeast(0f))
+                    y = (stackTop + nameLayout.size.height + labelGap)
+                        .coerceIn(0f, (size.height - scoreLayout.size.height).coerceAtLeast(0f))
                 )
             )
         }
@@ -123,7 +139,7 @@ fun TagRadarChart(
             close()
         }
         drawPath(dataPath, color = lineColor.copy(alpha = 0.25f))
-        drawPath(dataPath, color = lineColor, style = Stroke(width = 2.5f))
+        drawPath(dataPath, color = lineColor, style = Stroke(width = outline))
     }
 }
 
@@ -133,7 +149,7 @@ fun B30TagStrongWeakColumns(
     analysis: B30TagAnalysis,
     modifier: Modifier = Modifier
 ) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(14.4.dp)) {
         TagScoreColumn(
             title = "擅长",
             titleColor = MaterialTheme.colorScheme.primary,

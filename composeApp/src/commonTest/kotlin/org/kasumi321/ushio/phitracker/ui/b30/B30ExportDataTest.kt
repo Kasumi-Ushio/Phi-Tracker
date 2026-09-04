@@ -503,13 +503,16 @@ class B30ExportSpecTest {
 
     @Test
     fun specConstantsMatchBeta5Baseline() {
-        assertEquals(2400, B30ExportSpec.WIDTH_PX)
-        assertEquals(2.6666667f, B30ExportSpec.DENSITY)
+        assertEquals(3600, B30ExportSpec.WIDTH_PX)
+        assertEquals(4f, B30ExportSpec.DENSITY)
         assertEquals(1f, B30ExportSpec.FONT_SCALE)
         assertEquals(16f, B30ExportSpec.PAGE_PADDING_DP)
         assertEquals(9.6f, B30ExportSpec.CARD_GAP_DP)
         assertEquals(4f, B30ExportSpec.CARD_ASPECT)
         assertEquals(100f, B30ExportSpec.HEADER_HEIGHT_DP)
+        // The resolution bump must keep the beta5 dp canvas geometry: the
+        // new pair rasterizes the same 900 dp width at 1.5x density.
+        assertEquals(900f, B30ExportSpec.WIDTH_PX / B30ExportSpec.DENSITY)
     }
 
     @Test
@@ -568,8 +571,8 @@ class B30ExportSpecTest {
         // This prevents accidental visual drift in platform renderers.
         val d = B30ExportSpec.DENSITY
         val eps = 0.05f // epsilon for floating-point comparison at px scale
-        assertEquals(80f, B30ExportSpec.sectionTitleHeightDp * d, eps)
-        assertEquals(80f, B30ExportSpec.footerHeightDp * d, eps)
-        assertEquals(30f, B30ExportSpec.footerTextOffsetDp * d, eps)
+        assertEquals(120f, B30ExportSpec.sectionTitleHeightDp * d, eps)
+        assertEquals(120f, B30ExportSpec.footerHeightDp * d, eps)
+        assertEquals(45f, B30ExportSpec.footerTextOffsetDp * d, eps)
     }
 }

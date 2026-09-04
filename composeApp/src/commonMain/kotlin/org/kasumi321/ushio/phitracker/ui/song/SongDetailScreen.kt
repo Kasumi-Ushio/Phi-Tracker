@@ -40,7 +40,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -264,31 +264,11 @@ fun SongDetailScreen(
             }
 
             if (availableDifficulties.isNotEmpty()) {
-                TabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    modifier = Modifier.fillMaxWidth(),
-                    indicator = { positions ->
-                        SpringPagerIndicator(
-                            pagerState = pagerState,
-                            positions = positions
-                        )
-                    }
-                ) {
-                    val scope = rememberCoroutineScope()
-                    availableDifficulties.forEachIndexed { index, diff ->
-                        Tab(
-                            selected = pagerState.currentPage == index,
-                            onClick = {
-                                scope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            },
-                            text = {
-                                Text(text = "${diff.name} ${songInfo.difficulties[diff] ?: ""}")
-                            }
-                        )
-                    }
-                }
+                DifficultyTabRow(
+                    pagerState = pagerState,
+                    availableDifficulties = availableDifficulties,
+                    difficulties = songInfo.difficulties
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -880,9 +860,12 @@ private fun ChartTagVoteSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            // Constrain the scroll area to the remaining sheet height so the
+            // submit button below stays visible even with many tag categories.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -943,6 +926,40 @@ private fun ChartTagVoteSheet(
                 }
                 Text(if (state.voteSubmitting) "提交中..." else "提交投票")
             }
+        }
+    }
+}
+
+/**
+ * Difficulty tabs above the score pager, with a spring-animated indicator
+ * that interpolates across tab positions while swiping.
+ */
+@Composable
+private fun DifficultyTabRow(
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    availableDifficulties: List<Difficulty>,
+    difficulties: Map<Difficulty, Float>
+) {
+    PrimaryTabRow(
+        selectedTabIndex = pagerState.currentPage,
+        modifier = Modifier.fillMaxWidth(),
+        indicator = {
+            SpringPagerIndicator(pagerState = pagerState)
+        }
+    ) {
+        val scope = rememberCoroutineScope()
+        availableDifficulties.forEachIndexed { index, diff ->
+            Tab(
+                selected = pagerState.currentPage == index,
+                onClick = {
+                    scope.launch {
+                        pagerState.animateScrollToPage(index)
+                    }
+                },
+                text = {
+                    Text(text = "${diff.name} ${difficulties[diff] ?: ""}")
+                }
+            )
         }
     }
 }

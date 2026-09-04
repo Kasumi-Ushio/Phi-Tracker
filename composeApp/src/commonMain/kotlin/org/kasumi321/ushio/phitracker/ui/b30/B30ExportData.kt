@@ -34,6 +34,8 @@ data class B30ExportData(
     val overflowRecords: List<ExportCardData>,
     val backgroundUri: String?,
     val backgroundBitmap: ImageBitmap? = null,
+    /** StackBlur radius (px) applied to [backgroundUri] by the platform generator. */
+    val backgroundBlurRadius: Int = 50,
     val darkTheme: Boolean = false,
     val isAmoled: Boolean = false,
     val themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings(),
@@ -56,6 +58,8 @@ object B30ExportDataBuilder {
      * @param phiCount phi (AP) count
      * @param avatarUri optional avatar URI
      * @param backgroundUri optional background URI
+     * @param backgroundBlurRadius StackBlur radius (px) for the background, applied
+     *   by the platform generator
      * @param dateText formatted export time string
      */
     fun build(
@@ -72,6 +76,7 @@ object B30ExportDataBuilder {
         phiCount: Int,
         avatarUri: String?,
         backgroundUri: String?,
+        backgroundBlurRadius: Int = 50,
         dateText: String,
         darkTheme: Boolean = false,
         isAmoled: Boolean = false,
@@ -111,6 +116,7 @@ object B30ExportDataBuilder {
             bestRecords = bestCards,
             overflowRecords = overflowCards,
             backgroundUri = backgroundUri,
+            backgroundBlurRadius = backgroundBlurRadius,
             darkTheme = darkTheme,
             isAmoled = isAmoled,
             themeSettings = themeSettings,
