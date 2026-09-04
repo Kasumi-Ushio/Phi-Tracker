@@ -239,6 +239,9 @@ actual object B30ImageGenerator {
         if (data.overflowRecords.isNotEmpty()) {
             h += 8f + sectionTitle + 6f + gridHeight(data.overflowRecords.size)
         }
+        if (data.tagAnalysis != null) {
+            h += 8f + sectionTitle + B30ExportSpec.tagSectionGapDp + B30ExportSpec.tagSectionHeightDp
+        }
         h += 8f + B30ExportSpec.footerHeightDp + pagePadding
         return h.toDouble().coerceAtLeast(1.0)
     }

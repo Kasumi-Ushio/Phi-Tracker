@@ -117,4 +117,28 @@ object B30ExportSpec {
      */
     val footerTextOffsetDp: Float
         get() = 11.25f
+
+    /**
+     * Height of the chart-tag section in the export image, in dp.
+     *
+     * Matches the fixed height of the two tag cards (radar chart and
+     * strong/weak ranking) in [B30ExportLayout]'s tag section, so platform
+     * renderers that pre-compute the canvas height can reserve the same
+     * space the shared layout actually occupies.
+     *
+     * Authoritative value: **190 dp**.
+     */
+    val tagSectionHeightDp: Float
+        get() = 190f
+
+    /**
+     * Vertical gap between the tag section title and the tag cards, in dp.
+     *
+     * Matches the 6 dp spacing [B30ExportLayout] puts below every section
+     * title, so the pre-computed export height matches the shared layout.
+     *
+     * Authoritative value: **6 dp**.
+     */
+    val tagSectionGapDp: Float
+        get() = 6f
 }

@@ -242,6 +242,7 @@ fun PhiTrackerNavHost() {
                 showB30Overflow = payload.showB30Overflow,
                 overflowCount = payload.overflowCount,
                 themeSettings = payload.themeSettings,
+                tagAnalysis = payload.tagAnalysis,
                 getLowIllustrationUrl = illustrationResolver::lowUri,
                 getStandardIllustrationUrl = illustrationResolver::standardUri,
                 onBack = b30Navigation::toolbarBack

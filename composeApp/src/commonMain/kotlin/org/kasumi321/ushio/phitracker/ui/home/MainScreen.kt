@@ -234,7 +234,8 @@ fun MainScreen(
                 avatarUri = state.profile.avatarUri,
                 showB30Overflow = state.b30.showB30Overflow,
                 overflowCount = state.b30.overflowCount,
-                themeSettings = state.b30.themeSettings
+                themeSettings = state.b30.themeSettings,
+                tagAnalysis = state.b30.tagAnalysis.analysis
             )
         )
     }

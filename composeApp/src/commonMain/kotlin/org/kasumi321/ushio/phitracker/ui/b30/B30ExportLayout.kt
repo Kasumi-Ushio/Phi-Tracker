@@ -12,9 +12,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -160,6 +164,72 @@ internal fun B30ExportLayout(
                 )
             }
 
+            data.tagAnalysis?.let { analysis ->
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionTitle("谱面标签统计")
+                Spacer(modifier = Modifier.height(B30ExportSpec.tagSectionGapDp.dp))
+                if (analysis.insufficient) {
+                    // Not enough community votes yet: keep the section but
+                    // nudge readers toward voting instead of showing charts.
+                    TagSectionCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(B30ExportSpec.tagSectionHeightDp.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "标签数据不足，统计结果仅供参考。欢迎到曲目详情为谱面投票，帮助完善社区标签。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        TagSectionCard(
+                            modifier = Modifier
+                                .width(B30ExportSpec.cardWidthDp.dp)
+                                .height(B30ExportSpec.tagSectionHeightDp.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                TagRadarChart(
+                                    categories = analysis.categories,
+                                    averageRks = analysis.averageRks,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                        TagSectionCard(
+                            modifier = Modifier
+                                .width(B30ExportSpec.cardWidthDp.dp)
+                                .height(B30ExportSpec.tagSectionHeightDp.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                B30TagStrongWeakColumns(
+                                    analysis = analysis,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -241,4 +311,21 @@ private fun SectionTitle(text: String) {
         textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth()
     )
+}
+
+/** Card shell for the chart-tag section, matching the header card styling. */
+@Composable
+private fun TagSectionCard(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        content()
+    }
 }

@@ -79,6 +79,7 @@ import org.kasumi321.ushio.phitracker.data.platform.rememberB30BackgroundPicker
 import org.kasumi321.ushio.phitracker.data.platform.saveB30ImageToPictures
 import org.kasumi321.ushio.phitracker.data.platform.shareB30Image
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
+import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.ui.glass.GlassBottomBar
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
@@ -102,6 +103,7 @@ fun B30ImageScreen(
     showB30Overflow: Boolean = false,
     overflowCount: Int = 9,
     themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings(),
+    tagAnalysis: B30TagAnalysis? = null,
     getLowIllustrationUrl: (String) -> String? = { null },
     getStandardIllustrationUrl: (String) -> String = { "" },
     onBack: () -> Unit
@@ -141,7 +143,7 @@ fun B30ImageScreen(
         clearCounts, fcCount, phiCount, avatarUri,
         showB30Overflow, overflowCount, getLowIllustrationUrl,
         getStandardIllustrationUrl, backgroundMode, customBackgroundUri,
-        exportDarkTheme, exportAmoled, themeSettings
+        exportDarkTheme, exportAmoled, themeSettings, tagAnalysis
     ) {
         val dateText = runCatching {
             val now = Clock.System.now()
@@ -173,7 +175,8 @@ fun B30ImageScreen(
                 dateText = dateText,
                 darkTheme = exportDarkTheme,
                 isAmoled = exportAmoled,
-                themeSettings = themeSettings
+                themeSettings = themeSettings,
+                tagAnalysis = tagAnalysis
             ),
             standardIllustrationProvider = getStandardIllustrationUrl
         )
@@ -195,7 +198,8 @@ fun B30ImageScreen(
             dateText = dateText,
             darkTheme = exportDarkTheme,
             isAmoled = exportAmoled,
-            themeSettings = themeSettings
+            themeSettings = themeSettings,
+            tagAnalysis = tagAnalysis
         )
     }
 
