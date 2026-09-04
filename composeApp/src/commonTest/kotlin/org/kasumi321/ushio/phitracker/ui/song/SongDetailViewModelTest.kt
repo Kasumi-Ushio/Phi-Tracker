@@ -12,9 +12,14 @@ import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.data.platform.NoOpStandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagVoteCount
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongApiDetail
 import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
+import org.kasumi321.ushio.phitracker.domain.usecase.GetChartTagsUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.ui.settings.FakePhigrosRepository
 import org.kasumi321.ushio.phitracker.ui.settings.FakeSettingsRepository
@@ -231,7 +236,194 @@ class SongDetailViewModelTest {
         repository = repository,
         settingsRepository = settingsRepository,
         songDataProvider = SongDataProvider(assetReader = TestAssets),
-        illustrationUriResolver = illustrationUriResolver
+        illustrationUriResolver = illustrationUriResolver,
+        getChartTagsUseCase = GetChartTagsUseCase(repository),
+        voteChartTagsUseCase = VoteChartTagsUseCase(repository)
+    )
+
+    @Test
+    fun loadsChartTagsWithVotedTagsForDisplayAndFullSkeletonForPicker() = runTest(dispatcher) {
+        // Given
+        val settings = apiSettings()
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.success(chartTagTreeFixture())
+            chartTagData = Result.success(chartTagDataFixture())
+            myChartTagVotes = Result.success(setOf("连打"))
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When
+        viewModel.loadChartTags(Difficulty.IN)
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.getChartTagState(Difficulty.IN)
+        assertFalse(state.isLoading)
+        assertNull(state.error)
+        assertEquals(
+            listOf(
+                ChartTagVoteCount(
+                    name = "高速", votes = 12, primaryVotes = 8, secondaryVotes = 4
+                ),
+                ChartTagVoteCount(
+                    name = "连打", votes = 3, primaryVotes = 0, secondaryVotes = 3, isMine = true
+                )
+            ),
+            state.categories.single { it.name == "配置" }.tags
+        )
+        assertEquals(
+            listOf("高速", "连打", "多指"),
+            state.allCategories.flatMap { category -> category.tags.map { it.name } }
+        )
+        assertEquals(
+            listOf("song-a.0" to Difficulty.IN),
+            repository.chartTagDataRequests
+        )
+        assertEquals(
+            listOf(listOf("song-a.0", "IN", "taptap", "player-id", "api-user", "token-1")),
+            repository.myChartTagVoteRequests
+        )
+    }
+
+    @Test
+    fun loadChartTagsSkipsUserVotesWhenIdentityIsIncomplete() = runTest(dispatcher) {
+        // Given
+        val settings = FakeSettingsRepository().apply { setApiEnabled(true) }
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.success(chartTagTreeFixture())
+            chartTagData = Result.success(chartTagDataFixture())
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When
+        viewModel.loadChartTags(Difficulty.IN)
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.getChartTagState(Difficulty.IN)
+        assertFalse(state.isLoading)
+        assertEquals(listOf("高速", "连打"), state.categories.single { it.name == "配置" }.tags.map { it.name })
+        assertTrue(state.categories.single { it.name == "配置" }.tags.none { it.isMine })
+        assertTrue(repository.myChartTagVoteRequests.isEmpty())
+    }
+
+    @Test
+    fun loadChartTagsFailureExposesRetryableError() = runTest(dispatcher) {
+        // Given
+        val settings = apiSettings()
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.failure(IllegalStateException("boom"))
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When
+        viewModel.loadChartTags(Difficulty.IN)
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.getChartTagState(Difficulty.IN)
+        assertFalse(state.isLoading)
+        assertEquals("标签数据获取失败，请稍后重试", state.error)
+        assertTrue(state.categories.isEmpty())
+    }
+
+    @Test
+    fun voteSubmissionWithoutApiTokenFailsFastWithoutSendingRequest() = runTest(dispatcher) {
+        // Given
+        val settings = apiSettings(apiToken = "")
+        val repository = FakePhigrosRepository()
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When
+        viewModel.submitChartTagVote(Difficulty.IN, listOf("高速"), emptyList())
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.getChartTagState(Difficulty.IN)
+        assertFalse(state.voteSubmitting)
+        assertTrue(state.voteError.orEmpty().contains("API Token"))
+        assertTrue(repository.voteChartTagRequests.isEmpty())
+    }
+
+    @Test
+    fun successfulVoteReloadsTagsAndMarksVoteSucceeded() = runTest(dispatcher) {
+        // Given
+        val settings = apiSettings(apiToken = "token-1")
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.success(chartTagTreeFixture())
+            chartTagData = Result.success(chartTagDataFixture())
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When
+        viewModel.submitChartTagVote(Difficulty.IN, listOf("高速"), listOf("多指"))
+        advanceUntilIdle()
+
+        // Then
+        val request = repository.voteChartTagRequests.single()
+        assertEquals("song-a.0", request.songId)
+        assertEquals(Difficulty.IN, request.difficulty)
+        assertEquals(listOf("高速"), request.primaryTags)
+        assertEquals(listOf("多指"), request.secondaryTags)
+        assertEquals("taptap", request.platform)
+        assertEquals("player-id", request.platformId)
+        assertEquals("api-user", request.apiUserId)
+        assertEquals("token-1", request.apiToken)
+        val state = viewModel.getChartTagState(Difficulty.IN)
+        assertFalse(state.voteSubmitting)
+        assertNull(state.voteError)
+        assertTrue(state.voteSucceeded)
+        assertEquals(listOf("高速", "连打"), state.categories.single { it.name == "配置" }.tags.map { it.name })
+    }
+
+    private suspend fun apiSettings(apiToken: String = "token-1") = FakeSettingsRepository().apply {
+        setApiEnabled(true)
+        setApiId("api-user")
+        setApiPlatform("taptap")
+        setApiPlatformId("player-id")
+        setApiToken(apiToken)
+    }
+
+    private fun chartTagTreeFixture() = listOf(
+        ChartTagTreeNode(
+            id = 1L,
+            name = "配置",
+            description = "谱面配置特征",
+            sortOrder = 0,
+            children = listOf(
+                ChartTagTreeNode(
+                    id = 11L, name = "高速", description = null, sortOrder = 0
+                ),
+                ChartTagTreeNode(
+                    id = 12L, name = "连打", description = null, sortOrder = 1
+                )
+            )
+        ),
+        ChartTagTreeNode(
+            id = 2L,
+            name = "手法",
+            description = null,
+            sortOrder = 1,
+            children = listOf(
+                ChartTagTreeNode(
+                    id = 21L, name = "多指", description = null, sortOrder = 0
+                )
+            )
+        )
+    )
+
+    private fun chartTagDataFixture() = ChartTagSongData(
+        songId = "song-a.0",
+        difficulty = Difficulty.IN,
+        tags = mapOf("高速" to 12, "连打" to 3),
+        primary = mapOf("高速" to 8),
+        secondary = mapOf("高速" to 4, "连打" to 3),
+        categories = emptyList()
     )
 
     private class RouteArtworkCache(

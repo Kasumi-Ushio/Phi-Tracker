@@ -12,13 +12,17 @@ import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.domain.model.ApiDetailCacheKey
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagCategoryDisplay
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongApiDetail
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
+import org.kasumi321.ushio.phitracker.domain.usecase.ChartTagApiIdentity
+import org.kasumi321.ushio.phitracker.domain.usecase.GetChartTagsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
+import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
 
 data class SongApiDetailState(
     val isLoading: Boolean = false,
@@ -28,6 +32,16 @@ data class SongApiDetailState(
     val avgAcc: Float? = null,
     val avgAccCount: Int? = null,
     val history: List<SongSyncHistoryEntry> = emptyList()
+)
+
+data class ChartTagUiState(
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val categories: List<ChartTagCategoryDisplay> = emptyList(),
+    val allCategories: List<ChartTagCategoryDisplay> = emptyList(),
+    val voteSubmitting: Boolean = false,
+    val voteError: String? = null,
+    val voteSucceeded: Boolean = false
 )
 
 data class SongDetailUiState(
@@ -42,7 +56,9 @@ data class SongDetailUiState(
     val apiUserId: String = "",
     val apiPlatform: String = "",
     val apiPlatformId: String = "",
+    val apiToken: String = "",
     val apiDetails: Map<Difficulty, SongApiDetailState> = emptyMap(),
+    val chartTags: Map<Difficulty, ChartTagUiState> = emptyMap(),
     val lowIllustrationUrl: String? = null,
     val standardIllustrationUrl: String? = null,
     val initialDifficulty: Difficulty? = null
@@ -54,7 +70,9 @@ class SongDetailViewModel(
     private val repository: PhigrosRepository,
     private val settingsRepository: SettingsRepository,
     private val songDataProvider: SongDataProvider,
-    private val illustrationUriResolver: IllustrationUriResolver
+    private val illustrationUriResolver: IllustrationUriResolver,
+    private val getChartTagsUseCase: GetChartTagsUseCase,
+    private val voteChartTagsUseCase: VoteChartTagsUseCase
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(SongDetailUiState(initialDifficulty = initialDifficulty))
     val uiState: StateFlow<SongDetailUiState> = mutableUiState.asStateFlow()
@@ -65,6 +83,100 @@ class SongDetailViewModel(
 
     fun getSongApiDetail(difficulty: Difficulty): SongApiDetailState =
         uiState.value.apiDetails[difficulty] ?: SongApiDetailState()
+
+    fun getChartTagState(difficulty: Difficulty): ChartTagUiState =
+        uiState.value.chartTags[difficulty] ?: ChartTagUiState()
+
+    fun loadChartTags(difficulty: Difficulty, markVoteSucceeded: Boolean = false) {
+        val state = uiState.value
+        if (!state.apiEnabled || state.songInfo == null) return
+        updateChartTags(difficulty) {
+            (it ?: ChartTagUiState()).copy(isLoading = true, error = null, voteSucceeded = markVoteSucceeded)
+        }
+        viewModelScope.launch {
+            val identity = ChartTagApiIdentity(
+                platform = state.apiPlatform.trim(),
+                platformId = state.apiPlatformId.trim(),
+                apiUserId = state.apiUserId.trim(),
+                apiToken = state.apiToken.trim()
+            )
+            val result = getChartTagsUseCase(songId, difficulty, identity.takeIf { it.isComplete })
+            if (uiState.value.chartTags[difficulty]?.isLoading != true) return@launch
+            mutableUiState.update { current ->
+                current.copy(
+                    chartTags = current.chartTags + (
+                        difficulty to result.fold(
+                            onSuccess = { data ->
+                                ChartTagUiState(
+                                    categories = data.display,
+                                    allCategories = data.all,
+                                    voteSucceeded = markVoteSucceeded
+                                )
+                            },
+                            onFailure = {
+                                ChartTagUiState(
+                                    isLoading = false,
+                                    error = "标签数据获取失败，请稍后重试"
+                                )
+                            }
+                        )
+                        )
+                )
+            }
+        }
+    }
+
+    fun submitChartTagVote(difficulty: Difficulty, primaryTags: List<String>, secondaryTags: List<String>) {
+        val state = uiState.value
+        val token = state.apiToken.trim()
+        updateChartTags(difficulty) {
+            (it ?: ChartTagUiState()).copy(
+                voteSubmitting = true,
+                voteError = null,
+                voteSucceeded = false
+            )
+        }
+        if (token.isEmpty()) {
+            updateChartTags(difficulty) {
+                (it ?: ChartTagUiState()).copy(
+                    voteSubmitting = false,
+                    voteError = "缺少 API Token：请先在设置页填写（向任意 Phi-Plugin 机器人发送 /setApiToken <自定义Token> 设置），我们不会上传你的 sessionToken。"
+                )
+            }
+            return
+        }
+        viewModelScope.launch {
+            val result = voteChartTagsUseCase(
+                songId = songId,
+                difficulty = difficulty,
+                primaryTags = primaryTags,
+                secondaryTags = secondaryTags,
+                identity = ChartTagApiIdentity(
+                    platform = state.apiPlatform.trim(),
+                    platformId = state.apiPlatformId.trim(),
+                    apiUserId = state.apiUserId.trim(),
+                    apiToken = token
+                )
+            )
+            result.fold(
+                onSuccess = { loadChartTags(difficulty, markVoteSucceeded = true) },
+                onFailure = { error ->
+                    updateChartTags(difficulty) {
+                        (it ?: ChartTagUiState()).copy(
+                            voteSubmitting = false,
+                            voteError = error.message ?: "投票失败，请稍后重试"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    private fun updateChartTags(difficulty: Difficulty, transform: (ChartTagUiState?) -> ChartTagUiState) {
+        mutableUiState.update { state ->
+            state.copy(chartTags = state.chartTags + (difficulty to transform(state.chartTags[difficulty])))
+        }
+    }
 
     fun loadSongApiDetail(difficulty: Difficulty) {
         val key = currentApiKey(difficulty) ?: return
@@ -140,30 +252,37 @@ class SongDetailViewModel(
             }
             launch {
                 combine(
-                    settingsRepository.apiEnabled,
-                    settingsRepository.useApiData,
-                    settingsRepository.apiId,
-                    settingsRepository.apiPlatform,
-                    settingsRepository.apiPlatformId
-                ) { enabled, useData, apiUserId, platform, platformId ->
-                    ApiSettings(enabled, useData, apiUserId, platform, platformId)
-                }.collect { settings ->
+                    combine(
+                        settingsRepository.apiEnabled,
+                        settingsRepository.useApiData,
+                        settingsRepository.apiId,
+                        settingsRepository.apiPlatform,
+                        settingsRepository.apiPlatformId
+                    ) { enabled, useData, apiUserId, platform, platformId ->
+                        ApiSettings(enabled, useData, apiUserId, platform, platformId, apiToken = "")
+                    },
+                    settingsRepository.apiToken
+                ) { settings, apiToken -> settings.copy(apiToken = apiToken) }
+                    .collect { settings ->
                     mutableUiState.update {
                         val identityChanged =
                             it.apiUserId.trim() != settings.apiUserId.trim() ||
                             it.apiPlatform.trim() != settings.platform.trim() ||
                                 it.apiPlatformId.trim() != settings.platformId.trim()
+                        val apiOff = !(
+                            settings.enabled && settings.useData &&
+                                settings.apiUserId.isNotBlank() &&
+                                settings.platform.isNotBlank() && settings.platformId.isNotBlank()
+                            )
                         it.copy(
                             apiEnabled = settings.enabled,
                             useApiData = settings.useData,
                             apiUserId = settings.apiUserId,
                             apiPlatform = settings.platform,
                             apiPlatformId = settings.platformId,
-                            apiDetails = if (identityChanged || !(
-                                settings.enabled && settings.useData &&
-                                settings.apiUserId.isNotBlank() &&
-                                settings.platform.isNotBlank() && settings.platformId.isNotBlank()
-                            )) emptyMap() else it.apiDetails
+                            apiToken = settings.apiToken,
+                            apiDetails = if (identityChanged || apiOff) emptyMap() else it.apiDetails,
+                            chartTags = if (identityChanged || !settings.enabled) emptyMap() else it.chartTags
                         )
                     }
                 }
@@ -195,7 +314,8 @@ class SongDetailViewModel(
         val useData: Boolean,
         val apiUserId: String,
         val platform: String,
-        val platformId: String
+        val platformId: String,
+        val apiToken: String
     )
 
     private fun SongApiDetail.toUiState(): SongApiDetailState = SongApiDetailState(

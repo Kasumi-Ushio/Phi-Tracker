@@ -7,6 +7,10 @@ import kotlinx.serialization.json.JsonObject
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.domain.model.B30ChartTagBatch
+import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.LevelRecord
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
@@ -125,6 +129,8 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val apiPlatform: Flow<String> = platformState
     private val platformIdState = MutableStateFlow("")
     override val apiPlatformId: Flow<String> = platformIdState
+    private val apiTokenState = MutableStateFlow("")
+    override val apiToken: Flow<String> = apiTokenState
     private val guideState = MutableStateFlow(false)
     override val crashNotificationGuideShown: Flow<Boolean> = guideState
     override val avatarUri: Flow<String?> = flowOf(null)
@@ -150,6 +156,7 @@ internal class FakeSettingsRepository : SettingsRepository {
     override suspend fun setApiId(apiId: String) { apiIdState.value = apiId.trim() }
     override suspend fun setApiPlatform(platform: String) { platformState.value = platform.trim() }
     override suspend fun setApiPlatformId(platformId: String) { platformIdState.value = platformId.trim() }
+    override suspend fun setApiToken(apiToken: String) { apiTokenState.value = apiToken.trim() }
     override suspend fun setCrashNotificationGuideShown(shown: Boolean) { guideState.value = shown }
 }
 
@@ -162,6 +169,13 @@ internal class FakePhigrosRepository : PhigrosRepository {
     var release: Result<ReleaseInfo> = Result.failure(IllegalStateException("not configured"))
     var apiStatus: Result<JsonObject> = Result.failure(IllegalStateException("not configured"))
     var bind: Result<JsonObject> = Result.failure(IllegalStateException("not configured"))
+    var chartTagTree: Result<List<ChartTagTreeNode>> = Result.failure(IllegalStateException("not configured"))
+    var chartTagData: Result<ChartTagSongData> = Result.failure(IllegalStateException("not configured"))
+    var chartTagDataRequests = mutableListOf<Pair<String, Difficulty>>()
+    var myChartTagVotes: Result<Set<String>> = Result.success(emptySet())
+    val myChartTagVoteRequests = mutableListOf<List<String>>()
+    var voteChartTagsResult: Result<Unit> = Result.success(Unit)
+    val voteChartTagRequests = mutableListOf<ChartTagVoteRequest>()
     override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> = Result.failure(IllegalStateException())
     override suspend fun syncSave(sessionToken: String, server: Server, mode: SyncMode): Result<SyncSaveResult> = Result.failure(IllegalStateException())
     override fun getCachedSave(): Flow<Save?> = flowOf(cachedSave)
@@ -187,5 +201,54 @@ internal class FakePhigrosRepository : PhigrosRepository {
     override suspend fun apiGetSaveHistory(platform: String, platformId: String, apiUserId: String, request: List<String>): Result<JsonObject> = Result.failure(IllegalStateException())
     override suspend fun apiGetRankByUser(platform: String, platformId: String, apiUserId: String): Result<JsonObject> = bind
     override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = Result.failure(IllegalStateException())
+    override suspend fun getChartTagTree(): Result<List<ChartTagTreeNode>> = chartTagTree
+
+    override suspend fun getChartTags(songId: String, difficulty: Difficulty): Result<ChartTagSongData> {
+        chartTagDataRequests += songId to difficulty
+        return chartTagData
+    }
+
+    override suspend fun getMyChartTagVotes(
+        songId: String,
+        difficulty: Difficulty,
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        apiToken: String?
+    ): Result<Set<String>> {
+        myChartTagVoteRequests += listOf(songId, difficulty.name, platform, platformId, apiUserId, apiToken.orEmpty())
+        return myChartTagVotes
+    }
+
+    override suspend fun getB30ChartTags(records: List<BestRecord>): Result<B30ChartTagBatch> =
+        Result.failure(UnsupportedOperationException())
+
+    override suspend fun voteChartTags(
+        songId: String,
+        difficulty: Difficulty,
+        primaryTags: List<String>,
+        secondaryTags: List<String>,
+        platform: String,
+        platformId: String,
+        apiUserId: String,
+        apiToken: String
+    ): Result<Unit> {
+        voteChartTagRequests += ChartTagVoteRequest(
+            songId, difficulty, primaryTags, secondaryTags, platform, platformId, apiUserId, apiToken
+        )
+        return voteChartTagsResult
+    }
+
     override suspend fun fetchLatestRelease(includePreRelease: Boolean) = release
 }
+
+internal data class ChartTagVoteRequest(
+    val songId: String,
+    val difficulty: Difficulty,
+    val primaryTags: List<String>,
+    val secondaryTags: List<String>,
+    val platform: String,
+    val platformId: String,
+    val apiUserId: String,
+    val apiToken: String
+)

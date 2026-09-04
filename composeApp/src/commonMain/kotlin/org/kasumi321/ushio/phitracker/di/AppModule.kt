@@ -45,7 +45,9 @@ val appModule = module {
             repository = get(),
             settingsRepository = get(),
             songDataProvider = get(),
-            illustrationUriResolver = get()
+            illustrationUriResolver = get(),
+            getChartTagsUseCase = get(),
+            voteChartTagsUseCase = get()
         )
     }
     viewModel {

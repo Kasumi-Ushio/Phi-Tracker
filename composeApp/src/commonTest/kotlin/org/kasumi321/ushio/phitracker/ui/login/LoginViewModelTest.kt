@@ -25,6 +25,10 @@ import org.kasumi321.ushio.phitracker.data.platform.ApiCrypto
 import org.kasumi321.ushio.phitracker.data.repository.QrLoginRepositoryImpl
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.domain.model.B30ChartTagBatch
+import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
@@ -439,6 +443,35 @@ class LoginViewModelTest {
         override suspend fun apiGetSaveHistory(platform: String, platformId: String, apiUserId: String, request: List<String>): Result<JsonObject> = offline()
         override suspend fun apiGetRankByUser(platform: String, platformId: String, apiUserId: String): Result<JsonObject> = offline()
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> = offline()
+        override suspend fun getChartTagTree(): Result<List<ChartTagTreeNode>> =
+            Result.failure(UnsupportedOperationException())
+
+        override suspend fun getChartTags(songId: String, difficulty: Difficulty): Result<ChartTagSongData> =
+            Result.failure(UnsupportedOperationException())
+
+        override suspend fun getMyChartTagVotes(
+            songId: String,
+            difficulty: Difficulty,
+            platform: String,
+            platformId: String,
+            apiUserId: String,
+            apiToken: String?
+        ): Result<Set<String>> = Result.failure(UnsupportedOperationException())
+
+        override suspend fun getB30ChartTags(records: List<BestRecord>): Result<B30ChartTagBatch> =
+            Result.failure(UnsupportedOperationException())
+
+        override suspend fun voteChartTags(
+            songId: String,
+            difficulty: Difficulty,
+            primaryTags: List<String>,
+            secondaryTags: List<String>,
+            platform: String,
+            platformId: String,
+            apiUserId: String,
+            apiToken: String
+        ): Result<Unit> = Result.failure(UnsupportedOperationException())
+
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> = offline()
     }
 

@@ -31,6 +31,10 @@ import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.domain.model.B30ChartTagBatch
+import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
 import org.kasumi321.ushio.phitracker.domain.model.LevelRecord
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
@@ -656,6 +660,8 @@ class HomeViewModelPreloadTest {
         override suspend fun setApiPlatform(platform: String) = Unit
         override val apiPlatformId: Flow<String> = flowOf(apiPlatformId)
         override suspend fun setApiPlatformId(platformId: String) = Unit
+        override val apiToken: Flow<String> = flowOf("")
+        override suspend fun setApiToken(apiToken: String) = Unit
         override val crashNotificationGuideShown: Flow<Boolean> = flowOf(false)
         override suspend fun setCrashNotificationGuideShown(shown: Boolean) = Unit
     }
@@ -718,6 +724,35 @@ class HomeViewModelPreloadTest {
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
         override suspend fun apiGetRankByPosition(position: Int): Result<JsonObject> =
             networkResult(Result.failure(IllegalStateException("Not implemented in Phase B")))
+
+        override suspend fun getChartTagTree(): Result<List<ChartTagTreeNode>> =
+            Result.failure(UnsupportedOperationException())
+
+        override suspend fun getChartTags(songId: String, difficulty: Difficulty): Result<ChartTagSongData> =
+            Result.failure(UnsupportedOperationException())
+
+        override suspend fun getMyChartTagVotes(
+            songId: String,
+            difficulty: Difficulty,
+            platform: String,
+            platformId: String,
+            apiUserId: String,
+            apiToken: String?
+        ): Result<Set<String>> = Result.failure(UnsupportedOperationException())
+
+        override suspend fun getB30ChartTags(records: List<BestRecord>): Result<B30ChartTagBatch> =
+            Result.failure(UnsupportedOperationException())
+
+        override suspend fun voteChartTags(
+            songId: String,
+            difficulty: Difficulty,
+            primaryTags: List<String>,
+            secondaryTags: List<String>,
+            platform: String,
+            platformId: String,
+            apiUserId: String,
+            apiToken: String
+        ): Result<Unit> = Result.failure(UnsupportedOperationException())
 
         open var fetchLatestReleaseCallCount = 0
         val fetchLatestReleaseIncludePreReleaseValues = mutableListOf<Boolean>()

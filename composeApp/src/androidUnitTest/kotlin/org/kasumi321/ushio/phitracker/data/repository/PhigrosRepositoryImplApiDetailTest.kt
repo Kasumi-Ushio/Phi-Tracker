@@ -32,6 +32,8 @@ import org.kasumi321.ushio.phitracker.data.parser.SaveParser
 import org.kasumi321.ushio.phitracker.data.platform.SecureKeyValueStorage
 import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
 import org.kasumi321.ushio.phitracker.data.platform.TokenManager
+import org.kasumi321.ushio.phitracker.domain.usecase.GetChartTagsUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
 import org.kasumi321.ushio.phitracker.data.platform.NoOpStandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
@@ -428,7 +430,9 @@ class PhigrosRepositoryImplApiDetailTest {
         repository = repository,
         settingsRepository = settings,
         songDataProvider = SongDataProvider(assetReader = TestAssets),
-        illustrationUriResolver = IllustrationUriResolver(NoOpStandardArtworkCache, IllustrationProvider())
+        illustrationUriResolver = IllustrationUriResolver(NoOpStandardArtworkCache, IllustrationProvider()),
+        getChartTagsUseCase = GetChartTagsUseCase(repository),
+        voteChartTagsUseCase = VoteChartTagsUseCase(repository)
     )
 
     private fun MockRequestHandleScope.jsonResponse(body: String) = respond(

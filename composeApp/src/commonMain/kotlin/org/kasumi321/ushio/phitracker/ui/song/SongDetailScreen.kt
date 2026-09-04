@@ -6,6 +6,8 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,14 +26,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -74,6 +81,8 @@ import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagCategoryDisplay
+import org.kasumi321.ushio.phitracker.domain.model.ChartTagVoteCount
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
@@ -112,6 +121,9 @@ fun SongDetailScreen(
     apiRequestKey: String = "",
     getSongApiDetail: (Difficulty) -> SongApiDetailState = { SongApiDetailState() },
     onLoadSongApiDetail: (Difficulty) -> Unit = {},
+    getChartTags: (Difficulty) -> ChartTagUiState = { ChartTagUiState() },
+    onLoadChartTags: (Difficulty) -> Unit = {},
+    onSubmitChartTagVote: (Difficulty, List<String>, List<String>) -> Unit = { _, _, _ -> },
     getLowIllustrationUrl: (String) -> String?,
     getStandardIllustrationUrl: (String) -> String?,
     initialDifficulty: Difficulty? = null,
@@ -129,6 +141,12 @@ fun SongDetailScreen(
     LaunchedEffect(apiEnabled, useApiData, apiRequestKey, selectedDifficulty) {
         if (apiEnabled && useApiData) {
             onLoadSongApiDetail(selectedDifficulty)
+        }
+    }
+
+    LaunchedEffect(apiEnabled, apiRequestKey, selectedDifficulty) {
+        if (apiEnabled) {
+            onLoadChartTags(selectedDifficulty)
         }
     }
 
@@ -289,6 +307,8 @@ fun SongDetailScreen(
                         apiEnabled = apiEnabled,
                         useApiData = useApiData,
                         songApiDetail = getSongApiDetail(pageDifficulty),
+                        chartTagState = getChartTags(pageDifficulty),
+                        onSubmitChartTagVote = onSubmitChartTagVote,
                         syncHistory = syncHistory,
                         // Shared across pages so the info header collapse follows
                         // whichever difficulty page the user is scrolling
@@ -404,6 +424,8 @@ private fun DifficultyContent(
     apiEnabled: Boolean,
     useApiData: Boolean,
     songApiDetail: SongApiDetailState,
+    chartTagState: ChartTagUiState,
+    onSubmitChartTagVote: (Difficulty, List<String>, List<String>) -> Unit,
     syncHistory: List<SongSyncHistoryEntry>,
     modifier: Modifier = Modifier,
     scrollState: ScrollState = rememberScrollState()
@@ -570,6 +592,15 @@ private fun DifficultyContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        if (apiEnabled) {
+            ChartTagSection(
+                state = chartTagState,
+                difficulty = difficulty,
+                onSubmitVote = onSubmitChartTagVote
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         val currentHistory = if (apiEnabled && useApiData) songApiDetail.history else syncHistory
         val filteredHistory = currentHistory
             .filter { it.difficulty == difficulty.name }
@@ -687,6 +718,233 @@ private fun SyncHistoryCard(entry: SongSyncHistoryEntry) {
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ChartTagSection(
+    state: ChartTagUiState,
+    difficulty: Difficulty,
+    onSubmitVote: (Difficulty, List<String>, List<String>) -> Unit
+) {
+    var showVoteSheet by remember { mutableStateOf(false) }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "谱面标签",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                if (state.isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                }
+            }
+
+            when {
+                state.error != null -> Text(
+                    text = state.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+                state.isLoading -> Unit
+                state.categories.all { it.tags.isEmpty() } -> Text(
+                    text = "该谱面还没有标签数据，欢迎成为第一个投票的人",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                else -> state.categories.filter { it.tags.isNotEmpty() }.forEach { category ->
+                    Text(
+                        text = category.name,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        category.tags.forEach { tag -> ChartTagChip(tag) }
+                    }
+                }
+            }
+
+            if (state.voteSucceeded) {
+                Text(
+                    text = "投票成功，感谢参与！",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            OutlinedButton(
+                onClick = { showVoteSheet = true },
+                enabled = !state.isLoading && state.error == null,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("为这张谱面投票")
+            }
+        }
+    }
+
+    if (showVoteSheet) {
+        ChartTagVoteSheet(
+            state = state,
+            onDismiss = { showVoteSheet = false },
+            onSubmit = { primary, secondary ->
+                onSubmitVote(difficulty, primary, secondary)
+            }
+        )
+    }
+}
+
+@Composable
+private fun ChartTagChip(tag: ChartTagVoteCount) {
+    Surface(
+        color = if (tag.isMine) MaterialTheme.colorScheme.secondaryContainer
+        else MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = "${if (tag.isMine) "✓ " else ""}${tag.name} ${tag.votes}",
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun ChartTagVoteSheet(
+    state: ChartTagUiState,
+    onDismiss: () -> Unit,
+    onSubmit: (List<String>, List<String>) -> Unit
+) {
+    var primaryMode by remember { mutableStateOf(true) }
+    var primarySelection by remember {
+        mutableStateOf(
+            state.allCategories.flatMap { category -> category.tags.filter { it.isMine }.map { it.name } }.toSet()
+        )
+    }
+    var secondarySelection by remember { mutableStateOf(setOf<String>()) }
+
+    LaunchedEffect(state.voteSucceeded) {
+        if (state.voteSucceeded) onDismiss()
+    }
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "为这张谱面投票",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = primaryMode,
+                    onClick = { primaryMode = true },
+                    label = { Text("主要印象") }
+                )
+                FilterChip(
+                    selected = !primaryMode,
+                    onClick = { primaryMode = false },
+                    label = { Text("次要印象") }
+                )
+            }
+            Text(
+                text = "主要：最能代表这张谱面的特征；次要：次要特征。点击标签加入当前分组，再次点击已选标签可移除。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                state.allCategories.forEach { category ->
+                    Text(
+                        text = category.name,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        category.tags.forEach { tag ->
+                            val selected = tag.name in primarySelection || tag.name in secondarySelection
+                            FilterChip(
+                                selected = selected,
+                                onClick = {
+                                    if (primaryMode) {
+                                        primarySelection = if (tag.name in primarySelection) {
+                                            primarySelection - tag.name
+                                        } else {
+                                            primarySelection + tag.name
+                                        }
+                                        secondarySelection = secondarySelection - tag.name
+                                    } else {
+                                        secondarySelection = if (tag.name in secondarySelection) {
+                                            secondarySelection - tag.name
+                                        } else {
+                                            secondarySelection + tag.name
+                                        }
+                                        primarySelection = primarySelection - tag.name
+                                    }
+                                },
+                                label = { Text(tag.name) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            state.voteError?.let { error ->
+                Text(
+                    text = error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
+            Button(
+                onClick = { onSubmit(primarySelection.toList(), secondarySelection.toList()) },
+                enabled = !state.voteSubmitting && (primarySelection.isNotEmpty() || secondarySelection.isNotEmpty()),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (state.voteSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(if (state.voteSubmitting) "提交中..." else "提交投票")
+            }
         }
     }
 }
