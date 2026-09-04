@@ -51,10 +51,12 @@ import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 /**
  * Unified songs glass header: title, tip, search field and filter entry share
  * one progressive glass surface. Scrolling the list crossfades the header into
- * a single compact row: the search field shrinks and fades out while a search
- * icon fades in on the top right. Tapping the icon asks the caller to reopen
- * the search field with an expansion animation, and any further scroll
- * collapses it again. Reopening through the icon focuses the field directly.
+ * a compact block: the search field shrinks and fades out while a search icon
+ * fades in on the top right of a slim title row, with the marquee tip kept
+ * below it. Tapping the icon asks the caller to reopen the search field with
+ * an expansion animation, and any further scroll collapses it again. Only an
+ * icon-triggered reopening ([focusOnExpand]) focuses the field and raises the
+ * IME; automatic re-expansion when the list scrolls back to the top does not.
  * With reduced motion enabled the swap jumps straight to the final state.
  */
 @Composable
@@ -64,6 +66,8 @@ fun SongsHeader(
     searchQuery: String,
     activeFilterCount: Int,
     compact: Boolean,
+    focusOnExpand: Boolean,
+    onExpandFocusHandled: () -> Unit,
     onSearchChange: (String) -> Unit,
     onSearchExpandRequest: () -> Unit,
     onOpenFilter: () -> Unit,
@@ -73,7 +77,14 @@ fun SongsHeader(
     val focusRequester = remember { FocusRequester() }
     var wasCompact by remember { mutableStateOf<Boolean?>(null) }
     LaunchedEffect(compact) {
-        if (wasCompact == true && !compact) focusRequester.requestFocus()
+        if (compact) {
+            // A collapse before the expansion animation settles must not leave
+            // a stale focus request armed
+            onExpandFocusHandled()
+        } else if (wasCompact == true && focusOnExpand) {
+            focusRequester.requestFocus()
+            onExpandFocusHandled()
+        }
         wasCompact = compact
     }
 
@@ -104,11 +115,25 @@ fun SongsHeader(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "全部曲目 ($songCount)",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
+                    // Title slot mirrors the other tabs' headers: the tip hugs
+                    // the title instead of sitting below the 48dp icon row
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "全部曲目 ($songCount)",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (tip.isNotBlank()) {
+                            Text(
+                                text = tip,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .basicMarquee()
+                            )
+                        }
+                    }
                     IconButton(onClick = onSearchExpandRequest) {
                         Icon(Icons.Filled.Search, contentDescription = "展开搜索")
                     }

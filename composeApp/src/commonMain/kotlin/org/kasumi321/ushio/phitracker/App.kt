@@ -37,7 +37,7 @@ fun App() {
     val imageUri by settingsRepository.themeImageUri.collectAsState(initial = null)
     val paletteStyleName by settingsRepository.paletteStyleName.collectAsState(initial = "TonalSpot")
     val hazeBlurEnabled by settingsRepository.hazeBlurEnabled.collectAsState(initial = true)
-    val hazeBlurStrength by settingsRepository.hazeBlurStrength.collectAsState(initial = 1f)
+    val hazeBlurStrength by settingsRepository.hazeBlurStrength.collectAsState(initial = 0.75f)
 
     val darkTheme = when (themeMode) {
         1 -> false

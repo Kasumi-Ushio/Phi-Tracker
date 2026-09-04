@@ -109,7 +109,7 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val overflowCount: Flow<Int> = countState
     private val hazeEnabledState = MutableStateFlow(true)
     override val hazeBlurEnabled: Flow<Boolean> = hazeEnabledState
-    private val hazeStrengthState = MutableStateFlow(1f)
+    private val hazeStrengthState = MutableStateFlow(0.75f)
     override val hazeBlurStrength: Flow<Float> = hazeStrengthState
     private val includeState = MutableStateFlow(false)
     override val includePreRelease: Flow<Boolean> = includeState
@@ -138,7 +138,7 @@ internal class FakeSettingsRepository : SettingsRepository {
     override suspend fun setShowB30Overflow(show: Boolean) { overflowState.value = show }
     override suspend fun setOverflowCount(count: Int) { countState.value = count.coerceIn(1, 30) }
     override suspend fun setHazeBlurEnabled(enabled: Boolean) { hazeEnabledState.value = enabled }
-    override suspend fun setHazeBlurStrength(strength: Float) { hazeStrengthState.value = strength.coerceIn(0.5f, 2f) }
+    override suspend fun setHazeBlurStrength(strength: Float) { hazeStrengthState.value = strength.coerceIn(0.5f, 1.5f) }
     override suspend fun getPreloadDone() = true
     override suspend fun setPreloadDone(done: Boolean) = Unit
     override suspend fun setAvatarUri(uri: String?) = Unit

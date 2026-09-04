@@ -89,7 +89,7 @@ class SettingsRepositoryImpl(
     override val hazeBlurEnabled: Flow<Boolean> = hazeBlurEnabledState.asStateFlow()
 
     private val hazeBlurStrengthState = MutableStateFlow(
-        storage.getString(KEY_HAZE_BLUR_STRENGTH)?.toFloatOrNull()?.coerceIn(0.5f, 2f) ?: 1f
+        storage.getString(KEY_HAZE_BLUR_STRENGTH)?.toFloatOrNull()?.coerceIn(0.5f, 1.5f) ?: 0.75f
     )
     override val hazeBlurStrength: Flow<Float> = hazeBlurStrengthState.asStateFlow()
 
@@ -99,7 +99,7 @@ class SettingsRepositoryImpl(
     }
 
     override suspend fun setHazeBlurStrength(strength: Float) {
-        val normalized = strength.coerceIn(0.5f, 2f)
+        val normalized = strength.coerceIn(0.5f, 1.5f)
         storage.putString(KEY_HAZE_BLUR_STRENGTH, normalized.toString())
         hazeBlurStrengthState.value = normalized
     }

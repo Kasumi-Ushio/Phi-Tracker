@@ -610,7 +610,7 @@ class HomeViewModelPreloadTest {
         override val showB30Overflow: Flow<Boolean> = flowOf(false)
         override val overflowCount: Flow<Int> = flowOf(9)
         override val hazeBlurEnabled: Flow<Boolean> = flowOf(true)
-        override val hazeBlurStrength: Flow<Float> = flowOf(1f)
+        override val hazeBlurStrength: Flow<Float> = flowOf(0.75f)
         var preloadDone = preloadDone
             private set
 

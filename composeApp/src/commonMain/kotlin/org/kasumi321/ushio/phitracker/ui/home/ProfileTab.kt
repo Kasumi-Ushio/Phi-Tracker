@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -81,6 +82,7 @@ fun ProfileTab(
     onSongClick: (String, Difficulty?) -> Unit,
     getIllustrationUrl: (String) -> String?,
     contentPadding: PaddingValues = PaddingValues(),
+    scrollState: ScrollState = rememberScrollState(),
     modifier: Modifier = Modifier
 ) {
     val nickname = state.nickname
@@ -101,7 +103,7 @@ fun ProfileTab(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(horizontal = 16.dp)
     ) {
         Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))

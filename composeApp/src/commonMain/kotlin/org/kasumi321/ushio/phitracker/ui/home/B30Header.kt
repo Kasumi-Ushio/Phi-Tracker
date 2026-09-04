@@ -28,17 +28,19 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.ui.glass.ExpandableGlassSection
+import org.kasumi321.ushio.phitracker.ui.glass.rememberCollapsingTitleStyle
 import org.kasumi321.ushio.phitracker.ui.glass.rememberExpansionArrowRotation
 
 /**
  * Collapsible B30 glass header. Replaces the former top bar plus standalone RKS
  * card with one continuous glass surface. The tip line hugs the title and stays
- * visible in both states, like the other tabs' top bars. Collapsed the header
- * keeps the page identity, the current RKS and the image generation entry;
- * expanded it also shows Best Phi and the B27 tail, preceded by a reserved gap
- * where the tip used to sit so the RKS row keeps its distance from the title.
- * The whole header toggles expansion, the arrow hit target is not limited to
- * the icon itself.
+ * visible in both states, like the other tabs' top bars, and the title shrinks
+ * to titleMedium while collapsed, matching the songs header. Collapsed the
+ * header keeps the page identity, the current RKS and the image generation
+ * entry; expanded it also shows Best Phi and the B27 tail, preceded by a
+ * reserved gap where the tip used to sit so the RKS row keeps its distance
+ * from the title. The whole header toggles expansion, the arrow hit target is
+ * not limited to the icon itself.
  */
 @Composable
 fun B30Header(
@@ -74,7 +76,7 @@ fun B30Header(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Best 30",
-                        style = MaterialTheme.typography.titleLarge
+                        style = rememberCollapsingTitleStyle(compact = !expanded)
                     )
 
                     // Collapsed keeps the most critical info inline: current RKS

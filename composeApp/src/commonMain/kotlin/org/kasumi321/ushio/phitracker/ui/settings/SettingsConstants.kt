@@ -15,7 +15,7 @@ object SettingsConstants {
     const val HAZE_STRENGTH_MIN: Float = 0.5f
 
     /** Maximum haze blur strength multiplier. */
-    const val HAZE_STRENGTH_MAX: Float = 2f
+    const val HAZE_STRENGTH_MAX: Float = 1.5f
 
     /** Number of steps between min and max at 0.25 increments. */
     const val HAZE_SLIDER_STEPS: Int = ((HAZE_STRENGTH_MAX - HAZE_STRENGTH_MIN) / 0.25f).toInt() - 1

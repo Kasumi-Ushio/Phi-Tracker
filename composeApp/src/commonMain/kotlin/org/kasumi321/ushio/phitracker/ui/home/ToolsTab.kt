@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -103,6 +104,7 @@ fun ToolsTab(
         onSuggestionClick: (String, Difficulty?) -> Unit,
         getIllustrationUrl: (String) -> String?,
         contentPadding: PaddingValues = PaddingValues(),
+        scrollState: ScrollState = rememberScrollState(),
         modifier: Modifier = Modifier
 ) {
     val syncSnapshots = if (state.apiEnabled && state.useApiData) state.apiHistorySnapshots else state.syncSnapshots
@@ -116,7 +118,6 @@ fun ToolsTab(
     val suggestTargetInput = state.suggestTargetInput
     val suggestTargetError = state.suggestTargetError
     val suggestItems = state.suggestItems
-    val scrollState = rememberScrollState()
 
     // Full-bleed scroll: content scrolls behind the floating glass bars, with
     // spacers keeping the first and last cards clear of them

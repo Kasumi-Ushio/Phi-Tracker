@@ -40,6 +40,7 @@ import org.kasumi321.ushio.phitracker.data.platform.showPlatformAlert
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
+import org.kasumi321.ushio.phitracker.ui.glass.rememberCollapsingTitleStyle
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_IMAGE
 import org.kasumi321.ushio.phitracker.ui.theme.THEME_COLOR_SOURCE_SYSTEM
@@ -60,7 +61,7 @@ fun SettingsTab(
         showB30Overflow: Boolean,
         overflowCount: Int,
         hazeBlurEnabled: Boolean = true,
-        hazeBlurStrength: Float = 1f,
+        hazeBlurStrength: Float = 0.75f,
         onThemeModeChange: (Int) -> Unit,
         onThemeColorSourceChange: (String) -> Unit = {},
         onSeedColorArgbChange: (Int) -> Unit = {},
@@ -166,6 +167,9 @@ fun SettingsTab(
     // glass top bar, same pattern as the song detail page
     val settingsHazeState = rememberHazeState()
     val settingsGlassStyle = rememberGlassHazeStyle()
+    // Hoisted so the top bar can shrink its title when the content scrolls
+    val settingsScrollState = rememberScrollState()
+    val settingsAtTop by remember { derivedStateOf { settingsScrollState.value < 48 } }
 
     Scaffold(
             modifier = modifier.fillMaxSize(),
@@ -174,7 +178,12 @@ fun SettingsTab(
                     TopAppBar(
                             title = {
                                 Column {
-                                    Text("设置")
+                                    Text(
+                                            "设置",
+                                            style = rememberCollapsingTitleStyle(
+                                                    compact = !settingsAtTop
+                                            )
+                                    )
                                     if (tip.isNotBlank()) {
                                         Text(
                                                 text = tip,
@@ -210,7 +219,7 @@ fun SettingsTab(
                 modifier =
                         Modifier.fillMaxSize()
                                 .hazeSource(state = settingsHazeState)
-                                .verticalScroll(rememberScrollState())
+                                .verticalScroll(settingsScrollState)
                                 .padding(
                                         top = innerPadding.calculateTopPadding(),
                                         bottom = innerPadding.calculateBottomPadding()

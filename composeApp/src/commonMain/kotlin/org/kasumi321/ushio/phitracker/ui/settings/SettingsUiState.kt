@@ -12,7 +12,7 @@ data class SettingsUiState(
     val showB30Overflow: Boolean = false,
     val overflowCount: Int = 9,
     val hazeBlurEnabled: Boolean = true,
-    val hazeBlurStrength: Float = 1f,
+    val hazeBlurStrength: Float = 0.75f,
     val isCachingB30Artwork: Boolean = false,
     val b30ArtworkCacheCompleted: Int = 0,
     val b30ArtworkCacheTotal: Int = 0,

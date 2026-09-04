@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
@@ -279,6 +280,17 @@ fun MainScreen(
     LaunchedEffect(songsListState.isScrollInProgress) {
         if (songsListState.isScrollInProgress) songsSearchOpen = false
     }
+    // Armed only by the search icon: an icon-triggered reopening focuses the
+    // field (raising the IME), while automatic re-expansion when the list
+    // returns to the top must not pop the keyboard
+    var songsFocusOnExpand by remember { mutableStateOf(false) }
+
+    // Profile and tools only shrink their top bar titles when scrolled away
+    // from the top, no further header changes
+    val profileScrollState = rememberScrollState()
+    val toolsScrollState = rememberScrollState()
+    val profileAtTop by remember { derivedStateOf { profileScrollState.value < 48 } }
+    val toolsAtTop by remember { derivedStateOf { toolsScrollState.value < 48 } }
     val songsActiveFilterCount = remember(
         state.songs.selectedChapters,
         state.songs.selectedDifficulty,
@@ -295,7 +307,15 @@ fun MainScreen(
     HomeGlassScaffold(
         snackbarHostState = snackbarHostState,
         topBar = { hazeState, glassStyle ->
-            GlassTopBar(hazeState = hazeState, style = glassStyle) {
+            // Keep the bottom edge blurred while the songs search field is
+            // expanded, so the field never sits on the faded-out gradient tail
+            val songsSearchExpanded = selectedTab == HomeTab.Songs &&
+                (songsAtTop || songsSearchOpen)
+            GlassTopBar(
+                hazeState = hazeState,
+                style = glassStyle,
+                progressiveEndIntensity = if (songsSearchExpanded) 0.5f else 0f
+            ) {
                 when (selectedTab) {
                     HomeTab.B30 -> B30Header(
                         state = state.b30,
@@ -310,14 +330,20 @@ fun MainScreen(
                         searchQuery = state.songs.searchQuery,
                         activeFilterCount = songsActiveFilterCount,
                         compact = !songsAtTop && !songsSearchOpen,
+                        focusOnExpand = songsFocusOnExpand,
+                        onExpandFocusHandled = { songsFocusOnExpand = false },
                         onSearchChange = { viewModel.searchSongs(it) },
-                        onSearchExpandRequest = { songsSearchOpen = true },
+                        onSearchExpandRequest = {
+                            songsFocusOnExpand = true
+                            songsSearchOpen = true
+                        },
                         onOpenFilter = { viewModel.toggleFilterSheet(true) }
                     )
                     HomeTab.Profile -> HomeGlassTopBar(
                         spec = HomeHeaderSpec(
                             title = "首页",
                             tip = tip,
+                            compact = !profileAtTop,
                             actions = {
                                 if (state.sync.isSyncing) {
                                     CircularProgressIndicator(
@@ -336,7 +362,7 @@ fun MainScreen(
                         )
                     )
                     HomeTab.Tools -> HomeGlassTopBar(
-                        spec = HomeHeaderSpec(title = "工具", tip = tip)
+                        spec = HomeHeaderSpec(title = "工具", tip = tip, compact = !toolsAtTop)
                     )
                 }
             }
@@ -365,7 +391,8 @@ fun MainScreen(
                     }
                 },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                scrollState = profileScrollState
             )
             HomeTab.B30 -> B30Tab(
                 state = state.b30,
@@ -408,7 +435,8 @@ fun MainScreen(
                     onNavigateToSongDetailWithDifficulty(songId, difficulty)
                 },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
-                contentPadding = contentPadding
+                contentPadding = contentPadding,
+                scrollState = toolsScrollState
             )
         }
     }
