@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class PhiPluginApiTest {
@@ -99,6 +100,103 @@ class PhiPluginApiTest {
         assertEquals("POST", request.method)
         assertEquals("/get/ranklist/rksRank", request.path)
         assertTrue(request.body.contains("\"request_rks\":15.25"), request.body)
+    }
+
+    @Test
+    fun getChartTagTreeUsesPublicTagTreeEndpoint() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.getChartTagTree()
+
+        val request = requests.single()
+        assertEquals("GET", request.method)
+        assertEquals("/chartsTag/get/tagTree", request.path)
+    }
+
+    @Test
+    fun getChartTagsUsesPublicBySongRankEndpoint() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.getChartTags("song.0", "IN")
+
+        val request = requests.single()
+        assertEquals("POST", request.method)
+        assertEquals("/chartsTag/get/bySongRank", request.path)
+        assertTrue(request.body.contains("\"song_id\":\"song.0\""), request.body)
+        assertTrue(request.body.contains("\"rank\":\"IN\""), request.body)
+    }
+
+    @Test
+    fun getChartsTagsBatchPostsSongRankPairs() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.getChartsTagsBatch(listOf("song-a.0" to listOf("IN", "AT"), "song-b.0" to listOf("HD")))
+
+        val request = requests.single()
+        assertEquals("POST", request.method)
+        assertEquals("/chartsTag/get/chartsTags", request.path)
+        assertTrue(request.body.contains("\"song_id\":\"song-a.0\""), request.body)
+        assertTrue(request.body.contains("\"song_id\":\"song-b.0\""), request.body)
+        assertTrue(request.body.contains("\"IN\""), request.body)
+        assertTrue(request.body.contains("\"AT\""), request.body)
+        assertTrue(request.body.contains("\"HD\""), request.body)
+    }
+
+    @Test
+    fun getMyChartTagVotesIncludesIdentityTripletAndOptionalToken() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.getMyChartTagVotes("taptap", "player-id", "api-user", "token-1", listOf("song.0" to "IN"))
+
+        val request = requests.single()
+        assertEquals("POST", request.method)
+        assertEquals("/chartsTag/get/usersVote", request.path)
+        assertTrue(request.body.contains("\"platform\":\"taptap\""), request.body)
+        assertTrue(request.body.contains("\"platform_id\":\"player-id\""), request.body)
+        assertTrue(request.body.contains("\"api_user_id\":\"api-user\""), request.body)
+        assertTrue(request.body.contains("\"api_token\":\"token-1\""), request.body)
+        assertTrue(request.body.contains("\"song_id\":\"song.0\""), request.body)
+        assertTrue(request.body.contains("\"rank\":\"IN\""), request.body)
+    }
+
+    @Test
+    fun getMyChartTagVotesOmitsBlankToken() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.getMyChartTagVotes("taptap", "player-id", "api-user", " ", listOf("song.0" to "IN"))
+
+        assertFalse(requests.single().body.contains("api_token"), requests.single().body)
+    }
+
+    @Test
+    fun setChartsTagAlwaysIncludesApiToken() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.setChartsTag(
+            platform = "taptap",
+            platformId = "player-id",
+            apiUserId = "api-user",
+            apiToken = "token-1",
+            songId = "song.0",
+            difficulty = "IN",
+            primaryTags = listOf("高速"),
+            secondaryTags = listOf("连打")
+        )
+
+        val request = requests.single()
+        assertEquals("POST", request.method)
+        assertEquals("/chartsTag/set/set", request.path)
+        assertTrue(request.body.contains("\"api_token\":\"token-1\""), request.body)
+        assertTrue(request.body.contains("\"song_id\":\"song.0\""), request.body)
+        assertTrue(request.body.contains("\"rank\":\"IN\""), request.body)
+        assertTrue(request.body.contains("\"primaryTags\":[\"高速\"]"), request.body)
+        assertTrue(request.body.contains("\"secondaryTags\":[\"连打\"]"), request.body)
     }
 
     private fun createApi(requests: MutableList<CapturedRequest>): PhiPluginApi {

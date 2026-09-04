@@ -396,4 +396,30 @@ class LogRedactorTest {
         assertFalse(result.contains("r_stok"))
         assertFalse(result.contains("at1"))
     }
+
+    // ── Chart tags: phi-plugin-api api_token ───────────────────────
+
+    @Test
+    fun `redacts api_token in JSON format`() {
+        val input = """{"platform":"taptap","api_token":"my-secret-token"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"api_token":"<redacted>"""")
+        assertFalse(result.contains("my-secret-token"))
+    }
+
+    @Test
+    fun `redacts api_token in key=value format`() {
+        val input = "Vote failed: api_token=my-secret-token"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "api_token=<redacted>")
+        assertFalse(result.contains("my-secret-token"))
+    }
+
+    @Test
+    fun `redacts token_new in key=value format`() {
+        val input = "token_new=my-secret-token"
+        val result = LogRedactor.redact(input)
+        assertContains(result, "token_new=<redacted>")
+        assertFalse(result.contains("my-secret-token"))
+    }
 }

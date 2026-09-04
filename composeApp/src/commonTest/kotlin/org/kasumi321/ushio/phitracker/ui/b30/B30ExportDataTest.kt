@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
+import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import kotlin.test.Test
@@ -278,6 +279,54 @@ class B30ExportDataTest {
         assertTrue(data.phiRecords.isEmpty())
         assertTrue(data.bestRecords.isEmpty())
         assertTrue(data.overflowRecords.isEmpty())
+    }
+
+    @Test
+    fun tagAnalysisDefaultsToNullAndPassesThroughWhenProvided() {
+        val withoutTags = B30ExportDataBuilder.build(
+            b30 = emptyList(),
+            displayRks = 0f,
+            nickname = "Test",
+            challengeModeRank = 0,
+            moneyString = "",
+            showB30Overflow = false,
+            overflowCount = 9,
+            illustrationProvider = noOpIllustrationProvider,
+            clearCounts = emptyMap(),
+            fcCount = 0,
+            phiCount = 0,
+            avatarUri = null,
+            backgroundUri = null,
+            dateText = ""
+        )
+        assertEquals(null, withoutTags.tagAnalysis)
+
+        val analysis = B30TagAnalysis(
+            totalVotes = 140,
+            averageRks = 15f,
+            categories = emptyList(),
+            strong = emptyList(),
+            weak = emptyList(),
+            insufficient = false
+        )
+        val withTags = B30ExportDataBuilder.build(
+            b30 = emptyList(),
+            displayRks = 0f,
+            nickname = "Test",
+            challengeModeRank = 0,
+            moneyString = "",
+            showB30Overflow = false,
+            overflowCount = 9,
+            illustrationProvider = noOpIllustrationProvider,
+            clearCounts = emptyMap(),
+            fcCount = 0,
+            phiCount = 0,
+            avatarUri = null,
+            backgroundUri = null,
+            dateText = "",
+            tagAnalysis = analysis
+        )
+        assertEquals(analysis, withTags.tagAnalysis)
     }
 
     @Test
