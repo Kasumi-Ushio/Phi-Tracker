@@ -494,7 +494,9 @@ class HomeViewModelPreloadTest {
     }
 
     @Test
-    fun b30TagAnalysisSkipsRequestWhileApiSwitchIsOff(): Unit = runTest(dispatcher) {
+    fun b30TagAnalysisLoadsWhileApiSwitchIsOff(): Unit = runTest(dispatcher) {
+        // The chartsTag read endpoints are public, so the analysis must load
+        // even when the score-API switch is off.
         val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false, apiEnabled = false)
         val repository = FakePhigrosRepository().apply {
             cachedSave = saveWithRecord("song-a.0", Difficulty.IN, 990_000, 99f, isFullCombo = false)
@@ -504,9 +506,8 @@ class HomeViewModelPreloadTest {
         awaitB30(viewModel)
 
         assertTrue(viewModel.uiState.value.b30.b30.isNotEmpty())
-        assertTrue(repository.b30ChartTagRequests.isEmpty())
-        assertNull(viewModel.uiState.value.b30.tagAnalysis.analysis)
-        assertNull(viewModel.uiState.value.b30.tagAnalysis.error)
+        assertEquals(1, repository.b30ChartTagRequests.size)
+        assertEquals("标签统计获取失败，请稍后重试", viewModel.uiState.value.b30.tagAnalysis.error)
     }
 
     /**

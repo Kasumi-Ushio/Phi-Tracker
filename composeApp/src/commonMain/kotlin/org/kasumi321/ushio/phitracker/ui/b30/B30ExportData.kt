@@ -1,8 +1,10 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
 import androidx.compose.ui.graphics.ImageBitmap
+import org.kasumi321.ushio.phitracker.domain.model.B30RksHistogram
 import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.usecase.BuildB30RksHistogramUseCase
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 
 /** Stats table data for the B30 export header. */
@@ -35,7 +37,8 @@ data class B30ExportData(
     val darkTheme: Boolean = false,
     val isAmoled: Boolean = false,
     val themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings(),
-    val tagAnalysis: B30TagAnalysis? = null
+    val tagAnalysis: B30TagAnalysis? = null,
+    val histogram: B30RksHistogram? = null
 )
 
 /** Pure builder that splits a B30 list into Phi / Best 27 / Overflow sections. */
@@ -88,6 +91,10 @@ object B30ExportDataBuilder {
         val bestCards = b27.map { ExportCardData(it, illustrationProvider(it.songId)) }
         val overflowCards = overflow.map { ExportCardData(it, illustrationProvider(it.songId)) }
 
+        // The histogram covers exactly the slots that count toward RKS:
+        // the first three phi cards plus the 27 best cards, in order.
+        val histogram = BuildB30RksHistogramUseCase()(phi3 + b27)
+
         return B30ExportData(
             nickname = nickname,
             rks = displayRks,
@@ -107,7 +114,8 @@ object B30ExportDataBuilder {
             darkTheme = darkTheme,
             isAmoled = isAmoled,
             themeSettings = themeSettings,
-            tagAnalysis = tagAnalysis
+            tagAnalysis = tagAnalysis,
+            histogram = histogram
         )
     }
 }

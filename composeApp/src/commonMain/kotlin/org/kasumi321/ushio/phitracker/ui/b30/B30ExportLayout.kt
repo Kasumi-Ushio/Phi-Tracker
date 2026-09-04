@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -164,67 +165,79 @@ internal fun B30ExportLayout(
                 )
             }
 
-            data.tagAnalysis?.let { analysis ->
+            // phi-plugin's b19 analysis row: one fused tag-analysis panel
+            // (radar and the strong/weak rankings under a single "谱面标签
+            // 能力" header) beside the RKS histogram panel.
+            if (data.tagAnalysis != null || data.histogram != null) {
                 Spacer(modifier = Modifier.height(8.dp))
-                SectionTitle("谱面标签统计")
+                SectionTitle("B30 数据分析")
                 Spacer(modifier = Modifier.height(B30ExportSpec.tagSectionGapDp.dp))
-                if (analysis.insufficient) {
-                    // Not enough community votes yet: keep the section but
-                    // nudge readers toward voting instead of showing charts.
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(B30ExportSpec.cardHorizontalGapDp.dp)
+                ) {
+                    // The tag analysis spans the width the two former tag
+                    // cards occupied, fused into a single panel.
                     TagSectionCard(
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .width(
+                                (B30ExportSpec.cardWidthDp * 2 + B30ExportSpec.cardHorizontalGapDp).dp
+                            )
                             .height(B30ExportSpec.tagSectionHeightDp.dp)
                     ) {
-                        Box(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "标签数据不足，统计结果仅供参考。欢迎到曲目详情为谱面投票，帮助完善社区标签。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
+                        val analysis = data.tagAnalysis
+                        if (analysis != null) {
+                            Column(modifier = Modifier.fillMaxSize().padding(8.dp)) {
+                                B30TagAnalysisPanelHeader(totalVotes = analysis.totalVotes)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                ChartTagInsufficientScrim(
+                                    insufficient = analysis.insufficient,
+                                    modifier = Modifier.fillMaxWidth().weight(1f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxSize(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        TagRadarChart(
+                                            categories = analysis.categories,
+                                            averageRks = analysis.averageRks,
+                                            modifier = Modifier.weight(1f).fillMaxHeight()
+                                        )
+                                        B30TagStrongWeakColumns(
+                                            analysis = analysis,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // The tag analysis was unavailable when the image
+                            // was generated (fetch failed or timed out): keep
+                            // the panel with an explicit notice.
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "谱面标签统计暂不可用",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    data.histogram?.let { histogram ->
                         TagSectionCard(
                             modifier = Modifier
                                 .width(B30ExportSpec.cardWidthDp.dp)
                                 .height(B30ExportSpec.tagSectionHeightDp.dp)
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize().padding(8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                TagRadarChart(
-                                    categories = analysis.categories,
-                                    averageRks = analysis.averageRks,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                        }
-                        TagSectionCard(
-                            modifier = Modifier
-                                .width(B30ExportSpec.cardWidthDp.dp)
-                                .height(B30ExportSpec.tagSectionHeightDp.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                B30TagStrongWeakColumns(
-                                    analysis = analysis,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
+                            B30RksHistogramChart(
+                                histogram = histogram,
+                                chartHeight = 132.dp,
+                                modifier = Modifier.fillMaxSize().padding(8.dp)
+                            )
                         }
                     }
                 }

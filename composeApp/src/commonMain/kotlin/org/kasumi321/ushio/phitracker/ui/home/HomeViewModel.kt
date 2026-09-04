@@ -302,11 +302,12 @@ class HomeViewModel(
 
     /**
      * Recomputes the B30 chart-tag cluster analysis when the B30 content
-     * changes and the API switch is on. Skips duplicate refreshes keyed by
-     * the (song, difficulty) list so recomposition does not refetch.
+     * changes. The chartsTag read endpoints are public, so this runs
+     * regardless of the score-API switch. Skips duplicate refreshes keyed
+     * by the (song, difficulty) list so recomposition does not refetch.
      */
     private fun refreshTagAnalysis(b30: List<BestRecord>) {
-        if (!_uiState.value.tools.apiEnabled || b30.isEmpty()) {
+        if (b30.isEmpty()) {
             tagAnalysisJob?.cancel()
             tagAnalysisKey = null
             lastAnalysisRecords = null

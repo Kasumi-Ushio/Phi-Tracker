@@ -52,6 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.b30.B30ExportPayload
@@ -64,6 +66,8 @@ import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.viewmodel.koinViewModel
+
+private const val B30_TAG_ANALYSIS_SETTLE_TIMEOUT_MS = 10_000L
 
 enum class HomeTab {
     Profile,
@@ -220,24 +224,55 @@ fun MainScreen(
         )
     }
 
+    // B30 image export snapshots the chart-tag analysis from the current
+    // state, so a transient fetch failure (the error persists until a retry
+    // succeeds) would silently drop the tag cards from the image. Gate the
+    // export on the analysis being settled: retry once when a previous
+    // attempt failed, wait for an in-flight attempt, and export anyway on
+    // timeout so the button never dead-locks.
+    var awaitTagAnalysisForExport by remember { mutableStateOf(false) }
+
+    fun buildExportPayload(current: HomeUiState) = B30ExportPayload(
+        b30 = current.b30.b30,
+        displayRks = current.b30.displayRks,
+        nickname = current.profile.nickname,
+        challengeModeRank = current.profile.challengeModeRank,
+        moneyString = current.profile.moneyString,
+        clearCounts = current.profile.clearCounts,
+        fcCount = current.profile.fcCount,
+        phiCount = current.profile.phiCount,
+        avatarUri = current.profile.avatarUri,
+        showB30Overflow = current.b30.showB30Overflow,
+        overflowCount = current.b30.overflowCount,
+        themeSettings = current.b30.themeSettings,
+        tagAnalysis = current.b30.tagAnalysis.analysis
+    )
+
+    LaunchedEffect(awaitTagAnalysisForExport) {
+        if (!awaitTagAnalysisForExport) return@LaunchedEffect
+        // Read the ViewModel flow directly; the delegated `state` above is
+        // stale inside the effect body.
+        withTimeoutOrNull(B30_TAG_ANALYSIS_SETTLE_TIMEOUT_MS) {
+            viewModel.uiState.first { !it.b30.tagAnalysis.isLoading }
+        }
+        awaitTagAnalysisForExport = false
+        onNavigateToB30Image(buildExportPayload(viewModel.uiState.value))
+    }
+
     val generateB30Image = {
-        onNavigateToB30Image(
-            B30ExportPayload(
-                b30 = state.b30.b30,
-                displayRks = state.b30.displayRks,
-                nickname = state.profile.nickname,
-                challengeModeRank = state.profile.challengeModeRank,
-                moneyString = state.profile.moneyString,
-                clearCounts = state.profile.clearCounts,
-                fcCount = state.profile.fcCount,
-                phiCount = state.profile.phiCount,
-                avatarUri = state.profile.avatarUri,
-                showB30Overflow = state.b30.showB30Overflow,
-                overflowCount = state.b30.overflowCount,
-                themeSettings = state.b30.themeSettings,
-                tagAnalysis = state.b30.tagAnalysis.analysis
-            )
-        )
+        val tagState = state.b30.tagAnalysis
+        when {
+            tagState.analysis != null || state.b30.b30.isEmpty() ->
+                onNavigateToB30Image(buildExportPayload(state))
+            // A fetch is already running: wait for it instead of duplicating.
+            tagState.isLoading -> awaitTagAnalysisForExport = true
+            // A previous attempt failed: retry once and export once the
+            // retry settles (success or failure).
+            else -> {
+                viewModel.retryTagAnalysis()
+                awaitTagAnalysisForExport = true
+            }
+        }
     }
 
     // B30 header collapse state: user intent is saveable UI state (never the

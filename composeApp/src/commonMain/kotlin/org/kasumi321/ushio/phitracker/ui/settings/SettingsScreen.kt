@@ -63,6 +63,7 @@ fun SettingsScreen(
         apiUserId = state.apiUserId,
         apiPlatform = state.apiPlatform,
         apiPlatformId = state.apiPlatformId,
+        apiToken = state.apiToken,
         isApiTesting = state.isApiTesting,
         apiTestMessage = state.apiTestMessage,
         onApiEnabledChange = { viewModel.setApiEnabled(it) },

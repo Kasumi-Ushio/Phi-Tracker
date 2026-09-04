@@ -144,10 +144,8 @@ fun SongDetailScreen(
         }
     }
 
-    LaunchedEffect(apiEnabled, apiRequestKey, selectedDifficulty) {
-        if (apiEnabled) {
-            onLoadChartTags(selectedDifficulty)
-        }
+    LaunchedEffect(apiRequestKey, selectedDifficulty) {
+        onLoadChartTags(selectedDifficulty)
     }
 
     // Page-level HazeState, independent from the home one. The detail content is
@@ -592,14 +590,14 @@ private fun DifficultyContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (apiEnabled) {
-            ChartTagSection(
-                state = chartTagState,
-                difficulty = difficulty,
-                onSubmitVote = onSubmitChartTagVote
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+        // Chart-tag reads are public, so the section shows regardless of the
+        // score-API switch; only voting requires the api_token.
+        ChartTagSection(
+            state = chartTagState,
+            difficulty = difficulty,
+            onSubmitVote = onSubmitChartTagVote
+        )
+        Spacer(modifier = Modifier.height(16.dp))
 
         val currentHistory = if (apiEnabled && useApiData) songApiDetail.history else syncHistory
         val filteredHistory = currentHistory

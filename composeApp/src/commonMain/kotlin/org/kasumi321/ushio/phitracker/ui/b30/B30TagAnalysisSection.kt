@@ -1,18 +1,23 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -33,6 +38,8 @@ import org.kasumi321.ushio.phitracker.domain.model.TagScore
  * Radar chart of the weighted equivalent RKS per tag category, shared by
  * the B30 tab and the export image. Radius is normalized against
  * 1.25x the larger of the category maximum and the B30 average RKS.
+ * Category labels carry their score beneath the name, like phi-plugin's
+ * tag-radar-score in the b19 analysis panel.
  */
 @Composable
 fun TagRadarChart(
@@ -74,17 +81,34 @@ fun TagRadarChart(
             drawPath(path, color = gridColor, style = Stroke(width = 1f))
         }
 
-        // Axes and category labels
+        // Axes, category labels and per-category scores
         categories.forEachIndexed { index, category ->
             val tip = vertexAt(index, 1f)
             drawLine(color = gridColor, start = center, end = tip, strokeWidth = 1f)
             val labelPos = vertexAt(index, 1.18f)
-            val label = textMeasurer.measure(category.name, style = labelStyle.copy(color = labelColor))
+            val nameLayout = textMeasurer.measure(category.name, style = labelStyle.copy(color = labelColor))
+            val scoreLayout = textMeasurer.measure(
+                "%.2f".format(category.rks),
+                style = labelStyle.copy(color = labelColor)
+            )
+            val stackHeight = nameLayout.size.height + scoreLayout.size.height
+            val nameTop = labelPos.y - stackHeight / 2f
+            // In the export card the canvas can be narrower than a measured
+            // label; coerceIn throws when max < min, so clamp the upper bound.
+            fun clampedX(left: Float, width: Int): Float =
+                left.coerceIn(0f, (size.width - width).coerceAtLeast(0f))
             drawText(
-                label,
+                nameLayout,
                 topLeft = Offset(
-                    x = (labelPos.x - label.size.width / 2f).coerceIn(0f, size.width - label.size.width),
-                    y = (labelPos.y - label.size.height / 2f).coerceIn(0f, size.height - label.size.height)
+                    x = clampedX(labelPos.x - nameLayout.size.width / 2f, nameLayout.size.width),
+                    y = nameTop.coerceIn(0f, (size.height - stackHeight).coerceAtLeast(0f))
+                )
+            )
+            drawText(
+                scoreLayout,
+                topLeft = Offset(
+                    x = clampedX(labelPos.x - scoreLayout.size.width / 2f, scoreLayout.size.width),
+                    y = (nameTop + nameLayout.size.height).coerceIn(0f, (size.height - scoreLayout.size.height).coerceAtLeast(0f))
                 )
             )
         }
@@ -146,8 +170,15 @@ private fun TagScoreColumn(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         } else {
-            scores.forEach { score ->
+            scores.forEachIndexed { index, score ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "${index + 1}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = titleColor,
+                        modifier = Modifier.width(16.dp)
+                    )
                     Text(
                         text = score.name,
                         style = MaterialTheme.typography.bodySmall,
@@ -160,6 +191,75 @@ private fun TagScoreColumn(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Panel header of the chart-tag analysis, matching phi-plugin's b19
+ * "CHART PROFILE / 谱面标签能力" panel title with the effective vote
+ * count on the right.
+ */
+@Composable
+fun B30TagAnalysisPanelHeader(
+    totalVotes: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Text(
+            text = "CHART PROFILE",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "谱面标签能力",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "有效票 $totalVotes",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/**
+ * Dim the charts under a centered hint overlay when the community vote
+ * volume is insufficient, like phi-plugin's is-insufficient panel; passes
+ * content through untouched otherwise. Used by the export image.
+ */
+@Composable
+fun ChartTagInsufficientScrim(
+    insufficient: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(modifier = modifier) {
+        Box(modifier = Modifier.alpha(if (insufficient) 0.25f else 1f)) {
+            content()
+        }
+        if (insufficient) {
+            Box(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "可用谱面标签统计量不足，结果仅供参考。欢迎到曲目详情为谱面投票，帮助完善社区标签。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .background(
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
             }
         }
     }

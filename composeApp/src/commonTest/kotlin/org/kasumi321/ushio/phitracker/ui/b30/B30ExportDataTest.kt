@@ -330,6 +330,62 @@ class B30ExportDataTest {
     }
 
     @Test
+    fun histogramCoversPhiAndBestSlotsInOrder() {
+        val b30 = listOf(
+            makeRecord(index = 0, rks = 16f, isPhi = true),
+            makeRecord(index = 1, rks = 15f, isPhi = true),
+            makeRecord(index = 2, rks = 16.2f, isPhi = true),
+            makeRecord(index = 3, rks = 14f),
+            makeRecord(index = 4, rks = 13f)
+        )
+
+        val data = B30ExportDataBuilder.build(
+            b30 = b30,
+            displayRks = 15f,
+            nickname = "Test",
+            challengeModeRank = 0,
+            moneyString = "",
+            showB30Overflow = false,
+            overflowCount = 9,
+            illustrationProvider = noOpIllustrationProvider,
+            clearCounts = emptyMap(),
+            fcCount = 0,
+            phiCount = 3,
+            avatarUri = null,
+            backgroundUri = null,
+            dateText = ""
+        )
+
+        val histogram = data.histogram
+        assertEquals(listOf("P1", "P2", "P3", "B1", "B2"), histogram?.slots?.map { it.label })
+        assertEquals(listOf(true, true, true, false, false), histogram?.slots?.map { it.isPhi })
+        assertEquals(5, histogram?.count)
+        assertEquals(14.84f, histogram!!.average, 0.001f)
+    }
+
+    @Test
+    fun histogramIsNullWithoutRecords() {
+        val data = B30ExportDataBuilder.build(
+            b30 = emptyList(),
+            displayRks = 0f,
+            nickname = "Test",
+            challengeModeRank = 0,
+            moneyString = "",
+            showB30Overflow = false,
+            overflowCount = 9,
+            illustrationProvider = noOpIllustrationProvider,
+            clearCounts = emptyMap(),
+            fcCount = 0,
+            phiCount = 0,
+            avatarUri = null,
+            backgroundUri = null,
+            dateText = ""
+        )
+
+        assertEquals(null, data.histogram)
+    }
+
+    @Test
     fun illustrationProviderIsCalledForEachRecord() {
         val calledIds = mutableListOf<String>()
         val provider: (String) -> String? = { id ->

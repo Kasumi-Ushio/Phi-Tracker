@@ -89,7 +89,9 @@ class SongDetailViewModel(
 
     fun loadChartTags(difficulty: Difficulty, markVoteSucceeded: Boolean = false) {
         val state = uiState.value
-        if (!state.apiEnabled || state.songInfo == null) return
+        // The chartsTag read endpoints are public; only voting needs the
+        // api_token, which submitChartTagVote validates separately.
+        if (state.songInfo == null) return
         updateChartTags(difficulty) {
             (it ?: ChartTagUiState()).copy(isLoading = true, error = null, voteSucceeded = markVoteSucceeded)
         }
@@ -140,7 +142,7 @@ class SongDetailViewModel(
             updateChartTags(difficulty) {
                 (it ?: ChartTagUiState()).copy(
                     voteSubmitting = false,
-                    voteError = "缺少 API Token：请先在设置页填写（向任意 Phi-Plugin 机器人发送 /setApiToken <自定义Token> 设置），我们不会上传你的 sessionToken。"
+                    voteError = "缺少 API Token：请先在设置页开启「使用查分 API」并填写 API Token（向任意 Phi-Plugin 机器人发送 /setApiToken <自定义Token> 设置）。我们不会上传你的 sessionToken。"
                 )
             }
             return
@@ -282,7 +284,10 @@ class SongDetailViewModel(
                             apiPlatformId = settings.platformId,
                             apiToken = settings.apiToken,
                             apiDetails = if (identityChanged || apiOff) emptyMap() else it.apiDetails,
-                            chartTags = if (identityChanged || !settings.enabled) emptyMap() else it.chartTags
+                            // Tag reads are public and independent of the
+                            // score-API switch; only an identity change
+                            // invalidates them (isMine markers).
+                            chartTags = if (identityChanged) emptyMap() else it.chartTags
                         )
                     }
                 }

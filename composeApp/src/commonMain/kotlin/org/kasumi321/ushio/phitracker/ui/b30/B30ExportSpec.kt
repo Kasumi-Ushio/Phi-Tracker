@@ -119,12 +119,14 @@ object B30ExportSpec {
         get() = 11.25f
 
     /**
-     * Height of the chart-tag section in the export image, in dp.
+     * Height of the B30 analysis section in the export image, in dp.
      *
-     * Matches the fixed height of the two tag cards (radar chart and
-     * strong/weak ranking) in [B30ExportLayout]'s tag section, so platform
-     * renderers that pre-compute the canvas height can reserve the same
-     * space the shared layout actually occupies.
+     * Matches the fixed height of the analysis cards (radar chart,
+     * strong/weak ranking and RKS histogram) in [B30ExportLayout]'s
+     * analysis section, so platform renderers that pre-compute the canvas
+     * height can reserve the same space the shared layout actually
+     * occupies. The section renders when chart tags or the histogram are
+     * available; the row height is identical in both cases.
      *
      * Authoritative value: **190 dp**.
      */
