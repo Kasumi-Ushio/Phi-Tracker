@@ -3,6 +3,7 @@ package org.kasumi321.ushio.phitracker.ui.home
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -69,6 +70,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelPreloadTest {
@@ -517,9 +520,11 @@ class HomeViewModelPreloadTest {
      */
     private suspend fun TestScope.awaitB30(viewModel: HomeViewModel) {
         withContext(Dispatchers.Default) {
-            val deadline = System.currentTimeMillis() + 5_000
-            while (viewModel.uiState.value.b30.b30.isEmpty() && System.currentTimeMillis() < deadline) {
-                Thread.sleep(10)
+            // TimeSource.Monotonic and delay are KMP-common; System.currentTimeMillis
+            // and Thread.sleep are JVM-only and would break the iOS test compile.
+            val deadline = TimeSource.Monotonic.markNow()
+            while (viewModel.uiState.value.b30.b30.isEmpty() && deadline.elapsedNow() < 5.seconds) {
+                delay(10)
             }
         }
         advanceUntilIdle()

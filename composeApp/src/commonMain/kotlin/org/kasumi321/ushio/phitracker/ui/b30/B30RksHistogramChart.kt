@@ -24,6 +24,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.kasumi321.ushio.phitracker.domain.model.B30RksHistogram
+import org.kasumi321.ushio.phitracker.ui.home.formatFour
 
 /**
  * Equivalent single-chart RKS distribution of the effective B30 slots,
@@ -62,8 +63,10 @@ fun B30RksHistogramChart(
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            // formatFour instead of String.format: this is commonMain code and
+            // must also compile for the iOS targets.
             Text(
-                text = "平均 RKS %.4f".format(histogram.average),
+                text = "平均 RKS ${histogram.average.formatFour()}",
                 style = labelStyle,
                 color = labelColor
             )

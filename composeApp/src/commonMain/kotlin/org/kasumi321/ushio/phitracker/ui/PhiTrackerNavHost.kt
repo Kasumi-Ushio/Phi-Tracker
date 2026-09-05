@@ -221,7 +221,11 @@ fun PhiTrackerNavHost() {
                     b30Navigation.destinationDisposed()
                 }
             }
-            val payload = b30Navigation.payload
+            // Snapshot the payload per back stack entry: the pop exit transition keeps this
+            // destination composed for a while, and toolbarBack() clears the coordinator
+            // payload before the transition ends. Re-reading it on recomposition would see
+            // null and wrongly trigger the missing-payload recovery.
+            val payload = remember(backStackEntry) { b30Navigation.payload }
             if (payload == null) {
                 LaunchedEffect(backStackEntry) {
                     b30Navigation.recoverMissingPayload()

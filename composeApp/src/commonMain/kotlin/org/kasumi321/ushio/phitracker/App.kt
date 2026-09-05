@@ -20,6 +20,7 @@ import org.kasumi321.ushio.phitracker.ui.glass.GlassSettings
 import org.kasumi321.ushio.phitracker.ui.glass.LocalGlassSettings
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerTheme
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
+import org.kasumi321.ushio.phitracker.ui.theme.SystemBarAppearanceEffect
 import org.koin.compose.koinInject
 
 @Composable
@@ -55,6 +56,10 @@ fun App() {
     )
 
     PhiTrackerTheme(darkTheme = darkTheme, isAmoled = isAmoled, settings = themeSettings) {
+        // Status bar / navigation bar icon contrast follows the in-app theme
+        // mode; the one-time enableEdgeToEdge in MainActivity only reads the
+        // system night mode and never updates on runtime theme changes.
+        SystemBarAppearanceEffect(darkTheme)
         CompositionLocalProvider(
             LocalGlassSettings provides GlassSettings(
                 blurEnabled = hazeBlurEnabled,

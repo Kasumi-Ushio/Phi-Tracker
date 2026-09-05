@@ -31,10 +31,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.PI
 import kotlin.math.sin
 import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.CategoryScore
 import org.kasumi321.ushio.phitracker.domain.model.TagScore
+import org.kasumi321.ushio.phitracker.ui.home.formatTwo
 
 /**
  * Radar chart of the weighted equivalent RKS per tag category, shared by
@@ -71,7 +73,9 @@ fun TagRadarChart(
         val maxRks = (categories.maxOf { it.rks }.coerceAtLeast(averageRks)) * 1.25f
 
         fun vertexAt(index: Int, fraction: Float): Offset {
-            val angle = -Math.PI / 2 + 2 * Math.PI * index / count
+            // kotlin.math.PI, not java.lang.Math.PI: this chart is commonMain
+            // code and must also compile for the iOS targets.
+            val angle = -PI / 2 + 2 * PI * index / count
             return Offset(
                 x = center.x + (radius * fraction * cos(angle)).toFloat(),
                 y = center.y + (radius * fraction * sin(angle)).toFloat()
@@ -98,7 +102,7 @@ fun TagRadarChart(
             val labelPos = vertexAt(index, 1.18f)
             val nameLayout = textMeasurer.measure(category.name, style = labelStyle.copy(color = labelColor))
             val scoreLayout = textMeasurer.measure(
-                "%.2f".format(category.rks),
+                category.rks.formatTwo(),
                 style = labelStyle.copy(color = labelColor)
             )
             val labelGap = with(density) { 2.dp.toPx() }
@@ -202,7 +206,7 @@ private fun TagScoreColumn(
                         maxLines = 1
                     )
                     Text(
-                        text = "%.2f".format(score.rks),
+                        text = score.rks.formatTwo(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
