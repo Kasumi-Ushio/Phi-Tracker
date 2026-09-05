@@ -28,7 +28,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -86,6 +85,7 @@ import org.kasumi321.ushio.phitracker.ui.home.scoreCardThumbnailSizePx
 import org.kasumi321.ushio.phitracker.data.platform.rememberB30BackgroundPicker
 import org.kasumi321.ushio.phitracker.data.platform.saveB30ImageToPictures
 import org.kasumi321.ushio.phitracker.data.platform.shareB30Image
+import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
@@ -543,7 +543,7 @@ private fun BackgroundPickerDialog(
     // instead of on every slider movement.
     var blurDragValue by remember { mutableFloatStateOf(blurRadius) }
 
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Filled.Image, contentDescription = null) },
         title = { Text("选择背景") },

@@ -32,6 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -123,6 +124,7 @@ fun SongDetailScreen(
     onLoadSongApiDetail: (Difficulty) -> Unit = {},
     getChartTags: (Difficulty) -> ChartTagUiState = { ChartTagUiState() },
     onLoadChartTags: (Difficulty) -> Unit = {},
+    canVote: Boolean = false,
     onSubmitChartTagVote: (Difficulty, List<String>, List<String>) -> Unit = { _, _, _ -> },
     getLowIllustrationUrl: (String) -> String?,
     getStandardIllustrationUrl: (String) -> String?,
@@ -244,6 +246,13 @@ fun SongDetailScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (songInfo.nicknames.isNotEmpty()) {
+                        Text(
+                            text = "别名: ${songInfo.nicknames.joinToString("、")}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Row(
@@ -286,6 +295,7 @@ fun SongDetailScreen(
                         useApiData = useApiData,
                         songApiDetail = getSongApiDetail(pageDifficulty),
                         chartTagState = getChartTags(pageDifficulty),
+                        canVote = canVote,
                         onSubmitChartTagVote = onSubmitChartTagVote,
                         syncHistory = syncHistory,
                         // Shared across pages so the info header collapse follows
@@ -403,6 +413,7 @@ private fun DifficultyContent(
     useApiData: Boolean,
     songApiDetail: SongApiDetailState,
     chartTagState: ChartTagUiState,
+    canVote: Boolean,
     onSubmitChartTagVote: (Difficulty, List<String>, List<String>) -> Unit,
     syncHistory: List<SongSyncHistoryEntry>,
     modifier: Modifier = Modifier,
@@ -575,6 +586,7 @@ private fun DifficultyContent(
         ChartTagSection(
             state = chartTagState,
             difficulty = difficulty,
+            canVote = canVote,
             onSubmitVote = onSubmitChartTagVote
         )
         Spacer(modifier = Modifier.height(16.dp))
@@ -705,6 +717,7 @@ private fun SyncHistoryCard(entry: SongSyncHistoryEntry) {
 private fun ChartTagSection(
     state: ChartTagUiState,
     difficulty: Difficulty,
+    canVote: Boolean,
     onSubmitVote: (Difficulty, List<String>, List<String>) -> Unit
 ) {
     var showVoteSheet by remember { mutableStateOf(false) }
@@ -774,12 +787,16 @@ private fun ChartTagSection(
                 )
             }
 
-            OutlinedButton(
-                onClick = { showVoteSheet = true },
-                enabled = !state.isLoading && state.error == null,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("为这张谱面投票")
+            // Voting is only possible with an api_token; without one the
+            // button stays hidden instead of failing at submit time.
+            if (canVote) {
+                OutlinedButton(
+                    onClick = { showVoteSheet = true },
+                    enabled = !state.isLoading && state.error == null,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("为这张谱面投票")
+                }
             }
         }
     }
@@ -855,7 +872,7 @@ private fun ChartTagVoteSheet(
                 )
             }
             Text(
-                text = "主要：最能代表这张谱面的特征；次要：次要特征。点击标签加入当前分组，再次点击已选标签可移除。",
+                text = "主要：最能代表这张谱面的特征；次要：次要特征。点击标签加入当前分组，再次点击已选标签可移除。主题色高亮为主要印象，对比色高亮为次要印象，两组将分别提交。",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -880,19 +897,20 @@ private fun ChartTagVoteSheet(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         category.tags.forEach { tag ->
-                            val selected = tag.name in primarySelection || tag.name in secondarySelection
+                            val inPrimary = tag.name in primarySelection
+                            val inSecondary = tag.name in secondarySelection
                             FilterChip(
-                                selected = selected,
+                                selected = inPrimary || inSecondary,
                                 onClick = {
                                     if (primaryMode) {
-                                        primarySelection = if (tag.name in primarySelection) {
+                                        primarySelection = if (inPrimary) {
                                             primarySelection - tag.name
                                         } else {
                                             primarySelection + tag.name
                                         }
                                         secondarySelection = secondarySelection - tag.name
                                     } else {
-                                        secondarySelection = if (tag.name in secondarySelection) {
+                                        secondarySelection = if (inSecondary) {
                                             secondarySelection - tag.name
                                         } else {
                                             secondarySelection + tag.name
@@ -900,7 +918,20 @@ private fun ChartTagVoteSheet(
                                         primarySelection = primarySelection - tag.name
                                     }
                                 },
-                                label = { Text(tag.name) }
+                                label = { Text(tag.name) },
+                                // Primary and secondary picks keep separate
+                                // highlights so the two groups stay readable
+                                // at a glance before they are submitted apart.
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = when {
+                                        inPrimary -> MaterialTheme.colorScheme.primaryContainer
+                                        else -> MaterialTheme.colorScheme.tertiaryContainer
+                                    },
+                                    selectedLabelColor = when {
+                                        inPrimary -> MaterialTheme.colorScheme.onPrimaryContainer
+                                        else -> MaterialTheme.colorScheme.onTertiaryContainer
+                                    }
+                                )
                             )
                         }
                     }

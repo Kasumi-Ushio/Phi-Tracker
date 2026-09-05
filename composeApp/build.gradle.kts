@@ -13,6 +13,23 @@ plugins {
     alias(libs.plugins.aboutlibraries)
 }
 
+// Baked into a generated iosMain source at build time so the About screen
+// shows the real compile timestamp instead of relying on the bundle
+// executable's mtime, which re-signing and installation refresh. The millis
+// are formatted on device, mirroring the Android BuildConfig approach.
+val generateIosBuildTime = tasks.register("generateIosBuildTime") {
+    val outputDir = layout.buildDirectory.dir("generated/sources/iosBuildTime")
+    outputs.dir(outputDir)
+    doLast {
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        File(dir, "IosBuildTime.kt").writeText(
+            "package org.kasumi321.ushio.phitracker.data.platform\n\n" +
+                "internal const val IOS_BUILD_TIME_MILLIS: Long = ${System.currentTimeMillis()}L\n"
+        )
+    }
+}
+
 kotlin {
     // expect/actual classes are still Beta (KT-61573); the flag silences the
     // diagnostic for the expect objects and KSP-generated actuals.
@@ -61,6 +78,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kaml)
             implementation(libs.kotlinx.datetime)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
@@ -81,8 +99,11 @@ kotlin {
             implementation(libs.aboutlibraries.compose.m3)
             implementation(libs.haze)
         }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
+        iosMain {
+            kotlin.srcDir(generateIosBuildTime)
+            dependencies {
+                implementation(libs.ktor.client.darwin)
+            }
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -138,6 +159,14 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 6
         versionName = "0.1.5"
+        // Baked at build time so the About screen shows the real compile
+        // timestamp instead of the package install/update time. Store epoch
+        // millis and format on device so it renders in the user's timezone
+        // regardless of the build machine's timezone (CI builds run in UTC).
+        buildConfigField("long", "BUILD_TIME_MILLIS", "${System.currentTimeMillis()}L")
+    }
+    buildFeatures {
+        buildConfig = true
     }
     packaging {
         resources {

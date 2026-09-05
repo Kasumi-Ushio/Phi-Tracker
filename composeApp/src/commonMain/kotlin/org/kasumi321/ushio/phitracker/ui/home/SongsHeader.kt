@@ -174,7 +174,7 @@ fun SongsHeader(
                             modifier = Modifier
                                 .weight(1f)
                                 .focusRequester(focusRequester),
-                            placeholder = { Text("搜索曲名或作曲...") },
+                            placeholder = { Text("搜索曲名、作曲或别名...") },
                             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                             trailingIcon = {
                                 if (searchQuery.isNotEmpty()) {

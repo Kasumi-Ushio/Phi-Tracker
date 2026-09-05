@@ -19,7 +19,7 @@ open class SongDataUpdater(
         private const val BASE_URL =
                 "https://gh-proxy.org/https://raw.githubusercontent.com/Catrong/phi-plugin/main/resources/info/"
         // Upstream merged difficulty constants into info.csv and removed difficulty.csv.
-        val FILE_NAMES = listOf("info.csv", "infolist.json", "notesInfo.json")
+        val FILE_NAMES = listOf("info.csv", "infolist.json", "notesInfo.json", "nicklist.yaml")
     }
 
     open suspend fun updateAll(

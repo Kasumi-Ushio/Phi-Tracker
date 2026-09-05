@@ -34,14 +34,16 @@ class SearchSongUseCase {
             allSongs.values.filter { song ->
                 regex.containsMatchIn(song.name) ||
                 regex.containsMatchIn(song.id) ||
-                regex.containsMatchIn(song.composer)
+                regex.containsMatchIn(song.composer) ||
+                song.nicknames.any { regex.containsMatchIn(it) }
             }.sortedBy { it.name }
         } else {
             val lowerQuery = trimmed.lowercase()
             allSongs.values.filter { song ->
                 song.name.lowercase().contains(lowerQuery) ||
                 song.id.lowercase().contains(lowerQuery) ||
-                song.composer.lowercase().contains(lowerQuery)
+                song.composer.lowercase().contains(lowerQuery) ||
+                song.nicknames.any { it.lowercase().contains(lowerQuery) }
             }.sortedBy { it.name }
         }
     }

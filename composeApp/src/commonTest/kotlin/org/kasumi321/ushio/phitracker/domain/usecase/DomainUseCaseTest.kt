@@ -84,6 +84,35 @@ class DomainUseCaseTest {
     }
 
     @Test
+    fun searchMatchesNicknamesCaseInsensitively() {
+        val songs = mapOf(
+            "alpha.0" to SongInfo(
+                "alpha.0", "Alpha", "C", "", emptyMap(),
+                nicknames = listOf("FirstNick", "second-nick")
+            ),
+            "beta.0" to SongInfo("beta.0", "Beta", "C", "", emptyMap())
+        )
+
+        assertEquals(listOf("Alpha"), SearchSongUseCase()("firstnick", songs).map { it.name })
+        assertEquals(listOf("Alpha"), SearchSongUseCase()("SECOND-NICK", songs).map { it.name })
+        assertEquals(listOf("Beta"), SearchSongUseCase()("beta", songs).map { it.name })
+    }
+
+    @Test
+    fun searchWildcardMatchesNicknames() {
+        val songs = mapOf(
+            "alpha.0" to SongInfo(
+                "alpha.0", "Alpha", "C", "", emptyMap(),
+                nicknames = listOf("NickSuffix")
+            ),
+            "beta.0" to SongInfo("beta.0", "Beta", "C", "", emptyMap())
+        )
+
+        assertEquals(listOf("Alpha"), SearchSongUseCase()("Nick*", songs).map { it.name })
+        assertEquals(emptyList(), SearchSongUseCase()("Gamma*", songs).map { it.name })
+    }
+
+    @Test
     fun searchWildcardAsteriskMatchesNonSpaceChars() {
         val songs = mapOf(
             "alpha.0" to SongInfo("alpha.0", "Alpha-Beta", "C", "", emptyMap()),

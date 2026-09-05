@@ -23,7 +23,6 @@ import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.StarBorder
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -57,6 +56,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.b30.B30ExportPayload
+import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.ui.glass.GlassBottomBar
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.HomeGlassScaffold
@@ -488,7 +488,7 @@ private fun IllustrationPreloadDialog(
     onStartDownload: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = { },
         title = { Text("下载曲绘资源") },
         text = {

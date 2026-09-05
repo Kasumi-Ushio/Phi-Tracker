@@ -3,7 +3,6 @@ package org.kasumi321.ushio.phitracker.ui.update
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -12,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.unit.dp
+import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 
 @Composable
 fun UpdateResultDialog(
@@ -22,7 +22,7 @@ fun UpdateResultDialog(
     onDownload: (UriHandler) -> Unit
 ) {
     val uriHandler = LocalUriHandler.current
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("发现新版本") },
         text = {

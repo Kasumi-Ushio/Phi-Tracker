@@ -44,6 +44,7 @@ import org.kasumi321.ushio.phitracker.data.platform.shouldShowThemeColorSourceSe
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformAlert
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
+import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberCollapsingTitleStyle
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
@@ -798,7 +799,7 @@ fun SettingsTab(
     }
 
     if (showLogoutDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
                 title = { Text("退出登录") },
                 text = { Text("确定要退出当前账号吗？所有同步进度将会重置。") },
@@ -821,7 +822,7 @@ fun SettingsTab(
     }
 
     if (showApiRiskDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = { showApiRiskDialog = false },
                 icon = { Icon(Icons.Default.Warning, contentDescription = null) },
                 title = { Text("启用查分 API") },
@@ -845,7 +846,7 @@ fun SettingsTab(
     }
 
     if (showApiCredentialDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = { showApiCredentialDialog = false },
                 icon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
                 title = { Text("查分 API 凭据") },
@@ -940,7 +941,7 @@ fun SettingsTab(
     }
 
     if (showClearCacheDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = { showClearCacheDialog = false },
                 title = { Text("清理缓存") },
                 text = { Text("确定要清理所有高清曲绘缓存吗？已下载的曲绘缩略图将不会被清理。") },
@@ -967,7 +968,7 @@ fun SettingsTab(
     }
 
     if (showRedownloadDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = { showRedownloadDialog = false },
                 title = { Text("重新下载") },
                 text = { Text("确定要删除本地所有曲绘信息吗？如点击确定，本应用将自动退出，下次进入应用时将自动重新唤起预加载窗口。") },
@@ -990,7 +991,7 @@ fun SettingsTab(
     }
 
     if (showUpdateDataDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = { showUpdateDataDialog = false },
                 title = { Text("更新曲目数据") },
                 text = { Text("将从远程仓库下载最新的曲目数据，之后将自动刷新本地曲目数据。\n下载完毕后，推荐重新下载所有曲绘。") },
@@ -1009,7 +1010,7 @@ fun SettingsTab(
     }
 
     if (isUpdatingData) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = {},
                 properties =
                         DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
@@ -1046,7 +1047,7 @@ fun SettingsTab(
     }
 
     if (updateDataError != null) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = onDismissUpdateError,
                 title = { Text("更新失败") },
                 text = { Text("发生了错误：\n$updateDataError") },
@@ -1055,7 +1056,7 @@ fun SettingsTab(
     }
 
     if (showNotificationGuideDialog) {
-        AlertDialog(
+        AnimatedAlertDialog(
                 onDismissRequest = {
                     showNotificationGuideDialog = false
                     onCrashNotificationGuideShown()

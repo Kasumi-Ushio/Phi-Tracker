@@ -23,5 +23,6 @@ data class SongInfo(
     val chapter: String = "",
     val length: String = "",
     val charters: Map<Difficulty, String> = emptyMap(),
-    val noteCounts: Map<Difficulty, NoteCount> = emptyMap()
+    val noteCounts: Map<Difficulty, NoteCount> = emptyMap(),
+    val nicknames: List<String> = emptyList()
 )

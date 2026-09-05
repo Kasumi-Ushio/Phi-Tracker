@@ -38,7 +38,9 @@ class SongDataProviderTest {
                     "test\tBundledName\tBundledComposer\tBundledIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t"
             ),
             "infolist.json" to """{}""",
-            "notesInfo.json" to """{}"""
+            "notesInfo.json" to """{}""",
+            // Keyed by the raw song id without the ".0" suffix, matching upstream nicklist.yaml.
+            "nicklist.yaml" to "test:\n  - BundledNick\n  - bundled nick two\n"
         )
     }
 
@@ -112,6 +114,42 @@ class SongDataProviderTest {
         val songs = provider.getSongs()
         assertEquals("OverriddenName", songs["test.0"]?.name)
         assertEquals("OverriddenComposer", songs["test.0"]?.composer)
+    }
+
+    @Test
+    fun readsNicknamesFromNicklistYaml() {
+        val provider = SongDataProvider(
+            assetReader = fakeReader(),
+            paths = paths,
+            json = json
+        )
+        val songs = provider.getSongs()
+        assertEquals(listOf("BundledNick", "bundled nick two"), songs["test.0"]?.nicknames)
+    }
+
+    @Test
+    fun fileOverrideNicklistReplacesBundledNicknames() {
+        writeSongDataFile("nicklist.yaml", "test:\n  - OverrideNick\n")
+
+        val provider = SongDataProvider(
+            assetReader = fakeReader(),
+            paths = paths,
+            json = json
+        )
+        val songs = provider.getSongs()
+        assertEquals(listOf("OverrideNick"), songs["test.0"]?.nicknames)
+    }
+
+    @Test
+    fun missingNicklistFallsBackToEmptyNicknames() {
+        val assetsWithoutNicklist = bundledAssets - "nicklist.yaml"
+        val reader = object : TextAssetReader {
+            override fun readText(name: String): String =
+                assetsWithoutNicklist[name] ?: error("Asset not found: $name")
+        }
+        val provider = SongDataProvider(assetReader = reader, paths = paths, json = json)
+        val songs = provider.getSongs()
+        assertEquals(emptyList(), songs["test.0"]?.nicknames)
     }
 
     @Test

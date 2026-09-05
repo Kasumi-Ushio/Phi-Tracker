@@ -1,6 +1,5 @@
 package org.kasumi321.ushio.phitracker.ui.components
 
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -13,7 +12,7 @@ fun PlatformAlertHost() {
     val alert by PlatformAlertController.alert.collectAsState()
     val content = alert ?: return
 
-    AlertDialog(
+    AnimatedAlertDialog(
         onDismissRequest = { PlatformAlertController.dismiss(content.id) },
         title = { Text(content.title) },
         text = { Text(content.message) },

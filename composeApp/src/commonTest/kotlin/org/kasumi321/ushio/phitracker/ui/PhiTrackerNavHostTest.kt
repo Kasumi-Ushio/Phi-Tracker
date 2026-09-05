@@ -2,6 +2,7 @@ package org.kasumi321.ushio.phitracker.ui
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
@@ -13,7 +14,7 @@ import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 
 class PhiTrackerNavHostTest {
     @Test
-    fun toolbarBackClearsPayloadAndPopsB30Destination() {
+    fun toolbarBackKeepsPayloadAliveUntilDestinationDispose() {
         val gateway = RecordingGateway("home")
         val coordinator = B30NavigationCoordinator(gateway)
         coordinator.openB30(payload("current"))
@@ -21,10 +22,15 @@ class PhiTrackerNavHostTest {
 
         coordinator.toolbarBack()
 
+        // The payload must survive the pop transition; the destination can be
+        // recomposed (or recreated on iOS) before it leaves the composition.
         assertEquals(1, gateway.navigationObservationCount)
-        assertNull(gateway.payloadObservedDuringNavigation)
-        assertNull(coordinator.payload)
+        assertNotNull(gateway.payloadObservedDuringNavigation)
+        assertNotNull(coordinator.payload)
         assertEquals(listOf("home"), gateway.routes)
+
+        coordinator.destinationDisposed()
+        assertNull(coordinator.payload)
     }
 
     @Test

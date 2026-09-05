@@ -1,6 +1,10 @@
 package org.kasumi321.ushio.phitracker.data.song
 
+import com.charleskorn.kaml.Yaml
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -18,6 +22,7 @@ class SongDataProvider(
     private val paths: PlatformPaths? = null,
     private val json: Json = Json { ignoreUnknownKeys = true }
 ) {
+    private val yaml = Yaml()
     private var songs: Map<String, SongInfo>? = null
     private val invalidations = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -33,12 +38,16 @@ class SongDataProvider(
         val infos = loadInfos()
         val additionalInfo = runCatching { loadAdditionalInfo() }.getOrDefault(emptyMap())
         val notesInfo = runCatching { loadNotesInfo() }.getOrDefault(emptyMap())
+        // Keyed by the raw song id (without the ".0" suffix), matching the
+        // upstream nicklist.yaml format; entries without a matching song are ignored.
+        val nicknames = runCatching { loadNicknames() }.getOrDefault(emptyMap())
         val loaded = mutableMapOf<String, SongInfo>()
         for ((songId, diffs) in difficulties) {
             val info = infos[songId]
             val rawId = songId.removeSuffix(".0")
             val addInfo = additionalInfo[rawId]
             val noteInfo = notesInfo[rawId]
+            val songNicknames = nicknames[rawId] ?: emptyList()
             val noteCounts = diffs.keys.associateWith { difficulty ->
                 val tArray = noteInfo?.get(difficulty.name)?.t ?: emptyList()
                 if (tArray.size >= 4) NoteCount(tArray[0], tArray[1], tArray[2], tArray[3]) else NoteCount()
@@ -53,7 +62,8 @@ class SongDataProvider(
                 chapter = addInfo?.chapter ?: "",
                 length = addInfo?.length ?: "",
                 charters = info?.charters ?: emptyMap(),
-                noteCounts = noteCounts
+                noteCounts = noteCounts,
+                nicknames = songNicknames
             )
         }
         songs = loaded
@@ -107,6 +117,11 @@ class SongDataProvider(
 
     private fun loadAdditionalInfo(): Map<String, InfoListEntry> = json.decodeFromString(reader.readText("infolist.json"))
     private fun loadNotesInfo(): Map<String, Map<String, NotesInfoDifficulty>> = json.decodeFromString(reader.readText("notesInfo.json"))
+
+    private fun loadNicknames(): Map<String, List<String>> {
+        val serializer = MapSerializer(String.serializer(), ListSerializer(String.serializer()))
+        return yaml.decodeFromString(serializer, reader.readText("nicklist.yaml"))
+    }
 
     private data class InfoCsvModel(
         val name: String,

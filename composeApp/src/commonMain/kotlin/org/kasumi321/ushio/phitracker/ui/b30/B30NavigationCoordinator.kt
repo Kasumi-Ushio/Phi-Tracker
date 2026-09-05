@@ -21,7 +21,11 @@ internal class B30NavigationCoordinator(
     }
 
     fun toolbarBack() {
-        clearPayload()
+        // Do not clear the payload here: the pop transition keeps this
+        // destination composed (and on iOS it may even dispose and recreate
+        // its composition) until it leaves the composition, and a recomposed
+        // screen with a null payload would wrongly trigger payload recovery.
+        // The payload is released by destinationDisposed() instead.
         gateway.popCurrent()
     }
 

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.animation.core.tween
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
@@ -221,14 +222,18 @@ fun PhiTrackerNavHost() {
                     b30Navigation.destinationDisposed()
                 }
             }
-            // Snapshot the payload per back stack entry: the pop exit transition keeps this
-            // destination composed for a while, and toolbarBack() clears the coordinator
-            // payload before the transition ends. Re-reading it on recomposition would see
-            // null and wrongly trigger the missing-payload recovery.
-            val payload = remember(backStackEntry) { b30Navigation.payload }
+            val payload = b30Navigation.payload
             if (payload == null) {
-                LaunchedEffect(backStackEntry) {
-                    b30Navigation.recoverMissingPayload()
+                // Only recover when this entry is actually on top of the back
+                // stack: during a pop transition the outgoing destination can
+                // be recomposed, or disposed and recreated on iOS, after its
+                // payload was released. Recovering in that state would clear
+                // the whole navigation graph back to the login screen.
+                val currentEntry by navController.currentBackStackEntryAsState()
+                if (currentEntry?.id == backStackEntry.id) {
+                    LaunchedEffect(backStackEntry) {
+                        b30Navigation.recoverMissingPayload()
+                    }
                 }
                 return@composable
             }
@@ -365,6 +370,7 @@ fun PhiTrackerNavHost() {
                     onLoadSongApiDetail = viewModel::loadSongApiDetail,
                     getChartTags = viewModel::getChartTagState,
                     onLoadChartTags = viewModel::loadChartTags,
+                    canVote = state.apiToken.isNotBlank(),
                     onSubmitChartTagVote = viewModel::submitChartTagVote,
                     getLowIllustrationUrl = { state.lowIllustrationUrl },
                     getStandardIllustrationUrl = { state.standardIllustrationUrl },
