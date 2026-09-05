@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.ui.home.ProfileHeaderCard
 import org.kasumi321.ushio.phitracker.ui.home.ScoreCardContent
 import org.kasumi321.ushio.phitracker.ui.home.StatsTableCard
@@ -39,6 +40,12 @@ import org.kasumi321.ushio.phitracker.ui.home.StatsTableCard
  * preloader so it can warm the exact Coil request key the cards consume.
  */
 internal const val B30_EXPORT_CARD_THUMBNAIL_SCALE = 0.9f
+
+/**
+ * Slot id under which the export profile avatar is tracked by
+ * [B30ExportImageLoadTracker].
+ */
+internal const val B30_EXPORT_AVATAR_SLOT = "avatar"
 
 @Composable
 internal fun B30ExportLayout(
@@ -98,13 +105,28 @@ internal fun B30ExportLayout(
                     contentHorizontalPadding = 9.dp,
                     contentVerticalPadding = 5.dp,
                     textVerticalSpacing = 2.dp,
-                    avatarSize = 61.2.dp,
+                    avatarSize = B30ExportSpec.AVATAR_SIZE_DP.dp,
                     avatarTextSpacing = 18.dp,
                     centerContent = true,
                     modifier = Modifier
                         .width(B30ExportSpec.profileCardWidthDp.dp)
                         .height(headerHeight),
-                    allowHardwareImages = allowHardwareImages
+                    allowHardwareImages = allowHardwareImages,
+                    avatarRequestSizePx = B30ExportSpec.avatarSizePx,
+                    avatarCrossfade = false,
+                    onAvatarSettled = imageLoadTracker?.let { tracker ->
+                        { error ->
+                            // A broken avatar must not fail the whole export;
+                            // log it and let the capture proceed (placeholder).
+                            if (error != null) {
+                                AppLogger.w(
+                                    "B30ExportLayout",
+                                    "avatar load failed: ${error.message ?: error::class.simpleName}"
+                                )
+                            }
+                            tracker.onIllustrationSettled(B30_EXPORT_AVATAR_SLOT, null)
+                        }
+                    }
                 )
                 StatsTableCard(
                     clearCounts = data.statsTable.clearCounts,

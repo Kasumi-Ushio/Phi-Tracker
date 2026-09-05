@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.compose.AsyncImagePainter
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import coil3.request.crossfade
@@ -202,7 +203,14 @@ fun ProfileHeaderCard(
     avatarTextSpacing: Dp = 16.dp,
     centerContent: Boolean = false,
     modifier: Modifier = Modifier,
-    allowHardwareImages: Boolean = true
+    allowHardwareImages: Boolean = true,
+    // Export tuning: the off-screen B30 capture pins the avatar request size so
+    // its Coil memory-cache key matches the export preloader, disables
+    // crossfade (a mid-transition frame would capture semi-transparent), and
+    // reports painter completion so the capture can wait for the avatar.
+    avatarRequestSizePx: Int? = null,
+    avatarCrossfade: Boolean = true,
+    onAvatarSettled: ((Throwable?) -> Unit)? = null
 ) {
     val platformContext = LocalPlatformContext.current
 
@@ -232,10 +240,11 @@ fun ProfileHeaderCard(
                 contentAlignment = Alignment.Center
             ) {
                 if (avatarUri != null) {
-                    val imageRequest = remember(platformContext, avatarUri) {
+                    val imageRequest = remember(platformContext, avatarUri, avatarRequestSizePx, avatarCrossfade) {
                         ImageRequest.Builder(platformContext).apply {
                             data(avatarUri)
-                            crossfade(true)
+                            avatarRequestSizePx?.let { size(it) }
+                            crossfade(avatarCrossfade)
                             setImageRequestAllowHardware(allowHardwareImages)
                         }.build()
                     }
@@ -245,7 +254,16 @@ fun ProfileHeaderCard(
                         modifier = Modifier
                             .size(avatarSize)
                             .clip(CircleShape),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        onState = onAvatarSettled?.let { settled ->
+                            { state ->
+                                when (state) {
+                                    is AsyncImagePainter.State.Success -> settled(null)
+                                    is AsyncImagePainter.State.Error -> settled(state.result.throwable)
+                                    else -> Unit
+                                }
+                            }
+                        }
                     )
                 } else {
                     Icon(

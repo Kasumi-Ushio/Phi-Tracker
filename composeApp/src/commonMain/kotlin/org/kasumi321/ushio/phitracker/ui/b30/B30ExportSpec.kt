@@ -1,5 +1,7 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
+import kotlin.math.roundToInt
+
 /**
  * Single source of truth for B30 export dimensions.
  *
@@ -146,4 +148,22 @@ object B30ExportSpec {
      */
     val tagSectionGapDp: Float
         get() = 6f
+
+    // ─── beta5 avatar constants ──────────────────────────────────────────
+    /**
+     * Avatar diameter inside the export profile header card, in dp.
+     *
+     * Authoritative beta5 baseline value: **61.2 dp**.
+     */
+    const val AVATAR_SIZE_DP = 61.2f
+
+    /**
+     * [AVATAR_SIZE_DP] rounded to device pixels at [DENSITY].
+     *
+     * Shared by the export layout's avatar request, the export preloader, and
+     * the preload warm-up so every Coil request for the avatar carries the
+     * same size and hits the same memory-cache key.
+     */
+    val avatarSizePx: Int
+        get() = (AVATAR_SIZE_DP * DENSITY).roundToInt()
 }

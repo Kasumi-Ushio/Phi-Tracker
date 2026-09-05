@@ -478,16 +478,16 @@ private suspend fun preloadB30ExportImages(exportData: B30ExportData) {
         .mapNotNull { it?.takeIf(String::isNotBlank) }
         .distinct()
 
-    // Avatar/background are consumed differently (natural-size avatar; the
-    // background is re-decoded and blurred by the platform generator), so an
-    // exact memory-cache hit isn't achievable — warming them as software bitmaps
-    // still spares the capture a network round-trip.
-    val auxiliaryUris = listOfNotNull(
-        exportData.avatarUri?.takeIf(String::isNotBlank),
-        exportData.backgroundUri?.takeIf(String::isNotBlank)
-    ).distinct()
+    // Avatar/background are consumed differently: the avatar is pinned to
+    // B30ExportSpec.avatarSizePx so its Coil memory-cache key matches the
+    // export layout's avatar request exactly (an exact hit resolves
+    // synchronously on first composition), while the background is re-decoded
+    // and blurred by the platform generator, so warming it as a software
+    // bitmap merely spares the capture a network round-trip.
+    val avatarUri = exportData.avatarUri?.takeIf(String::isNotBlank)
+    val backgroundUri = exportData.backgroundUri?.takeIf(String::isNotBlank)
 
-    if (cardUris.isEmpty() && auxiliaryUris.isEmpty()) return
+    if (cardUris.isEmpty() && avatarUri == null && backgroundUri == null) return
 
     coroutineScope {
         val semaphore = Semaphore(6)
@@ -499,10 +499,21 @@ private suspend fun preloadB30ExportImages(exportData: B30ExportData) {
                     }
                 })
             }
-            auxiliaryUris.forEach { uri ->
-                add(uri to async {
+            if (avatarUri != null) {
+                add(avatarUri to async {
                     semaphore.withPermit {
-                        preloadIllustrationThumbnail(uri, allowHardware = false)
+                        preloadIllustrationThumbnail(
+                            avatarUri,
+                            size = B30ExportSpec.avatarSizePx,
+                            allowHardware = false
+                        )
+                    }
+                })
+            }
+            if (backgroundUri != null) {
+                add(backgroundUri to async {
+                    semaphore.withPermit {
+                        preloadIllustrationThumbnail(backgroundUri, allowHardware = false)
                     }
                 })
             }
@@ -521,7 +532,11 @@ private suspend fun preloadB30ExportImages(exportData: B30ExportData) {
         AppLogger.event(
             "b30_export",
             "image_preload_finished",
-            mapOf("cardImages" to cardUris.size.toString(), "auxiliaryImages" to auxiliaryUris.size.toString())
+            mapOf(
+                "cardImages" to cardUris.size.toString(),
+                "avatarImages" to (if (avatarUri != null) 1 else 0).toString(),
+                "backgroundImages" to (if (backgroundUri != null) 1 else 0).toString()
+            )
         )
     }
 }

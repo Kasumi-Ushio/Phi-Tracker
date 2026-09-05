@@ -7,8 +7,9 @@ import kotlinx.coroutines.withTimeout
  * Coordinates image-painter completion with an off-screen B30 capture.
  *
  * Coil preloading only guarantees that the decode request has finished. The
- * export still must wait for every card's AsyncImage painter to apply that
- * result to its composition before the platform renderer draws the view.
+ * export still must wait for every card's (and the avatar's) AsyncImage
+ * painter to apply that result to its composition before the platform
+ * renderer draws the view.
  */
 internal class B30ExportImageLoadTracker(expectedSlotIds: Set<String>) {
     private val pending = expectedSlotIds.toMutableSet()
@@ -35,6 +36,7 @@ internal class B30ExportImageLoadTracker(expectedSlotIds: Set<String>) {
 }
 
 internal fun B30ExportData.illustrationSlotIds(): Set<String> = buildSet {
+    if (!avatarUri.isNullOrBlank()) add(B30_EXPORT_AVATAR_SLOT)
     phiRecords.forEachIndexed { index, card ->
         if (!card.illustrationUri.isNullOrBlank()) add("phi:$index")
     }
