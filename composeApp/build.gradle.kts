@@ -97,6 +97,7 @@ kotlin {
             implementation(libs.okio)
             implementation(libs.kermit)
             implementation(libs.aboutlibraries.compose.m3)
+            implementation(libs.multiplatform.markdown.renderer.m3)
             implementation(libs.haze)
         }
         iosMain {
