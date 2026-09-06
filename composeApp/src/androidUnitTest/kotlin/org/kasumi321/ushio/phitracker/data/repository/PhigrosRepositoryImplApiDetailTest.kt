@@ -26,6 +26,7 @@ import kotlinx.serialization.json.Json
 import org.junit.runner.RunWith
 import org.kasumi321.ushio.phitracker.data.api.PhiPluginApi
 import org.kasumi321.ushio.phitracker.data.api.TapTapApiClient
+import org.kasumi321.ushio.phitracker.data.api.TapTapGameApi
 import org.kasumi321.ushio.phitracker.data.database.AppDatabase
 import org.kasumi321.ushio.phitracker.data.parser.AesDecryptor
 import org.kasumi321.ushio.phitracker.data.parser.SaveParser
@@ -408,6 +409,7 @@ class PhigrosRepositoryImplApiDetailTest {
         return PhigrosRepositoryImpl(
             apiClient = TapTapApiClient(client),
             phiPluginApi = PhiPluginApi(client),
+            tapTapGameApi = TapTapGameApi(client),
             httpClient = client,
             saveParser = SaveParser(AesDecryptor()),
             database = database,

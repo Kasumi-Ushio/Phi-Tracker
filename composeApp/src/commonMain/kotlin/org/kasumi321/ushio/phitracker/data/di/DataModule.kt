@@ -6,6 +6,7 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.kasumi321.ushio.phitracker.data.api.PhiPluginApi
 import org.kasumi321.ushio.phitracker.data.api.TapTapApiClient
+import org.kasumi321.ushio.phitracker.data.api.TapTapGameApi
 import org.kasumi321.ushio.phitracker.data.api.TapTapQrLoginApi
 import org.kasumi321.ushio.phitracker.data.TipsProvider
 import org.kasumi321.ushio.phitracker.data.database.AppDatabase
@@ -44,6 +45,7 @@ val dataModule = module {
     }
     single { TapTapApiClient(get()) }
     single { PhiPluginApi(get()) }
+    single { TapTapGameApi(get()) }
     single { TapTapQrLoginApi(get()) }
     single<QrLoginRepository> { QrLoginRepositoryImpl(get()) }
     single { AesDecryptor() }
@@ -67,6 +69,7 @@ val dataModule = module {
         PhigrosRepositoryImpl(
             apiClient = get(),
             phiPluginApi = get(),
+            tapTapGameApi = get(),
             httpClient = get(),
             saveParser = get(),
             database = get(),

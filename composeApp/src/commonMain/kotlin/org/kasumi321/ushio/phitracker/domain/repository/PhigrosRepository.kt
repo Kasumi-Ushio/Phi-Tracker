@@ -17,6 +17,7 @@ import org.kasumi321.ushio.phitracker.domain.model.B30ChartTagBatch
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 
 interface PhigrosRepository {
     suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile>
@@ -76,4 +77,5 @@ interface PhigrosRepository {
     ): Result<Unit>
 
     suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo>
+    suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo>
 }

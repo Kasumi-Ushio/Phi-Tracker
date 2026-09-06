@@ -344,4 +344,30 @@ class SettingsRepositoryImplTest {
         val repo = SettingsRepositoryImpl(storage, preloadStorage)
         assertEquals(1.5f, repo.hazeBlurStrength.first())
     }
+
+    @Test
+    fun gameUpdateCacheDefaultsToNull(): Unit = runTest {
+        val repo = createRepo()
+        assertNull(repo.gameUpdateInfoCache.first())
+    }
+
+    @Test
+    fun gameUpdateCachePersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setGameUpdateInfoCache("""{"version":"3.20.0","versionCode":154}""")
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals("""{"version":"3.20.0","versionCode":154}""", repo2.gameUpdateInfoCache.first())
+    }
+
+    @Test
+    fun gameUpdateCacheCanBeCleared(): Unit = runTest {
+        val repo = createRepo()
+        repo.setGameUpdateInfoCache("""{"version":"3.20.0"}""")
+        repo.setGameUpdateInfoCache(null)
+        assertNull(repo.gameUpdateInfoCache.first())
+    }
 }

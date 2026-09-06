@@ -21,6 +21,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.math.roundToLong
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -39,6 +41,7 @@ import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SyncMode
@@ -53,7 +56,9 @@ import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.AnalyzeB30TagsUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.BuildB30RksHistogramUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.FetchGameUpdateInfoUseCase
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.toUpdateCheckState
 
@@ -67,6 +72,8 @@ data class ApiToolRow(
     val label: String,
     val value: String
 )
+
+private val GameUpdateJson = Json { ignoreUnknownKeys = true }
 
 class HomeViewModel(
     private val repository: PhigrosRepository,
@@ -83,6 +90,7 @@ class HomeViewModel(
     private val checkForUpdateUseCase: CheckForUpdateUseCase = CheckForUpdateUseCase(repository),
     private val appVersionNameProvider: () -> String = { getAppMetadata().versionName },
     private val analyzeB30TagsUseCase: AnalyzeB30TagsUseCase = AnalyzeB30TagsUseCase(),
+    private val fetchGameUpdateInfoUseCase: FetchGameUpdateInfoUseCase = FetchGameUpdateInfoUseCase(repository),
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -209,6 +217,7 @@ class HomeViewModel(
                 checkForUpdate(appVersionNameProvider())
             }
         }
+        loadGameUpdateInfo()
     }
 
     private fun updateProfile(transform: (ProfileUiState) -> ProfileUiState) {
@@ -271,14 +280,27 @@ class HomeViewModel(
                 .collect { (b30, allRecords) ->
                     val computedRks = RksCalculator.calculateDisplayRks(b30)
                     val cachedSave = repository.getCachedSave().first()
+                    // Same slot selection as the B30 export histogram and
+                    // the tag analysis: only the 3 phi slots plus the 27
+                    // best slots count toward RKS.
+                    val histogram = BuildB30RksHistogramUseCase()(
+                        b30.filter { it.isPhi }.take(3) + b30.filter { !it.isPhi }.take(27)
+                    )
+                    // The suggest sweep below can resume on a background
+                    // dispatcher long after this collect body started;
+                    // capture the request here and only apply the result
+                    // if the user hasn't changed it in the meantime, so a
+                    // stale sweep never clobbers a fresher result.
+                    val suggestModeAtStart = _uiState.value.tools.suggestTargetMode
+                    val suggestInputAtStart = _uiState.value.tools.suggestTargetInput
                     val suggestResult = cachedSave?.let {
                         buildSuggestItems(
                             currentB30 = b30,
                             records = it.gameRecord,
                             difficulties = diffMap,
                             songNames = nameMap,
-                            mode = _uiState.value.tools.suggestTargetMode,
-                            input = _uiState.value.tools.suggestTargetInput
+                            mode = suggestModeAtStart,
+                            input = suggestInputAtStart
                         )
                     } ?: SuggestBuildResult(emptyList(), null)
                     _uiState.update { state ->
@@ -286,12 +308,20 @@ class HomeViewModel(
                             b30 = state.b30.copy(
                             b30 = b30,
                             allRecords = allRecords,
-                                displayRks = if (state.b30.displayRks == 0f) computedRks else state.b30.displayRks
+                                displayRks = if (state.b30.displayRks == 0f) computedRks else state.b30.displayRks,
+                                histogram = histogram
                             ),
-                            tools = state.tools.copy(
-                            suggestItems = suggestResult.items,
-                                suggestTargetError = suggestResult.error
-                            ),
+                            tools = if (
+                                state.tools.suggestTargetMode == suggestModeAtStart &&
+                                state.tools.suggestTargetInput == suggestInputAtStart
+                            ) {
+                                state.tools.copy(
+                                suggestItems = suggestResult.items,
+                                    suggestTargetError = suggestResult.error
+                                )
+                            } else {
+                                state.tools
+                            },
                             sync = state.sync.copy(isLoading = false)
                         )
                     }
@@ -1073,6 +1103,48 @@ class HomeViewModel(
     private fun currentTimeMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
     // --- Application update check ---
+
+    /**
+     * Loads the latest published Phigros game update. The last fetched
+     * [GameUpdateInfo] is cached as JSON in [SettingsRepository], so the
+     * profile page shows the card immediately (even offline) and a
+     * successful refresh only rewrites the cache when the content
+     * actually changed. Failures keep the cached value and are logged.
+     */
+    private fun loadGameUpdateInfo() {
+        viewModelScope.launch {
+            AppLogger.event("data", "game_update_info_load_started")
+            val cached = settingsRepository.gameUpdateInfoCache.first()
+                ?.let { raw -> runCatching { GameUpdateJson.decodeFromString<GameUpdateInfo>(raw) }.getOrNull() }
+            if (cached != null) {
+                updateSync { it.copy(gameUpdateInfo = cached) }
+            }
+            fetchGameUpdateInfoUseCase().fold(
+                onSuccess = { info ->
+                    if (info != cached) {
+                        runCatching {
+                            settingsRepository.setGameUpdateInfoCache(GameUpdateJson.encodeToString(info))
+                        }.onFailure { e ->
+                            AppLogger.event(
+                                "data",
+                                "game_update_info_cache_write_failed",
+                                mapOf("error" to (e.message ?: "unknown"))
+                            )
+                        }
+                    }
+                    updateSync { it.copy(gameUpdateInfo = info) }
+                    AppLogger.event("data", "game_update_info_loaded", mapOf("version" to info.version))
+                },
+                onFailure = { e ->
+                    AppLogger.event(
+                        "data",
+                        "game_update_info_load_failed",
+                        mapOf("error" to (e.message ?: "unknown"))
+                    )
+                }
+            )
+        }
+    }
 
     fun checkForUpdate(currentVersionName: String) {
         viewModelScope.launch {

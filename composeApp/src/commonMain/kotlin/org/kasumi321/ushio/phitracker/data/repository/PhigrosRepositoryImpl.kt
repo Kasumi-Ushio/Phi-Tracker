@@ -20,6 +20,7 @@ import org.kasumi321.ushio.phitracker.data.api.GitHubReleaseDto
 import org.kasumi321.ushio.phitracker.data.api.toDomain
 import org.kasumi321.ushio.phitracker.data.api.PhiPluginApi
 import org.kasumi321.ushio.phitracker.data.api.TapTapApiClient
+import org.kasumi321.ushio.phitracker.data.api.TapTapGameApi
 import org.kasumi321.ushio.phitracker.data.database.RecordDao
 import org.kasumi321.ushio.phitracker.data.database.AppDatabase
 import org.kasumi321.ushio.phitracker.data.database.SongSyncHistoryDao
@@ -49,6 +50,7 @@ import org.kasumi321.ushio.phitracker.domain.model.B30ChartTagBatch
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import kotlinx.serialization.json.Json
 import kotlin.time.Clock
@@ -58,6 +60,7 @@ import kotlin.time.Instant
 class PhigrosRepositoryImpl(
     private val apiClient: TapTapApiClient,
     private val phiPluginApi: PhiPluginApi,
+    private val tapTapGameApi: TapTapGameApi,
     private val httpClient: HttpClient,
     private val saveParser: SaveParser,
     database: AppDatabase,
@@ -439,6 +442,10 @@ class PhigrosRepositoryImpl(
                 json = json,
             ).getOrThrow()
         }
+
+    override suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo> = runCatching {
+        tapTapGameApi.fetchLatestUpdate()
+    }
 
     private suspend fun invalidateApiDetailCache() {
         apiDetailMutex.withLock { advanceApiDetailEpochLocked() }

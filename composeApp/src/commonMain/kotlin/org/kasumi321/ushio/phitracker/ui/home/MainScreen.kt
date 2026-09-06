@@ -427,6 +427,8 @@ fun MainScreen(
                     }
                 },
                 getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
+                histogram = state.b30.histogram,
+                gameUpdateInfo = state.sync.gameUpdateInfo,
                 contentPadding = contentPadding,
                 scrollState = profileScrollState
             )

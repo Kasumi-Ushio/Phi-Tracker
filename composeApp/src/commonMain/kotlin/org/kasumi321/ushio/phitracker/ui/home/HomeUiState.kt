@@ -1,8 +1,10 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import org.kasumi321.ushio.phitracker.domain.model.B30RksHistogram
 import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
@@ -53,6 +55,7 @@ data class B30UiState(
     val b30: List<BestRecord> = emptyList(),
     val allRecords: List<BestRecord> = emptyList(),
     val displayRks: Float = 0f,
+    val histogram: B30RksHistogram? = null,
     val themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings(),
     val showB30Overflow: Boolean = false,
     val overflowCount: Int = 9,
@@ -90,5 +93,6 @@ data class SyncUiState(
     val isSyncing: Boolean = false,
     val error: String? = null,
     val isLoggedOut: Boolean = false,
+    val gameUpdateInfo: GameUpdateInfo? = null,
     val updateCheckState: UpdateCheckState = UpdateCheckState.Idle
 )

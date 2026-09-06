@@ -22,6 +22,7 @@ import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.B30ChartTagBatch
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import kotlin.math.abs
@@ -568,5 +569,8 @@ class DomainUseCaseTest {
 
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> =
             Result.failure(IllegalStateException("Not implemented in Phase E"))
+
+        override suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo> =
+            Result.failure(UnsupportedOperationException())
     }
 }

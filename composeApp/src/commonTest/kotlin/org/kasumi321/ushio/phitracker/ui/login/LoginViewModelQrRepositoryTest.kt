@@ -21,6 +21,7 @@ import org.kasumi321.ushio.phitracker.domain.model.QrAuthorizationId
 import org.kasumi321.ushio.phitracker.domain.model.QrChallengeId
 import org.kasumi321.ushio.phitracker.domain.model.QrLoginChallenge
 import org.kasumi321.ushio.phitracker.domain.model.QrLoginPollResult
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
@@ -317,6 +318,8 @@ class LoginViewModelQrRepositoryTest {
         ): Result<Unit> = Result.failure(UnsupportedOperationException())
 
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> = offline()
+
+        override suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo> = offline()
     }
 
     private companion object {

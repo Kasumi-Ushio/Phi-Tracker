@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -53,16 +54,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.alexzhirkevich.qrose.options.QrBallShape
+import io.github.alexzhirkevich.qrose.options.QrBrush
 import io.github.alexzhirkevich.qrose.options.QrFrameShape
 import io.github.alexzhirkevich.qrose.options.QrPixelShape
 import io.github.alexzhirkevich.qrose.options.circle
 import io.github.alexzhirkevich.qrose.options.roundCorners
+import io.github.alexzhirkevich.qrose.options.solid
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.ui.common.SpringTabIndicator
+
+private val QrCodeMaxSize = 280.dp
 
 @Composable
 fun LoginScreen(
@@ -430,10 +436,12 @@ private fun TokenLoginContent(
 private fun QrCodeImage(url: String, onClick: (() -> Unit)? = null) {
     ElevatedCard(
         modifier = Modifier
-            .fillMaxWidth(0.7f)
+            .widthIn(max = QrCodeMaxSize)
+            .fillMaxWidth()
             .aspectRatio(1f)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
     ) {
         Box(
@@ -445,6 +453,10 @@ private fun QrCodeImage(url: String, onClick: (() -> Unit)? = null) {
             androidx.compose.foundation.Image(
                 painter = rememberQrCodePainter(
                     data = url,
+                    darkBrush = QrBrush.solid(Color.Black),
+                    lightBrush = QrBrush.solid(Color.White),
+                    ballBrush = QrBrush.solid(Color.Black),
+                    frameBrush = QrBrush.solid(Color.Black),
                     ballShape = QrBallShape.circle(),
                     darkPixelShape = QrPixelShape.roundCorners(.25f),
                     frameShape = QrFrameShape.roundCorners(.25f),

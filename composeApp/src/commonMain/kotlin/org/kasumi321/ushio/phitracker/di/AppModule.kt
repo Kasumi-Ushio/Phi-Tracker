@@ -10,6 +10,7 @@ import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.AnalyzeB30TagsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.FetchGameUpdateInfoUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
@@ -24,6 +25,7 @@ val appModule = module {
     single { GetSuggestUseCase() }
     single { SearchSongUseCase() }
     single { CheckForUpdateUseCase(get()) }
+    single { FetchGameUpdateInfoUseCase(get()) }
     single { GetChartTagsUseCase(get()) }
     single { VoteChartTagsUseCase(get()) }
     single { AnalyzeB30TagsUseCase() }
@@ -78,6 +80,7 @@ val appModule = module {
             settingsRepository = get(),
             artworkFileCache = get(),
             checkForUpdateUseCase = get(),
+            fetchGameUpdateInfoUseCase = get(),
         )
     }
 }

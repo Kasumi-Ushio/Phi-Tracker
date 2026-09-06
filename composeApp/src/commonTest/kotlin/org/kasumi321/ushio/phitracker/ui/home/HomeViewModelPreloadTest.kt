@@ -48,6 +48,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.model.SongRecord
 import org.kasumi321.ushio.phitracker.domain.model.Summary
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
@@ -723,6 +724,13 @@ class HomeViewModelPreloadTest {
 
         override val avatarUri: Flow<String?> = flowOf(null)
         override suspend fun setAvatarUri(uri: String?) = Unit
+        private val _gameUpdateCache = MutableStateFlow<String?>(null)
+        val gameUpdateCacheWrites = mutableListOf<String?>()
+        override val gameUpdateInfoCache: Flow<String?> = _gameUpdateCache.asStateFlow()
+        override suspend fun setGameUpdateInfoCache(cache: String?) {
+            gameUpdateCacheWrites += cache
+            _gameUpdateCache.value = cache
+        }
         override val moneyString: Flow<String> = flowOf("")
         override suspend fun setMoneyString(money: String) = Unit
         private val _includePreRelease = MutableStateFlow(includePreRelease)
@@ -857,6 +865,10 @@ class HomeViewModelPreloadTest {
             fetchLatestReleaseIncludePreReleaseValues.add(includePreRelease)
             return networkResult(fetchLatestReleaseResult)
         }
+
+        var gameUpdateInfoResult: Result<GameUpdateInfo> =
+            Result.failure(IllegalStateException("Not configured"))
+        override suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo> = gameUpdateInfoResult
     }
 
     private class FakeRecordDao : RecordDao {
@@ -1388,6 +1400,62 @@ class HomeViewModelPreloadTest {
             "Should NOT call fetchLatestRelease when auto-check is disabled")
         assertTrue(viewModel.uiState.value.sync.updateCheckState is UpdateCheckState.Idle,
             "UpdateCheckState should remain Idle")
+    }
+
+    @Test
+    fun gameUpdateInfoFallsBackToCachedValueWhenFetchFails(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val cachedJson = """{"version":"3.20.0","versionCode":154,"date":"2026-09-05","changelog":"缓存日志"}"""
+        settings.setGameUpdateInfoCache(cachedJson)
+        settings.gameUpdateCacheWrites.clear()
+        val repository = FakePhigrosRepository().apply {
+            gameUpdateInfoResult = Result.failure(IllegalStateException("offline"))
+        }
+        val viewModel = createViewModel(settings, RecordingPreloader(), repository = repository)
+        advanceUntilIdle()
+
+        assertEquals(
+            GameUpdateInfo("3.20.0", 154L, "2026-09-05", "缓存日志"),
+            viewModel.uiState.value.sync.gameUpdateInfo
+        )
+        assertTrue(settings.gameUpdateCacheWrites.isEmpty(), "失败的请求不应改写缓存")
+    }
+
+    @Test
+    fun gameUpdateInfoFetchSuccessWritesCache(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val info = GameUpdateInfo("3.20.0", 154L, "2026-09-05", "修复已知问题")
+        val repository = FakePhigrosRepository().apply {
+            gameUpdateInfoResult = Result.success(info)
+        }
+        val viewModel = createViewModel(settings, RecordingPreloader(), repository = repository)
+        advanceUntilIdle()
+
+        assertEquals(info, viewModel.uiState.value.sync.gameUpdateInfo)
+        assertEquals(1, settings.gameUpdateCacheWrites.size)
+        assertEquals(
+            """{"version":"3.20.0","versionCode":154,"date":"2026-09-05","changelog":"修复已知问题"}""",
+            settings.gameUpdateCacheWrites.single()
+        )
+    }
+
+    @Test
+    fun gameUpdateInfoUnchangedFetchDoesNotRewriteCache(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val cachedJson = """{"version":"3.20.0","versionCode":154,"date":"2026-09-05","changelog":"修复已知问题"}"""
+        settings.setGameUpdateInfoCache(cachedJson)
+        settings.gameUpdateCacheWrites.clear()
+        val repository = FakePhigrosRepository().apply {
+            gameUpdateInfoResult = Result.success(GameUpdateInfo("3.20.0", 154L, "2026-09-05", "修复已知问题"))
+        }
+        val viewModel = createViewModel(settings, RecordingPreloader(), repository = repository)
+        advanceUntilIdle()
+
+        assertEquals(
+            GameUpdateInfo("3.20.0", 154L, "2026-09-05", "修复已知问题"),
+            viewModel.uiState.value.sync.gameUpdateInfo
+        )
+        assertTrue(settings.gameUpdateCacheWrites.isEmpty(), "内容未变化时不应重写缓存")
     }
 
     private companion object {

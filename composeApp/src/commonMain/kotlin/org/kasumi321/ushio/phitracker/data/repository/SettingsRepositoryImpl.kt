@@ -207,6 +207,18 @@ class SettingsRepositoryImpl(
         crashNotificationGuideShownState.value = shown
     }
 
+    private val gameUpdateInfoCacheState = MutableStateFlow(storage.getString(KEY_GAME_UPDATE_CACHE))
+    override val gameUpdateInfoCache: Flow<String?> = gameUpdateInfoCacheState.asStateFlow()
+
+    override suspend fun setGameUpdateInfoCache(cache: String?) {
+        if (cache == null) {
+            storage.remove(KEY_GAME_UPDATE_CACHE)
+        } else {
+            storage.putString(KEY_GAME_UPDATE_CACHE, cache)
+        }
+        gameUpdateInfoCacheState.value = cache
+    }
+
     private companion object {
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_THEME_COLOR_SOURCE = "theme_color_source"
@@ -228,6 +240,7 @@ class SettingsRepositoryImpl(
         const val KEY_API_PLATFORM_ID = "api_platform_id"
         const val KEY_API_TOKEN = "api_token"
         const val KEY_CRASH_NOTIFICATION_GUIDE_SHOWN = "crash_notification_guide_shown"
+        const val KEY_GAME_UPDATE_CACHE = "game_update_cache"
         const val KEY_HAZE_BLUR_ENABLED = "haze_blur_enabled"
         const val KEY_HAZE_BLUR_STRENGTH = "haze_blur_strength"
     }

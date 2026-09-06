@@ -157,8 +157,8 @@ android {
         applicationId = "org.kasumi321.ushio.phitracker"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 6
-        versionName = "0.1.5"
+        versionCode = 10
+        versionName = "0.2.0"
         // Baked at build time so the About screen shows the real compile
         // timestamp instead of the package install/update time. Store epoch
         // millis and format on device so it renders in the user's timezone

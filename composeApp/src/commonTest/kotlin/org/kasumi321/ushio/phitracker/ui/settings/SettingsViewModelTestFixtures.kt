@@ -13,6 +13,7 @@ import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.LevelRecord
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.Save
 import org.kasumi321.ushio.phitracker.domain.model.Server
@@ -133,6 +134,8 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val apiToken: Flow<String> = apiTokenState
     private val guideState = MutableStateFlow(false)
     override val crashNotificationGuideShown: Flow<Boolean> = guideState
+    private val gameUpdateCacheState = MutableStateFlow<String?>(null)
+    override val gameUpdateInfoCache: Flow<String?> = gameUpdateCacheState
     override val avatarUri: Flow<String?> = flowOf(null)
     override val moneyString: Flow<String> = flowOf("")
     override suspend fun setThemeMode(mode: Int) { themeModeState.value = mode }
@@ -158,6 +161,7 @@ internal class FakeSettingsRepository : SettingsRepository {
     override suspend fun setApiPlatformId(platformId: String) { platformIdState.value = platformId.trim() }
     override suspend fun setApiToken(apiToken: String) { apiTokenState.value = apiToken.trim() }
     override suspend fun setCrashNotificationGuideShown(shown: Boolean) { guideState.value = shown }
+    override suspend fun setGameUpdateInfoCache(cache: String?) { gameUpdateCacheState.value = cache }
 }
 
 internal class FakePhigrosRepository : PhigrosRepository {
@@ -240,6 +244,10 @@ internal class FakePhigrosRepository : PhigrosRepository {
     }
 
     override suspend fun fetchLatestRelease(includePreRelease: Boolean) = release
+
+    var gameUpdateInfo: Result<GameUpdateInfo> =
+        Result.failure(UnsupportedOperationException())
+    override suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo> = gameUpdateInfo
 }
 
 internal data class ChartTagVoteRequest(

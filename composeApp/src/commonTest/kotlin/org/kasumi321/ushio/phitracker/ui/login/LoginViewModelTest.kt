@@ -36,6 +36,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.model.SyncSaveResult
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
+import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.model.UserSettings
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
@@ -473,6 +474,8 @@ class LoginViewModelTest {
         ): Result<Unit> = Result.failure(UnsupportedOperationException())
 
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> = offline()
+
+        override suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo> = offline()
     }
 
     private object FakeApiCrypto : ApiCrypto {

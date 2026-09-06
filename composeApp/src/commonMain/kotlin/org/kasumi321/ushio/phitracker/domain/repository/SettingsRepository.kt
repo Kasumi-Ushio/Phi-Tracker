@@ -58,4 +58,12 @@ interface SettingsRepository {
 
     val crashNotificationGuideShown: Flow<Boolean>
     suspend fun setCrashNotificationGuideShown(shown: Boolean)
+
+    /**
+     * JSON-serialized [org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo]
+     * cache of the last fetched Phigros game update, so the profile page can
+     * show the card offline. Null when nothing has been cached yet.
+     */
+    val gameUpdateInfoCache: Flow<String?>
+    suspend fun setGameUpdateInfoCache(cache: String?)
 }
