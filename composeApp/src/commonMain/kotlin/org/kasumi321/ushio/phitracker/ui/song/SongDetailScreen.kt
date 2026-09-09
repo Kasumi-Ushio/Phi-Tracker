@@ -1,5 +1,8 @@
 package org.kasumi321.ushio.phitracker.ui.song
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -57,14 +60,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -93,6 +102,7 @@ import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.glass.GlassCapsule
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
+import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import kotlin.math.roundToInt
 import kotlin.time.Instant
 
@@ -156,8 +166,58 @@ fun SongDetailScreen(
     // moving content to sample instead of being a plain color swap.
     val detailHazeState = rememberHazeState()
     val detailGlassStyle = rememberGlassHazeStyle()
-    val contentScrollState = rememberScrollState()
     var infoHeaderHeightPx by remember { mutableIntStateOf(0) }
+    var headerOffsetPx by remember { mutableFloatStateOf(0f) }
+    val reducedMotion = rememberReducedMotionEnabled()
+
+    // Collapsing header over nested scroll: scrolling forward collapses the
+    // header before the page content moves (pre-scroll), scrolling back expands
+    // it once the content reaches the top (post-scroll), and a topward fling
+    // springs the header back open with its leftover velocity. Because the
+    // header consumes deltas through the connection instead of resizing the
+    // scroll range mid-fling, a single fling carries through both phases.
+    val headerCollapseConnection = remember(reducedMotion) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y >= 0f || infoHeaderHeightPx <= 0) return Offset.Zero
+                val newOffset = (headerOffsetPx + available.y)
+                    .coerceIn(-infoHeaderHeightPx.toFloat(), 0f)
+                val consumed = newOffset - headerOffsetPx
+                headerOffsetPx = newOffset
+                return Offset(0f, consumed)
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (available.y <= 0f || infoHeaderHeightPx <= 0) return Offset.Zero
+                val newOffset = (headerOffsetPx + available.y)
+                    .coerceIn(-infoHeaderHeightPx.toFloat(), 0f)
+                val used = newOffset - headerOffsetPx
+                headerOffsetPx = newOffset
+                return Offset(0f, used)
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (available.y > 0f && headerOffsetPx < 0f) {
+                    if (reducedMotion) {
+                        headerOffsetPx = 0f
+                    } else {
+                        animate(
+                            initialValue = headerOffsetPx,
+                            targetValue = 0f,
+                            initialVelocity = available.y,
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                        ) { value, _ -> headerOffsetPx = value }
+                    }
+                    return available
+                }
+                return Velocity.Zero
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -178,8 +238,11 @@ fun SongDetailScreen(
             modifier = modifier
                 .fillMaxSize()
                 .hazeSource(state = detailHazeState)
+                .nestedScroll(headerCollapseConnection)
         ) {
             Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
+            val contentBottomPadding = innerPadding.calculateBottomPadding()
+            val thumbnailUrl = getLowIllustrationUrl(songInfo.id)
 
             // Collapsing header: the layout shrinks while the content translates
             // up behind the glass bar; no clip so the sliding header stays
@@ -189,87 +252,20 @@ fun SongDetailScreen(
                     .fillMaxWidth()
                     .layout { measurable, constraints ->
                         val placeable = measurable.measure(constraints)
-                        val offset = contentScrollState.value.coerceIn(0, infoHeaderHeightPx)
-                        layout(placeable.width, (placeable.height - offset).coerceAtLeast(0)) {
-                            placeable.placeRelative(0, -offset)
+                        val collapsePx = (-headerOffsetPx)
+                            .coerceIn(0f, infoHeaderHeightPx.toFloat())
+                            .roundToInt()
+                        layout(placeable.width, (placeable.height - collapsePx).coerceAtLeast(0)) {
+                            placeable.placeRelative(0, -collapsePx)
                         }
                     }
             ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onSizeChanged { infoHeaderHeightPx = it.height }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                val thumbnailUrl = getLowIllustrationUrl(songInfo.id)
-                val platformContext = LocalPlatformContext.current
-                val thumbnailRequest = remember(platformContext, thumbnailUrl) {
-                    thumbnailUrl?.takeIf { it.isNotBlank() }?.let { url ->
-                        ImageRequest.Builder(platformContext)
-                            .data(url)
-                            .size(168)
-                            .networkCachePolicy(CachePolicy.READ_ONLY)
-                            .crossfade(200)
-                            .build()
-                    }
-                }
-                AsyncImage(
-                    model = thumbnailRequest,
-                    contentDescription = "Illustration",
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable { showImagePreview = true },
-                    contentScale = ContentScale.Crop
+                SongInfoHeader(
+                    songInfo = songInfo,
+                    thumbnailUrl = thumbnailUrl,
+                    onIllustrationClick = { showImagePreview = true },
+                    modifier = Modifier.onSizeChanged { infoHeaderHeightPx = it.height }
                 )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = songInfo.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "作曲: ${songInfo.composer}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "曲绘: ${songInfo.illustrator}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (songInfo.nicknames.isNotEmpty()) {
-                        Text(
-                            text = "别名: ${songInfo.nicknames.joinToString("、")}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(24.dp)
-                    ) {
-                        InfoChip(label = "BPM", value = songInfo.bpm)
-                        InfoChip(label = "时长", value = songInfo.length)
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "章节: ${songInfo.chapter}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
             }
 
             if (availableDifficulties.isNotEmpty()) {
@@ -298,9 +294,7 @@ fun SongDetailScreen(
                         canVote = canVote,
                         onSubmitChartTagVote = onSubmitChartTagVote,
                         syncHistory = syncHistory,
-                        // Shared across pages so the info header collapse follows
-                        // whichever difficulty page the user is scrolling
-                        scrollState = contentScrollState
+                        contentBottomPadding = contentBottomPadding
                     )
                 }
             }
@@ -405,6 +399,88 @@ fun SongDetailScreen(
 }
 
 @Composable
+private fun SongInfoHeader(
+    songInfo: SongInfo,
+    thumbnailUrl: String?,
+    onIllustrationClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        val platformContext = LocalPlatformContext.current
+        val thumbnailRequest = remember(platformContext, thumbnailUrl) {
+            thumbnailUrl?.takeIf { it.isNotBlank() }?.let { url ->
+                ImageRequest.Builder(platformContext)
+                    .data(url)
+                    .size(168)
+                    .networkCachePolicy(CachePolicy.READ_ONLY)
+                    .crossfade(200)
+                    .build()
+            }
+        }
+        AsyncImage(
+            model = thumbnailRequest,
+            contentDescription = "Illustration",
+            modifier = Modifier
+                .size(120.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .clickable(onClick = onIllustrationClick),
+            contentScale = ContentScale.Crop
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = songInfo.name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "作曲: ${songInfo.composer}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "曲绘: ${songInfo.illustrator}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (songInfo.nicknames.isNotEmpty()) {
+                Text(
+                    text = "别名: ${songInfo.nicknames.joinToString("、")}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                InfoChip(label = "BPM", value = songInfo.bpm)
+                InfoChip(label = "时长", value = songInfo.length)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "章节: ${songInfo.chapter}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
 private fun DifficultyContent(
     songInfo: SongInfo,
     difficulty: Difficulty,
@@ -416,6 +492,7 @@ private fun DifficultyContent(
     canVote: Boolean,
     onSubmitChartTagVote: (Difficulty, List<String>, List<String>) -> Unit,
     syncHistory: List<SongSyncHistoryEntry>,
+    contentBottomPadding: Dp,
     modifier: Modifier = Modifier,
     scrollState: ScrollState = rememberScrollState()
 ) {
@@ -626,6 +703,10 @@ private fun DifficultyContent(
                 )
             }
         }
+
+        // Keep the last card clear of the gesture navigation bar and the
+        // screen's rounded bottom corners
+        Spacer(modifier = Modifier.height(contentBottomPadding + 16.dp))
     }
 }
 
