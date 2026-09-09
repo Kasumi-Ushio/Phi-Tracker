@@ -397,6 +397,63 @@ class HomeViewModelPreloadTest {
     }
 
     @Test
+    fun noChangeSyncRetainsRecentEffectiveHistoryOnScreen(): Unit = runTest(dispatcher) {
+        // A no-change refresh must keep showing the latest effective history
+        // instead of clearing the section (issue #12, display side).
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val preloader = RecordingPreloader()
+        val existingRecords = listOf(
+            RecordEntity(songId = "song-a", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, updatedAt = 1_000L)
+        )
+        val recordDao = StatefulRecordDao(initialRecords = existingRecords, postSyncRecords = existingRecords)
+        val repository = FakePhigrosRepositoryForSync(
+            syncResult = Result.success(saveWithRks(15.5f)),
+            recordDao = recordDao
+        ).apply {
+            snapshots = listOf(syncSnapshot(id = 1L, timestamp = 1_500L, dataCount = 1))
+            historyBySnapshot = mapOf(
+                1L to listOf(
+                    syncHistory(snapshotId = 1L, songId = "song-a.0", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, timestamp = 1_501L)
+                )
+            )
+        }
+        val logFileStore = createTestLogFileStore()
+
+        val viewModel = HomeViewModel(
+            repository = repository,
+            getB30UseCase = GetB30UseCase(repository),
+            getSuggestUseCase = GetSuggestUseCase(),
+            syncSaveUseCase = SyncSaveUseCase(repository),
+            searchSongUseCase = SearchSongUseCase(),
+            songDataProvider = testSongDataProvider,
+            illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
+            tipsProvider = TipsProvider(FakeTextAssetReader),
+            settingsRepository = settings,
+            thumbnailPreloader = preloader
+        ).let(viewModelLifecycle::track)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("song-a.0"),
+            viewModel.uiState.value.profile.recentSyncedRecords.map { it.songId },
+            "History should be visible before the no-change refresh"
+        )
+
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.sync.isSyncing, "Sync should be complete")
+        assertEquals(2_000L, viewModel.uiState.value.profile.lastSyncTime)
+        assertEquals(listOf(SyncMode.Refresh), repository.syncModes)
+        assertEquals(
+            listOf("song-a.0"),
+            viewModel.uiState.value.profile.recentSyncedRecords.map { it.songId },
+            "A no-change sync must keep showing the latest effective history"
+        )
+        assertEquals("song-a.0", viewModel.uiState.value.profile.lastSyncedRecord?.songId)
+    }
+
+    @Test
     fun changedSyncConsumesAtomicResultWithoutWritingPersistence(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository(preloadDone = true)
         val preloader = RecordingPreloader()

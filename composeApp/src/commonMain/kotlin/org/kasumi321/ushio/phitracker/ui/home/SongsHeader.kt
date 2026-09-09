@@ -1,16 +1,16 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
-import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,10 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
@@ -41,23 +38,29 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
 import org.kasumi321.ushio.phitracker.ui.glass.ExpandableGlassSection
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 
 /**
- * Unified songs glass header: title, tip, search field and filter entry share
- * one progressive glass surface. Scrolling the list crossfades the header into
- * a compact block: the search field shrinks and fades out while a search icon
- * fades in on the top right of a slim title row, with the marquee tip kept
- * below it. Tapping the icon asks the caller to reopen the search field with
- * an expansion animation, and any further scroll collapses it again. Only an
- * icon-triggered reopening ([focusOnExpand]) focuses the field and raises the
- * IME; automatic re-expansion when the list scrolls back to the top does not.
- * With reduced motion enabled the swap jumps straight to the final state.
+ * Unified songs glass header built from a single layout tree: the title, marquee
+ * tip and search field stay composed in both states and every property that
+ * differs between expanded and compact is interpolated per frame — title font
+ * size, the search field's height/alpha (via [ExpandableGlassSection]) and the
+ * compact action icons sliding in from the end — instead of crossfading between
+ * two unrelated layouts.
+ *
+ * The filter entry lives inside the search field's trailing slot so the
+ * placeholder gets the full row width; its text renders one type-scale step
+ * smaller and ellipsizes rather than wrapping on narrow screens. Tapping the
+ * compact search icon asks the caller to reopen the field with focus and IME
+ * ([focusOnExpand]); automatic re-expansion at the top of the list does not.
+ * With reduced motion enabled every part jumps straight to the final state.
  */
 @Composable
 fun SongsHeader(
@@ -88,6 +91,15 @@ fun SongsHeader(
         wasCompact = compact
     }
 
+    val expansion by animateFloatAsState(
+        targetValue = if (compact) 0f else 1f,
+        animationSpec = if (reducedMotion) snap() else spring(stiffness = Spring.StiffnessMediumLow),
+        label = "songsHeaderExpansion"
+    )
+    val titleStyle = MaterialTheme.typography.titleLarge
+    val titleFontSize = lerp(16f, 22f, expansion)
+    val titleLineHeight = lerp(24f, 28f, expansion)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -95,171 +107,128 @@ fun SongsHeader(
             .padding(horizontal = 16.dp)
             .padding(top = 8.dp)
     ) {
-        AnimatedContent(
-            targetState = compact,
-            transitionSpec = {
-                if (reducedMotion) {
-                    EnterTransition.None togetherWith ExitTransition.None
-                } else {
-                    (fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(250)))
-                        .togetherWith(
-                            fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(200))
-                        )
-                        .using(SizeTransform(clip = true))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Title slot mirrors the other tabs' headers: the tip hugs the
+            // title instead of sitting below the action row
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "全部曲目 ($songCount)",
+                    style = titleStyle,
+                    fontSize = titleFontSize.sp,
+                    lineHeight = titleLineHeight.sp
+                )
+                ExpandableGlassSection(expanded = tip.isNotBlank()) {
+                    Text(
+                        text = tip,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .basicMarquee()
+                    )
                 }
-            },
-            label = "songsHeaderCollapse"
-        ) { isCompact ->
-            if (isCompact) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Title slot mirrors the other tabs' headers: the tip hugs
-                    // the title instead of sitting below the 48dp icon row
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "全部曲目 ($songCount)",
-                            style = MaterialTheme.typography.titleMedium
+            }
+            AnimatedVisibility(
+                visible = compact,
+                enter = if (reducedMotion) {
+                    EnterTransition.None
+                } else {
+                    fadeIn(spring(stiffness = Spring.StiffnessMediumLow)) +
+                        expandHorizontally(
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                            expandFrom = Alignment.End
                         )
-                        if (tip.isNotBlank()) {
-                            Text(
-                                text = tip,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .basicMarquee()
-                            )
-                        }
-                    }
+                },
+                exit = if (reducedMotion) {
+                    ExitTransition.None
+                } else {
+                    fadeOut(spring(stiffness = Spring.StiffnessMediumLow)) +
+                        shrinkHorizontally(
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                            shrinkTowards = Alignment.End
+                        )
+                }
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onSearchExpandRequest) {
                         Icon(Icons.Filled.Search, contentDescription = "展开搜索")
                     }
                     SongsFilterEntry(
                         activeFilterCount = activeFilterCount,
-                        onOpenFilter = onOpenFilter,
-                        compact = true
+                        onOpenFilter = onOpenFilter
                     )
-                }
-            } else {
-                Column {
-                    Text(
-                        text = "全部曲目 ($songCount)",
-                        style = MaterialTheme.typography.titleLarge
-                    )
-
-                    ExpandableGlassSection(expanded = tip.isNotBlank()) {
-                        Text(
-                            text = tip,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .basicMarquee()
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = onSearchChange,
-                            modifier = Modifier
-                                .weight(1f)
-                                .focusRequester(focusRequester),
-                            placeholder = { Text("搜索曲名、作曲或别名...") },
-                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { onSearchChange("") }) {
-                                        Icon(Icons.Filled.Close, contentDescription = "清除搜索")
-                                    }
-                                }
-                            },
-                            singleLine = true
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        SongsFilterEntry(
-                            activeFilterCount = activeFilterCount,
-                            onOpenFilter = onOpenFilter,
-                            compact = false
-                        )
-                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(if (compact) 4.dp else 12.dp))
+        ExpandableGlassSection(expanded = !compact) {
+            Column {
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    placeholder = {
+                        Text(
+                            "搜索曲名、作曲或别名...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    trailingIcon = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { onSearchChange("") }) {
+                                    Icon(Icons.Filled.Close, contentDescription = "清除搜索")
+                                }
+                            }
+                            SongsFilterEntry(
+                                activeFilterCount = activeFilterCount,
+                                onOpenFilter = onOpenFilter
+                            )
+                        }
+                    },
+                    singleLine = true
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(lerp(4f, 12f, expansion).dp))
     }
 }
 
 /**
- * Filter entry shared by both header states. The expanded state keeps the
- * boxed button aligned with the search field; the compact state falls back to
- * a plain icon so the collapsed row stays slim.
+ * Badged filter icon shared by the compact title row and the search field's
+ * trailing slot.
  */
 @Composable
 private fun SongsFilterEntry(
     activeFilterCount: Int,
-    onOpenFilter: () -> Unit,
-    compact: Boolean
+    onOpenFilter: () -> Unit
 ) {
-    if (compact) {
-        IconButton(onClick = onOpenFilter) {
-            BadgedBox(
-                badge = {
-                    if (activeFilterCount > 0) {
-                        Badge { Text(activeFilterCount.toString()) }
-                    }
+    IconButton(onClick = onOpenFilter) {
+        BadgedBox(
+            badge = {
+                if (activeFilterCount > 0) {
+                    Badge { Text(activeFilterCount.toString()) }
                 }
-            ) {
-                Icon(
-                    Icons.Filled.FilterList,
-                    contentDescription = "Filter",
-                    tint = if (activeFilterCount > 0)
-                        MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
-        }
-    } else {
-        IconButton(
-            onClick = onOpenFilter,
-            modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(4.dp))
-                .background(
-                    if (activeFilterCount > 0)
-                        MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surfaceVariant
-                )
         ) {
-            if (activeFilterCount > 0) {
-                BadgedBox(
-                    badge = {
-                        Badge { Text(activeFilterCount.toString()) }
-                    }
-                ) {
-                    Icon(
-                        Icons.Filled.FilterList,
-                        contentDescription = "Filter",
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                }
-            } else {
-                Icon(
-                    Icons.Filled.FilterList,
-                    contentDescription = "Filter",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Icon(
+                Icons.Filled.FilterList,
+                contentDescription = "Filter",
+                tint = if (activeFilterCount > 0)
+                    MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

@@ -90,6 +90,30 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun onlineValidateWithCachedSaveSyncsWithRefresh() = runTest(dispatcher) {
+        // A returning launch already has local records, so the silent startup
+        // sync must diff via Refresh — Bootstrap would overwrite them without
+        // writing any snapshot/history (issue #12).
+        val repo = FakeRepo(savedToken = "t" to Server.CN, validateOk = true, syncOk = true, cachedSave = minimalSave())
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isCheckingToken)
+        assertTrue(vm.uiState.value.isLoggedIn)
+        assertEquals(listOf(SyncMode.Refresh), repo.syncModes)
+    }
+
+    @Test
+    fun onlineValidateWithoutCachedSaveSyncsWithBootstrap() = runTest(dispatcher) {
+        // Token survives but local data is gone (e.g. cleared storage): the
+        // startup sync must re-seed everything, which is Bootstrap territory.
+        val repo = FakeRepo(savedToken = "t" to Server.CN, validateOk = true, syncOk = true, cachedSave = null)
+        val vm = viewModel(repo)
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.isLoggedIn)
+        assertEquals(listOf(SyncMode.Bootstrap), repo.syncModes)
+    }
+
+    @Test
     fun offlineButCachedSavePresentStaysLoggedIn() = runTest(dispatcher) {
         // validate fails (offline) but a local save exists → must NOT log out.
         val vm = viewModel(FakeRepo(savedToken = "t" to Server.CN, validateOk = false, cachedSave = minimalSave()))

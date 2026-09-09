@@ -655,14 +655,14 @@ class HomeViewModel(
                             )
                         )
                     } else {
+                        // No new changes: keep the latest effective history on
+                        // screen instead of clearing it; only the last-sync
+                        // timestamp advances to this run.
+                        loadRecentEffectiveSyncHistory()
                         _uiState.update { state ->
                             state.copy(
                                 sync = state.sync.copy(isSyncing = false),
-                                profile = state.profile.copy(
-                                lastSyncTime = syncResult.committedAt,
-                                recentSyncedRecords = emptyList(),
-                                lastSyncedRecord = null
-                                )
+                                profile = state.profile.copy(lastSyncTime = syncResult.committedAt)
                             )
                         }
                         AppLogger.event("sync", "refresh_success", mapOf("changedEntries" to "0"))

@@ -73,10 +73,17 @@ class LoginViewModel(
 
             val (token, server) = saved
 
+            // A cached save means this device has synced before, so the silent
+            // startup sync must diff against the stored records (Refresh) instead
+            // of overwriting them (Bootstrap) — Bootstrap writes no snapshot or
+            // history and would swallow score changes made since the last launch.
+            val cachedSave = repository.getCachedSave().first()
+
             // Try to refresh the session and save from the network.
             val validateResult = repository.validateToken(token, server)
             val syncResult = if (validateResult.isSuccess) {
-                syncSaveUseCase(token, server, SyncMode.Bootstrap)
+                val mode = if (cachedSave != null) SyncMode.Refresh else SyncMode.Bootstrap
+                syncSaveUseCase(token, server, mode)
             } else {
                 null
             }
@@ -97,7 +104,6 @@ class LoginViewModel(
             // The network refresh failed (offline, or the server rejected the call). Instead of
             // forcing a logout, stay signed in with the local session + cached save when one is
             // available — only the total absence of local data sends the user back to login.
-            val cachedSave = repository.getCachedSave().first()
             if (cachedSave != null) {
                 _uiState.update {
                     it.copy(token = token, server = server, isCheckingToken = false, isLoggedIn = true)
