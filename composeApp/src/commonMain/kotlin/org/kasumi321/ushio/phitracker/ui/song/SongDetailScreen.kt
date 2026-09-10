@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.song
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
@@ -9,6 +10,8 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ContextualFlowRow
+import androidx.compose.foundation.layout.ContextualFlowRowOverflow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -102,6 +105,7 @@ import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.glass.GlassCapsule
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
+import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import kotlin.math.roundToInt
 import kotlin.time.Instant
@@ -455,11 +459,8 @@ private fun SongInfoHeader(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (songInfo.nicknames.isNotEmpty()) {
-                Text(
-                    text = "别名: ${songInfo.nicknames.joinToString("、")}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Spacer(modifier = Modifier.height(8.dp))
+                AliasChips(nicknames = songInfo.nicknames)
             }
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -477,6 +478,95 @@ private fun SongInfoHeader(
                 color = MaterialTheme.colorScheme.primary
             )
         }
+    }
+}
+
+/**
+ * Song aliases rendered as chips in the same visual language as chart tags.
+ * Collapsed to two rows by default — the trailing toggle chip reports how many
+ * aliases are hidden and expands the full set; expanding again collapses.
+ * Expansion reveals the chips progressively as the bounds grow; collapse
+ * crossfades the full set into the truncated rows so the hidden chips
+ * disappear gradually instead of vanishing at once (see
+ * expandCollapseTransition).
+ * ContextualFlowRow (not FlowRow) because the hidden-count label needs the
+ * overflow scope's item counts during composition; FlowRow's overflow scope
+ * only provides them in the draw phase.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AliasChips(nicknames: List<String>) {
+    var expanded by remember { mutableStateOf(false) }
+    val reducedMotion = rememberReducedMotionEnabled()
+    val chipContent: @Composable (Int) -> Unit = { index ->
+        if (index < nicknames.size) {
+            AliasChip(nicknames[index])
+        } else {
+            AliasToggleChip(text = "收起", onClick = { expanded = false })
+        }
+    }
+    Column {
+        Text(
+            text = "别名",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        AnimatedContent(
+            targetState = expanded,
+            transitionSpec = { expandCollapseTransition(reducedMotion) },
+            label = "aliasChips",
+            modifier = Modifier.fillMaxWidth()
+        ) { targetExpanded ->
+            // The collapse toggle rides as a real last item when expanded, so
+            // the overflow indicator only ever handles the collapsed state
+            ContextualFlowRow(
+                itemCount = nicknames.size + if (targetExpanded) 1 else 0,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                maxLines = if (targetExpanded) Int.MAX_VALUE else 2,
+                overflow = ContextualFlowRowOverflow.expandOrCollapseIndicator(
+                    expandIndicator = {
+                        AliasToggleChip(
+                            text = "还有 ${totalItemCount - shownItemCount} 个",
+                            onClick = { expanded = true }
+                        )
+                    },
+                    collapseIndicator = { }
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) { index -> chipContent(index) }
+        }
+    }
+}
+
+@Composable
+private fun AliasChip(name: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Text(
+            text = name,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
+    }
+}
+
+@Composable
+private fun AliasToggleChip(text: String, onClick: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = RoundedCornerShape(8.dp),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }
 

@@ -82,12 +82,11 @@ fun B30RksHistogramChart(
                 tick to textLayout
             }
             val labelWidth = tickLayout.maxOfOrNull { it.second.size.width }?.toFloat() ?: 0f
-            val labelHeight = tickLayout.maxOfOrNull { it.second.size.height }?.toFloat() ?: 0f
-            val bottomPadding = labelHeight * 1.4f
             val plotLeft = labelWidth + plotPadding
             val plotRight = size.width
             val plotTop = 0f
-            val plotBottom = size.height - bottomPadding
+            // No x-axis labels: the bars' baseline sits on the bottom edge
+            val plotBottom = size.height
             if (plotRight <= plotLeft || plotBottom <= plotTop) return@Canvas
             val plotHeight = plotBottom - plotTop
 
@@ -148,12 +147,6 @@ fun B30RksHistogramChart(
                     y = (averageY - averageLabel.size.height).coerceAtLeast(0f)
                 )
             )
-
-            // Domain range labels at the bottom corners.
-            val minLabel = textMeasurer.measure(histogram.ticks.first().label, style = labelStyle.copy(color = labelColor))
-            val maxLabel = textMeasurer.measure(histogram.ticks.last().label, style = labelStyle.copy(color = labelColor))
-            drawText(minLabel, topLeft = Offset(plotLeft, size.height - minLabel.size.height))
-            drawText(maxLabel, topLeft = Offset(plotRight - maxLabel.size.width, size.height - maxLabel.size.height))
         }
     }
 }

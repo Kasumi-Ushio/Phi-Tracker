@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -35,6 +37,9 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -152,6 +157,7 @@ private fun MainBottomBar(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     onLogout: () -> Unit,
@@ -415,23 +421,45 @@ fun MainScreen(
         }
     ) { contentPadding ->
         when (selectedTab) {
-            HomeTab.Profile -> ProfileTab(
-                state = state.profile,
-                displayRks = state.b30.displayRks,
-                onAvatarSelected = { viewModel.setAvatarUri(it) },
-                onSongClick = { songId, difficulty ->
-                    if (difficulty != null) {
-                        onNavigateToSongDetailWithDifficulty(songId, difficulty)
-                    } else {
-                        onNavigateToSongDetail(songId)
+            HomeTab.Profile -> {
+                val pullRefreshState = rememberPullToRefreshState()
+                PullToRefreshBox(
+                    isRefreshing = state.sync.isSyncing,
+                    onRefresh = { viewModel.refresh() },
+                    state = pullRefreshState,
+                    modifier = Modifier.fillMaxSize(),
+                    indicator = {
+                        // The tab content draws full-bleed behind the glass top
+                        // bar, so push the spinner below the bar's bottom edge
+                        // to keep it out of the blurred area
+                        PullToRefreshDefaults.Indicator(
+                            state = pullRefreshState,
+                            isRefreshing = state.sync.isSyncing,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = contentPadding.calculateTopPadding())
+                        )
                     }
-                },
-                getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
-                histogram = state.b30.histogram,
-                gameUpdateInfo = state.sync.gameUpdateInfo,
-                contentPadding = contentPadding,
-                scrollState = profileScrollState
-            )
+                ) {
+                    ProfileTab(
+                        state = state.profile,
+                        displayRks = state.b30.displayRks,
+                        onAvatarSelected = { viewModel.setAvatarUri(it) },
+                        onSongClick = { songId, difficulty ->
+                            if (difficulty != null) {
+                                onNavigateToSongDetailWithDifficulty(songId, difficulty)
+                            } else {
+                                onNavigateToSongDetail(songId)
+                            }
+                        },
+                        getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
+                        histogram = state.b30.histogram,
+                        gameUpdateInfo = state.sync.gameUpdateInfo,
+                        contentPadding = contentPadding,
+                        scrollState = profileScrollState
+                    )
+                }
+            }
             HomeTab.B30 -> B30Tab(
                 state = state.b30,
                 nickname = state.profile.nickname,

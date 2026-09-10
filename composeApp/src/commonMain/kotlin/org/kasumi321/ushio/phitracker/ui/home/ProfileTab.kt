@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.home
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -58,7 +59,10 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.ui.b30.B30RksHistogramChart
 import org.kasumi321.ushio.phitracker.ui.b30.setImageRequestAllowHardware
+import org.kasumi321.ushio.phitracker.ui.glass.rememberExpansionArrowRotation
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
+import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
+import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 
 private val ChallengeTierColors = listOf(
     Color(0xFFCCCCCC),
@@ -485,6 +489,10 @@ private fun ChallengeBadge(challengeModeRank: Int) {
  * Latest Phigros game update from TapTap. The changelog can be long, so it
  * renders collapsed to a few lines by default; tapping the title row toggles
  * the full text (same interaction as the B30 tab's CollapsibleTagAnalysis).
+ * Expansion reveals the text progressively as the bounds grow; collapse
+ * crossfades the full text into the truncated copy so the hidden lines
+ * disappear gradually instead of vanishing at once (see
+ * expandCollapseTransition). The arrow rotates with the state.
  */
 @Composable
 private fun GameUpdateInfoCard(
@@ -492,6 +500,8 @@ private fun GameUpdateInfoCard(
     modifier: Modifier = Modifier
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val reducedMotion = rememberReducedMotionEnabled()
+    val arrowRotation by rememberExpansionArrowRotation(expanded)
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(
@@ -525,20 +535,26 @@ private fun GameUpdateInfoCard(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp
-                    else Icons.Default.KeyboardArrowDown,
+                    imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = if (expanded) "折叠" else "展开",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.rotate(arrowRotation)
                 )
             }
-            Text(
-                text = info.changelog,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = if (expanded) Int.MAX_VALUE else 3,
-                overflow = TextOverflow.Ellipsis,
+            AnimatedContent(
+                targetState = expanded,
+                transitionSpec = { expandCollapseTransition(reducedMotion) },
+                label = "gameUpdateChangelog",
                 modifier = Modifier.padding(top = 8.dp)
-            )
+            ) { targetExpanded ->
+                Text(
+                    text = info.changelog,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = if (targetExpanded) Int.MAX_VALUE else 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
