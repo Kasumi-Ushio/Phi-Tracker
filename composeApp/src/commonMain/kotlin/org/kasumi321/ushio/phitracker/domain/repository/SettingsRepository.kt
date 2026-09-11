@@ -12,6 +12,13 @@ interface SettingsRepository {
     val showB30Overflow: Flow<Boolean>
     val overflowCount: Flow<Int>
 
+    /**
+     * B30 export card layout style: "classic" (default) or "score_focus".
+     * Consumed as B30ExportCardStyle in ui.b30.
+     */
+    val b30CardStyle: Flow<String>
+    suspend fun setB30CardStyle(style: String)
+
     val hazeBlurEnabled: Flow<Boolean>
     val hazeBlurStrength: Flow<Float>
     suspend fun setHazeBlurEnabled(enabled: Boolean)

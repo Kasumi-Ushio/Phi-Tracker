@@ -330,6 +330,52 @@ class B30ExportDataTest {
     }
 
     @Test
+    fun cardStyleDefaultsToClassicAndPassesThrough() {
+        val base = B30ExportDataBuilder.build(
+            b30 = emptyList(),
+            displayRks = 0f,
+            nickname = "Test",
+            challengeModeRank = 0,
+            moneyString = "",
+            showB30Overflow = false,
+            overflowCount = 9,
+            illustrationProvider = noOpIllustrationProvider,
+            clearCounts = emptyMap(),
+            fcCount = 0,
+            phiCount = 0,
+            avatarUri = null,
+            backgroundUri = null,
+            dateText = ""
+        )
+        assertEquals(B30ExportCardStyle.Classic, base.cardStyle)
+
+        val styled = B30ExportDataBuilder.build(
+            b30 = emptyList(),
+            displayRks = 0f,
+            nickname = "Test",
+            challengeModeRank = 0,
+            moneyString = "",
+            showB30Overflow = false,
+            overflowCount = 9,
+            illustrationProvider = noOpIllustrationProvider,
+            clearCounts = emptyMap(),
+            fcCount = 0,
+            phiCount = 0,
+            avatarUri = null,
+            backgroundUri = null,
+            dateText = "",
+            cardStyle = B30ExportCardStyle.Poster
+        )
+        assertEquals(B30ExportCardStyle.Poster, styled.cardStyle)
+
+        // Unknown persisted values must fall back to Classic. The "score_focus"
+        // key is the legacy storage value of Poster and must keep resolving.
+        assertEquals(B30ExportCardStyle.Classic, B30ExportCardStyle.fromStorageKey(null))
+        assertEquals(B30ExportCardStyle.Classic, B30ExportCardStyle.fromStorageKey("bogus"))
+        assertEquals(B30ExportCardStyle.Poster, B30ExportCardStyle.fromStorageKey("score_focus"))
+    }
+
+    @Test
     fun histogramCoversPhiAndBestSlotsInOrder() {
         val b30 = listOf(
             makeRecord(index = 0, rks = 16f, isPhi = true),
@@ -461,7 +507,8 @@ class B30ExportDataTest {
     }
 
     @Test
-    fun resolveBackgroundUriAutoModeUsesFirstRecordStandardUrl() {
+    fun resolveBackgroundUriAutoModePicksFromPool() {
+        // Single-record pool: the random pick is deterministic.
         val b30 = listOf(makeRecord(index = 0, rks = 14f, isPhi = false))
         val data = B30ExportDataBuilder.build(
             b30 = b30, displayRks = 14f, nickname = "Test",

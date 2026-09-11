@@ -370,4 +370,44 @@ class SettingsRepositoryImplTest {
         repo.setGameUpdateInfoCache(null)
         assertNull(repo.gameUpdateInfoCache.first())
     }
+
+    @Test
+    fun defaultsB30CardStyleClassic(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals("classic", repo.b30CardStyle.first())
+    }
+
+    @Test
+    fun setAndReadB30CardStyle(): Unit = runTest {
+        val repo = createRepo()
+        repo.setB30CardStyle("score_focus")
+        assertEquals("score_focus", repo.b30CardStyle.first())
+        repo.setB30CardStyle("classic")
+        assertEquals("classic", repo.b30CardStyle.first())
+    }
+
+    @Test
+    fun b30CardStyleUnknownValueFallsBackToClassic(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+        storage.putString("b30_card_style", "unknown_style")
+
+        val repo = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals("classic", repo.b30CardStyle.first())
+
+        repo.setB30CardStyle("unknown_style")
+        assertEquals("classic", repo.b30CardStyle.first())
+    }
+
+    @Test
+    fun b30CardStylePersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setB30CardStyle("score_focus")
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals("score_focus", repo2.b30CardStyle.first())
+    }
 }

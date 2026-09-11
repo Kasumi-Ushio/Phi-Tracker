@@ -759,6 +759,8 @@ class HomeViewModelPreloadTest {
         override val paletteStyleName: Flow<String> = flowOf("TonalSpot")
         override val showB30Overflow: Flow<Boolean> = flowOf(false)
         override val overflowCount: Flow<Int> = flowOf(9)
+        override val b30CardStyle: Flow<String> = flowOf("classic")
+        override suspend fun setB30CardStyle(style: String) = Unit
         override val hazeBlurEnabled: Flow<Boolean> = flowOf(true)
         override val hazeBlurStrength: Flow<Float> = flowOf(0.75f)
         var preloadDone = preloadDone

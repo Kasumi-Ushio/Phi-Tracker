@@ -20,6 +20,29 @@ data class ExportCardData(
     val illustrationUri: String?
 )
 
+/**
+ * Score card layout style used in the B30 export image.
+ *
+ * - [Classic]: the original home-style card (small thumbnail, inline tags).
+ * - [Poster]: reference-style card (full-height left illustration,
+ *   oversized score, "chartConstant > rks" info line) for issue #11 feedback.
+ *
+ * The [storageKey] is what SettingsRepository persists; unknown values fall
+ * back to [Classic].
+ */
+enum class B30ExportCardStyle(val storageKey: String) {
+    Classic("classic"),
+
+    // The storage key keeps the original "score_focus" value: it is already
+    // persisted on user devices and must not change with the rename.
+    Poster("score_focus");
+
+    companion object {
+        fun fromStorageKey(key: String?): B30ExportCardStyle =
+            entries.firstOrNull { it.storageKey == key } ?: Classic
+    }
+}
+
 /** Complete export data model, KMP-safe with no platform-specific types. */
 data class B30ExportData(
     val nickname: String,
@@ -40,11 +63,16 @@ data class B30ExportData(
     val isAmoled: Boolean = false,
     val themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings(),
     val tagAnalysis: B30TagAnalysis? = null,
-    val histogram: B30RksHistogram? = null
+    val histogram: B30RksHistogram? = null,
+    val cardStyle: B30ExportCardStyle = B30ExportCardStyle.Classic
 )
 
 /** Pure builder that splits a B30 list into Phi / Best 27 / Overflow sections. */
 object B30ExportDataBuilder {
+
+    /** Records counting toward B30: every phi record plus the top 27 non-phi. */
+    fun b30Pool(b30: List<BestRecord>): List<BestRecord> =
+        b30.filter { it.isPhi } + b30.filter { !it.isPhi }.take(27)
 
     /**
      * Build [B30ExportData] from raw inputs.
@@ -81,7 +109,8 @@ object B30ExportDataBuilder {
         darkTheme: Boolean = false,
         isAmoled: Boolean = false,
         themeSettings: PhiTrackerThemeSettings = PhiTrackerThemeSettings(),
-        tagAnalysis: B30TagAnalysis? = null
+        tagAnalysis: B30TagAnalysis? = null,
+        cardStyle: B30ExportCardStyle = B30ExportCardStyle.Classic
     ): B30ExportData {
         val phi3 = b30.filter { it.isPhi }
         val b36 = b30.filter { !it.isPhi }
@@ -121,7 +150,8 @@ object B30ExportDataBuilder {
             isAmoled = isAmoled,
             themeSettings = themeSettings,
             tagAnalysis = tagAnalysis,
-            histogram = histogram
+            histogram = histogram,
+            cardStyle = cardStyle
         )
     }
 }

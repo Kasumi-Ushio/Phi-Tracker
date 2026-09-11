@@ -85,6 +85,18 @@ class SettingsRepositoryImpl(
         overflowCountState.value = normalized
     }
 
+    private val b30CardStyleState = MutableStateFlow(
+        storage.getString(KEY_B30_CARD_STYLE)?.takeIf { it == B30_CARD_STYLE_SCORE_FOCUS }
+            ?: B30_CARD_STYLE_CLASSIC
+    )
+    override val b30CardStyle: Flow<String> = b30CardStyleState.asStateFlow()
+
+    override suspend fun setB30CardStyle(style: String) {
+        val normalized = if (style == B30_CARD_STYLE_SCORE_FOCUS) B30_CARD_STYLE_SCORE_FOCUS else B30_CARD_STYLE_CLASSIC
+        storage.putString(KEY_B30_CARD_STYLE, normalized)
+        b30CardStyleState.value = normalized
+    }
+
     private val hazeBlurEnabledState = MutableStateFlow(storage.getString(KEY_HAZE_BLUR_ENABLED)?.toBooleanStrictOrNull() ?: true)
     override val hazeBlurEnabled: Flow<Boolean> = hazeBlurEnabledState.asStateFlow()
 
@@ -228,6 +240,9 @@ class SettingsRepositoryImpl(
         const val KEY_PALETTE_STYLE_NAME = "palette_style_name"
         const val KEY_SHOW_B30_OVERFLOW = "show_b30_overflow"
         const val KEY_OVERFLOW_COUNT = "overflow_count"
+        const val KEY_B30_CARD_STYLE = "b30_card_style"
+        const val B30_CARD_STYLE_CLASSIC = "classic"
+        const val B30_CARD_STYLE_SCORE_FOCUS = "score_focus"
         const val KEY_PRELOAD_DONE = "preload_done"
         const val KEY_AVATAR_URI = "avatar_uri"
         const val KEY_MONEY_STRING = "money_string"

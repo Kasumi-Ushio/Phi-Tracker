@@ -36,6 +36,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +46,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -73,6 +77,7 @@ import kotlin.time.ExperimentalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -89,12 +94,14 @@ import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
+import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.ui.glass.GlassBottomBar
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import org.koin.compose.koinInject
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
@@ -127,6 +134,12 @@ fun B30ImageScreen(
     var backgroundBlurRadius by remember { mutableFloatStateOf(50f) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val settingsRepository = koinInject<SettingsRepository>()
+    // Null until the persisted style arrives: building exportData with the
+    // wrong style first would waste a full generation pass whose cancellation
+    // then races the state flags below (phantom "生成失败" flash).
+    val cardStyleKey by settingsRepository.b30CardStyle.collectAsState(initial = null)
+    val cardStyle = cardStyleKey?.let(B30ExportCardStyle::fromStorageKey)
     val systemDark = isSystemInDarkTheme()
     val exportDarkTheme = when (themeSettings.themeMode) {
         1 -> false
@@ -149,14 +162,21 @@ fun B30ImageScreen(
         b30.distinctBy { it.songId }.map { it.songId to it.songName }
     }
 
+    // Rolled once per page session: regenerations triggered by style, blur or
+    // background-mode changes must keep the same randomly picked song.
+    val autoBackgroundSongId = remember(b30) {
+        B30ExportDataBuilder.b30Pool(b30).randomOrNull()?.songId
+    }
+
     val exportData = remember(
         b30, displayRks, nickname, challengeModeRank, moneyString,
         clearCounts, fcCount, phiCount, avatarUri,
         showB30Overflow, overflowCount, getLowIllustrationUrl,
         getStandardIllustrationUrl, backgroundMode, customBackgroundUri,
         backgroundBlurRadius,
-        exportDarkTheme, exportAmoled, themeSettings, tagAnalysis
+        exportDarkTheme, exportAmoled, themeSettings, tagAnalysis, cardStyle
     ) {
+        val style = cardStyle ?: return@remember null
         val dateText = runCatching {
             val now = Clock.System.now()
             val localDt = now.toLocalDateTime(TimeZone.currentSystemDefault())
@@ -170,8 +190,7 @@ fun B30ImageScreen(
 
         val resolvedBg = resolveBackgroundUri(
             mode = backgroundMode,
-            exportData = B30ExportDataBuilder.build(
-                b30 = b30,
+            exportData = B30ExportDataBuilder.build(                b30 = b30,
                 displayRks = displayRks,
                 nickname = nickname,
                 challengeModeRank = challengeModeRank,
@@ -188,9 +207,11 @@ fun B30ImageScreen(
                 darkTheme = exportDarkTheme,
                 isAmoled = exportAmoled,
                 themeSettings = themeSettings,
-                tagAnalysis = tagAnalysis
+                tagAnalysis = tagAnalysis,
+                cardStyle = style
             ),
-            standardIllustrationProvider = getStandardIllustrationUrl
+            standardIllustrationProvider = getStandardIllustrationUrl,
+            autoSongId = autoBackgroundSongId
         )
 
         B30ExportDataBuilder.build(
@@ -212,11 +233,15 @@ fun B30ImageScreen(
             darkTheme = exportDarkTheme,
             isAmoled = exportAmoled,
             themeSettings = themeSettings,
-            tagAnalysis = tagAnalysis
+            tagAnalysis = tagAnalysis,
+            cardStyle = style
         )
     }
 
     LaunchedEffect(exportData) {
+        // Style not loaded yet: stay in the generating state until exportData
+        // is built with the persisted card style.
+        val data = exportData ?: return@LaunchedEffect
         isGenerating = true
         generationFailed = false
         zoomFactor = 1f
@@ -233,9 +258,18 @@ fun B30ImageScreen(
         )
         val result = runCatching {
             withContext(Dispatchers.Default) {
-                preloadB30ExportImages(exportData)
-                B30ImageGenerator.generate(exportData)
+                preloadB30ExportImages(data)
+                B30ImageGenerator.generate(data)
             }
+        }
+        result.exceptionOrNull()?.let { throwable ->
+            if (throwable is CancellationException) {
+                // Relaunched with new inputs (e.g. style switch): the new run
+                // owns the state flags, so don't record a phantom failure.
+                throw throwable
+            }
+            AppLogger.event("b30_export", "generate_failed", mapOf("error" to (throwable.message ?: "unknown")))
+            AppLogger.e("B30ImageScreen", "B30 image generation failed", throwable)
         }
         export = result.getOrNull()
         result.getOrNull()?.let { exp ->
@@ -244,10 +278,6 @@ fun B30ImageScreen(
                 "generate_success",
                 mapOf("width" to exp.width.toString(), "height" to exp.height.toString())
             )
-        }
-        result.exceptionOrNull()?.let { throwable ->
-            AppLogger.event("b30_export", "generate_failed", mapOf("error" to (throwable.message ?: "unknown")))
-            AppLogger.e("B30ImageScreen", "B30 image generation failed", throwable)
         }
         generationFailed = result.isFailure
         isGenerating = false
@@ -270,7 +300,7 @@ fun B30ImageScreen(
                     },
                     actions = {
                         IconButton(onClick = { showBackgroundDialog = true }) {
-                            Icon(Icons.Filled.Image, contentDescription = "选择背景")
+                            Icon(Icons.Filled.Image, contentDescription = "导出设置")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -434,6 +464,11 @@ fun B30ImageScreen(
             selectedSongId = selectedSongId,
             blurRadius = backgroundBlurRadius,
             getLowIllustrationUrl = getLowIllustrationUrl,
+            cardStyle = cardStyle ?: B30ExportCardStyle.Classic,
+            onCardStyleChange = { style ->
+                AppLogger.event("b30_export", "card_style_changed", mapOf("style" to style.storageKey))
+                coroutineScope.launch { settingsRepository.setB30CardStyle(style.storageKey) }
+            },
             onSelectDefault = {
                 AppLogger.event("b30_export", "background_selected", mapOf("type" to "auto"))
                 backgroundMode = B30BackgroundMode.Auto
@@ -541,12 +576,15 @@ private suspend fun preloadB30ExportImages(exportData: B30ExportData) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BackgroundPickerDialog(
     distinctSongs: List<Pair<String, String>>,
     selectedSongId: String?,
     blurRadius: Float,
     getLowIllustrationUrl: (String) -> String?,
+    cardStyle: B30ExportCardStyle,
+    onCardStyleChange: (B30ExportCardStyle) -> Unit,
     onSelectDefault: () -> Unit,
     onSelectAlbum: () -> Unit,
     onSelectSong: (String) -> Unit,
@@ -561,7 +599,7 @@ private fun BackgroundPickerDialog(
     AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Filled.Image, contentDescription = null) },
-        title = { Text("选择背景") },
+        title = { Text("导出设置") },
         text = {
             Column(
                 modifier = Modifier
@@ -569,9 +607,36 @@ private fun BackgroundPickerDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                Text(
+                    text = "卡片样式",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = cardStyle == B30ExportCardStyle.Classic,
+                        onClick = { onCardStyleChange(B30ExportCardStyle.Classic) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+                    ) {
+                        Text("方糖")
+                    }
+                    SegmentedButton(
+                        selected = cardStyle == B30ExportCardStyle.Poster,
+                        onClick = { onCardStyleChange(B30ExportCardStyle.Poster) },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+                    ) {
+                        Text("彩灯")
+                    }
+                }
+
+                Text(
+                    text = "背景",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onSelectDefault, modifier = Modifier.weight(1f)) {
-                        Text("默认背景")
+                        Text("随机背景")
                     }
                     OutlinedButton(onClick = onSelectAlbum, modifier = Modifier.weight(1f)) {
                         Text("相册图片")

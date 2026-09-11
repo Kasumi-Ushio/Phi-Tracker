@@ -153,6 +153,7 @@ internal fun B30ExportLayout(
                 verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
                 allowHardwareImages = allowHardwareImages,
                 sectionId = "phi",
+                cardStyle = data.cardStyle,
                 imageLoadTracker = imageLoadTracker
             )
 
@@ -168,6 +169,7 @@ internal fun B30ExportLayout(
                 verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
                 allowHardwareImages = allowHardwareImages,
                 sectionId = "best",
+                cardStyle = data.cardStyle,
                 imageLoadTracker = imageLoadTracker
             )
 
@@ -184,6 +186,7 @@ internal fun B30ExportLayout(
                     verticalGap = B30ExportSpec.cardVerticalGapDp.dp,
                     allowHardwareImages = allowHardwareImages,
                     sectionId = "overflow",
+                    cardStyle = data.cardStyle,
                     imageLoadTracker = imageLoadTracker
                 )
             }
@@ -301,6 +304,7 @@ private fun ExportCardGrid(
     verticalGap: Dp,
     allowHardwareImages: Boolean = true,
     sectionId: String,
+    cardStyle: B30ExportCardStyle,
     imageLoadTracker: B30ExportImageLoadTracker?
 ) {
     val rows = cards.chunked(3)
@@ -310,25 +314,40 @@ private fun ExportCardGrid(
             horizontalArrangement = Arrangement.spacedBy(horizontalGap)
         ) {
             row.forEachIndexed { colIndex, card ->
-                ScoreCardContent(
-                    record = card.record,
-                    rank = rowIndex * 3 + colIndex + 1,
-                    rankLabel = rankLabelProvider(rowIndex * 3 + colIndex),
-                    illustrationUri = card.illustrationUri,
-                    contentHorizontalPadding = 9.dp,
-                    contentVerticalPadding = 5.dp,
-                    compactText = true,
-                    thumbnailScale = B30_EXPORT_CARD_THUMBNAIL_SCALE,
-                    onClick = null,
-                    modifier = Modifier
-                        .width(cardWidth)
-                        .height(cardHeight),
-                    allowHardwareImages = allowHardwareImages,
-                    imageSlotId = "$sectionId:${rowIndex * 3 + colIndex}",
-                    onIllustrationSettled = imageLoadTracker?.let { tracker ->
-                        { slotId, error -> tracker.onIllustrationSettled(slotId, error) }
-                    }
-                )
+                val cardModifier = Modifier
+                    .width(cardWidth)
+                    .height(cardHeight)
+                val settledCallback = imageLoadTracker?.let { tracker ->
+                    { slotId: String, error: Throwable? -> tracker.onIllustrationSettled(slotId, error) }
+                }
+                val slotId = "$sectionId:${rowIndex * 3 + colIndex}"
+                when (cardStyle) {
+                    B30ExportCardStyle.Classic -> ScoreCardContent(
+                        record = card.record,
+                        rank = rowIndex * 3 + colIndex + 1,
+                        rankLabel = rankLabelProvider(rowIndex * 3 + colIndex),
+                        illustrationUri = card.illustrationUri,
+                        contentHorizontalPadding = 9.dp,
+                        contentVerticalPadding = 5.dp,
+                        compactText = true,
+                        thumbnailScale = B30_EXPORT_CARD_THUMBNAIL_SCALE,
+                        onClick = null,
+                        modifier = cardModifier,
+                        allowHardwareImages = allowHardwareImages,
+                        imageSlotId = slotId,
+                        onIllustrationSettled = settledCallback
+                    )
+                    B30ExportCardStyle.Poster -> ExportPosterCard(
+                        record = card.record,
+                        rank = rowIndex * 3 + colIndex + 1,
+                        rankLabel = rankLabelProvider(rowIndex * 3 + colIndex),
+                        illustrationUri = card.illustrationUri,
+                        modifier = cardModifier,
+                        allowHardwareImages = allowHardwareImages,
+                        imageSlotId = slotId,
+                        onIllustrationSettled = settledCallback
+                    )
+                }
             }
         }
         if (rowIndex < rows.lastIndex) {

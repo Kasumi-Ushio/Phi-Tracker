@@ -3,6 +3,7 @@ package org.kasumi321.ushio.phitracker.ui.b30
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 
@@ -92,12 +93,48 @@ class B30ExportHelpersTest {
     }
 
     @Test
-    fun backgroundAutoPicksFirstAvailable() {
+    fun backgroundAutoPicksRequestedSong() {
+        val exportData = makeExportDataWithIllustrations()
+        val result = resolveBackgroundUri(
+            B30BackgroundMode.Auto,
+            exportData,
+            { id -> "file:///$id.png" },
+            autoSongId = "best_0"
+        )
+        assertEquals("file:///best_0.png", result)
+    }
+
+    @Test
+    fun backgroundAutoWithoutPickResolvesRandomPoolSong() {
         val exportData = makeExportDataWithIllustrations()
         val result = resolveBackgroundUri(
             B30BackgroundMode.Auto,
             exportData,
             { id -> "file:///$id.png" }
+        )
+        assertTrue(result in setOf("file:///phi_0.png", "file:///best_0.png"))
+    }
+
+    @Test
+    fun backgroundAutoUnknownPickFallsBackToRandomPoolSong() {
+        val exportData = makeExportDataWithIllustrations()
+        val result = resolveBackgroundUri(
+            B30BackgroundMode.Auto,
+            exportData,
+            { id -> "file:///$id.png" },
+            autoSongId = "not_in_pool"
+        )
+        assertTrue(result in setOf("file:///phi_0.png", "file:///best_0.png"))
+    }
+
+    @Test
+    fun backgroundAutoFallsBackWhenPickLacksIllustration() {
+        val exportData = makeExportDataWithIllustrations()
+        val result = resolveBackgroundUri(
+            B30BackgroundMode.Auto,
+            exportData,
+            { id -> if (id == "best_0") "" else "file:///$id.png" },
+            autoSongId = "best_0"
         )
         assertEquals("file:///phi_0.png", result)
     }

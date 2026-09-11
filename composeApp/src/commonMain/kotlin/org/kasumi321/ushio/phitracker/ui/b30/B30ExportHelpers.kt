@@ -8,11 +8,24 @@ import kotlinx.datetime.toLocalDateTime
 
 private fun resolveAutoBackground(
     exportData: B30ExportData,
-    standardIllustrationProvider: (String) -> String
+    standardIllustrationProvider: (String) -> String,
+    autoSongId: String?
 ): String? {
-    val allRecords = exportData.phiRecords + exportData.bestRecords + exportData.overflowRecords
-    val first = allRecords.firstOrNull() ?: return null
-    return standardIllustrationProvider(first.record.songId)
+    // The pool is exactly the records counting toward B30 (phi + best 27);
+    // overflow records are excluded.
+    val pool = exportData.phiRecords + exportData.bestRecords
+    if (pool.isEmpty()) return null
+    // [autoSongId] carries the screen's per-session roll so that regenerations
+    // (style/blur changes) keep the same background song; a null or stale id
+    // (record no longer in the pool) falls back to a fresh random pick.
+    val chosen = autoSongId?.let { id -> pool.firstOrNull { it.record.songId == id } }
+        ?: pool.random()
+    val uri = standardIllustrationProvider(chosen.record.songId)
+    // The picked song may lack an illustration; fall back to the first
+    // resolvable one so Auto never needlessly yields a background-less image.
+    return uri.takeIf { it.isNotBlank() } ?: pool.asSequence()
+        .map { standardIllustrationProvider(it.record.songId) }
+        .firstOrNull { it.isNotBlank() }
 }
 
 fun sanitizeNicknameForFilename(nickname: String): String {
@@ -50,11 +63,12 @@ sealed interface B30BackgroundMode {
 fun resolveBackgroundUri(
     mode: B30BackgroundMode,
     exportData: B30ExportData,
-    standardIllustrationProvider: (String) -> String
+    standardIllustrationProvider: (String) -> String,
+    autoSongId: String? = null
 ): String? = when (mode) {
     is B30BackgroundMode.Custom -> mode.uri
     is B30BackgroundMode.SongBackground -> {
         standardIllustrationProvider(mode.songId)
     }
-    B30BackgroundMode.Auto -> resolveAutoBackground(exportData, standardIllustrationProvider)
+    B30BackgroundMode.Auto -> resolveAutoBackground(exportData, standardIllustrationProvider, autoSongId)
 }
