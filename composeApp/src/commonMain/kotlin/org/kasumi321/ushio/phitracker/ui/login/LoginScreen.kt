@@ -66,7 +66,6 @@ import io.github.alexzhirkevich.qrose.options.roundCorners
 import io.github.alexzhirkevich.qrose.options.solid
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
 import org.kasumi321.ushio.phitracker.domain.model.Server
-import org.kasumi321.ushio.phitracker.ui.common.SpringTabIndicator
 
 private val QrCodeMaxSize = 280.dp
 
@@ -470,9 +469,6 @@ private fun QrCodeImage(url: String, onClick: (() -> Unit)? = null) {
     }
 }
 
-/**
- * Login method tabs with a spring-animated selection indicator.
- */
 @Composable
 private fun LoginTabRow(
     selectedTab: Int,
@@ -480,10 +476,7 @@ private fun LoginTabRow(
 ) {
     PrimaryTabRow(
         selectedTabIndex = selectedTab,
-        modifier = Modifier.fillMaxWidth(),
-        indicator = {
-            SpringTabIndicator(selectedTabIndex = selectedTab)
-        }
+        modifier = Modifier.fillMaxWidth()
     ) {
         Tab(
             selected = selectedTab == 0,

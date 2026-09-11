@@ -49,6 +49,7 @@ import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.home.MainScreen
 import org.kasumi321.ushio.phitracker.ui.login.LoginScreen
 import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
+import org.kasumi321.ushio.phitracker.ui.navigation.IllustrationPreviewRoute
 import org.kasumi321.ushio.phitracker.ui.navigation.SongDetailRoute
 import org.kasumi321.ushio.phitracker.ui.settings.AboutScreen
 import org.kasumi321.ushio.phitracker.ui.settings.AcknowledgmentsScreen
@@ -57,6 +58,7 @@ import org.kasumi321.ushio.phitracker.ui.settings.LicensesScreen
 import org.kasumi321.ushio.phitracker.ui.settings.PrivacyPolicyScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
+import org.kasumi321.ushio.phitracker.ui.song.IllustrationPreviewScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailViewModel
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
@@ -373,12 +375,35 @@ fun PhiTrackerNavHost() {
                     canVote = state.apiToken.isNotBlank(),
                     onSubmitChartTagVote = viewModel::submitChartTagVote,
                     getLowIllustrationUrl = { state.lowIllustrationUrl },
-                    getStandardIllustrationUrl = { state.standardIllustrationUrl },
+                    onIllustrationClick = {
+                        navController.navigate(IllustrationPreviewRoute.from(songInfo.id))
+                    },
                     initialDifficulty = state.initialDifficulty,
                     onBack = { navController.popBackStack() }
                 )
                 else -> SongDetailNotFound(songId = songId, onBack = { navController.popBackStack() })
             }
+        }
+        composable<IllustrationPreviewRoute>(
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) { backStackEntry ->
+            val route = backStackEntry.toRoute<IllustrationPreviewRoute>()
+            LaunchedEffect(route.songId) {
+                AppLogger.event(
+                    "navigation",
+                    "entered_illustrationpreview",
+                    mapOf("songId" to route.songId)
+                )
+            }
+            val illustrationResolver: IllustrationUriResolver = koinInject()
+            IllustrationPreviewScreen(
+                illustrationUrl = illustrationResolver.standardUri(route.songId),
+                songId = route.songId,
+                onClose = { navController.popBackStack() }
+            )
         }
     }
 }

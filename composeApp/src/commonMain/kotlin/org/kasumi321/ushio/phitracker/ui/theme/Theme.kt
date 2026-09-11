@@ -1,7 +1,9 @@
 package org.kasumi321.ushio.phitracker.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -12,6 +14,7 @@ import org.kasumi321.ushio.phitracker.data.platform.shouldShowThemeColorSourceSe
 private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PhiTrackerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -55,6 +58,10 @@ fun PhiTrackerTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
+        // Expressive motion scheme: its DefaultSpatial spring (damping 0.8)
+        // gives built-in component animations (tab indicators, buttons, ...)
+        // the elastic overshoot that the standard scheme (damping 0.9) flattens
+        motionScheme = MotionScheme.expressive(),
         content = content
     )
 }

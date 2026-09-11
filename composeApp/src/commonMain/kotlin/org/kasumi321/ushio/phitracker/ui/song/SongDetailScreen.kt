@@ -6,7 +6,7 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,14 +24,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.gestures.rememberScrollableState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -65,11 +65,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
@@ -79,8 +77,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
@@ -89,8 +85,6 @@ import coil3.request.crossfade
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.launch
-import org.kasumi321.ushio.phitracker.data.platform.saveArtworkToPictures
-import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
@@ -99,10 +93,8 @@ import org.kasumi321.ushio.phitracker.domain.model.ChartTagVoteCount
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
-import org.kasumi321.ushio.phitracker.ui.common.SpringPagerIndicator
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
-import org.kasumi321.ushio.phitracker.ui.glass.GlassCapsule
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
@@ -141,7 +133,7 @@ fun SongDetailScreen(
     canVote: Boolean = false,
     onSubmitChartTagVote: (Difficulty, List<String>, List<String>) -> Unit = { _, _, _ -> },
     getLowIllustrationUrl: (String) -> String?,
-    getStandardIllustrationUrl: (String) -> String?,
+    onIllustrationClick: () -> Unit,
     initialDifficulty: Difficulty? = null,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -152,7 +144,6 @@ fun SongDetailScreen(
     val pagerState = rememberPagerState(initialPage = initialTabIndex ?: defaultTabIndex) { availableDifficulties.size }
     val selectedDifficulty = availableDifficulties.getOrNull(pagerState.currentPage) ?: Difficulty.IN
     val songApiDetail = getSongApiDetail(selectedDifficulty)
-    var showImagePreview by remember { mutableStateOf(false) }
 
     LaunchedEffect(apiEnabled, useApiData, apiRequestKey, selectedDifficulty) {
         if (apiEnabled && useApiData) {
@@ -254,6 +245,16 @@ fun SongDetailScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    // Non-consuming scrollable: nested scroll deltas only
+                    // ever originate from scrollable children, so without
+                    // this a header that fills the screen (e.g. fully
+                    // expanded aliases) would swallow every drag. Deltas
+                    // flow through headerCollapseConnection exactly like
+                    // content scrolls, fling inertia included
+                    .scrollable(
+                        orientation = Orientation.Vertical,
+                        state = rememberScrollableState { 0f }
+                    )
                     .layout { measurable, constraints ->
                         val placeable = measurable.measure(constraints)
                         val collapsePx = (-headerOffsetPx)
@@ -267,7 +268,7 @@ fun SongDetailScreen(
                 SongInfoHeader(
                     songInfo = songInfo,
                     thumbnailUrl = thumbnailUrl,
-                    onIllustrationClick = { showImagePreview = true },
+                    onIllustrationClick = onIllustrationClick,
                     modifier = Modifier.onSizeChanged { infoHeaderHeightPx = it.height }
                 )
             }
@@ -300,102 +301,6 @@ fun SongDetailScreen(
                         syncHistory = syncHistory,
                         contentBottomPadding = contentBottomPadding
                     )
-                }
-            }
-        }
-
-        if (showImagePreview) {
-            val standardUrl = getStandardIllustrationUrl(songInfo.id)
-            Dialog(
-                onDismissRequest = { showImagePreview = false },
-                properties = DialogProperties(usePlatformDefaultWidth = false)
-            ) {
-                // Dialog-local HazeState: the illustration is the source, the
-                // action buttons float on a glass capsule above it
-                val previewHazeState = rememberHazeState()
-                val previewGlassStyle = rememberGlassHazeStyle()
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black),
-                    contentAlignment = Alignment.Center
-                ) {
-                    var scale by remember { mutableFloatStateOf(1f) }
-                    val coroutineScope = rememberCoroutineScope()
-                    var isDownloading by remember { mutableStateOf(false) }
-
-                    val platformContext = LocalPlatformContext.current
-                    val previewRequest = remember(platformContext, standardUrl) {
-                        standardUrl?.takeIf { it.isNotBlank() }?.let { url ->
-                            ImageRequest.Builder(platformContext)
-                                .data(url)
-                                .diskCacheKey(url)
-                                .crossfade(200)
-                                .build()
-                        }
-                    }
-                    AsyncImage(
-                        model = previewRequest,
-                        contentDescription = "Full Illustration",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .hazeSource(state = previewHazeState)
-                            .pointerInput(Unit) {
-                                detectTransformGestures { _, _, zoom, _ ->
-                                    scale = (scale * zoom).coerceIn(0.5f, 5f)
-                                }
-                            }
-                            .graphicsLayer(scaleX = scale, scaleY = scale),
-                        contentScale = ContentScale.Fit
-                    )
-
-                    GlassCapsule(
-                        hazeState = previewHazeState,
-                        style = previewGlassStyle,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(16.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
-                                val standardArtworkUrl = standardUrl.orEmpty()
-                                if (standardArtworkUrl.isBlank()) {
-                                    showPlatformMessage("保存失败")
-                                    return@IconButton
-                                }
-                                isDownloading = true
-                                coroutineScope.launch {
-                                    val fileName = "${songInfo.id.replace(".", "_")}_hq.png"
-                                    val result = saveArtworkToPictures(standardArtworkUrl, fileName)
-                                    showPlatformMessage(
-                                        if (result.isSuccess) "已保存到相册" else "保存失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
-                                    )
-                                    isDownloading = false
-                                }
-                            },
-                            enabled = !isDownloading
-                        ) {
-                            if (isDownloading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp),
-                                    color = Color.White
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Filled.Save,
-                                    contentDescription = "Save",
-                                    tint = Color.White
-                                )
-                            }
-                        }
-                        IconButton(onClick = { showImagePreview = false }) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = "Close",
-                                tint = Color.White
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -1132,10 +1037,6 @@ private fun ChartTagVoteSheet(
     }
 }
 
-/**
- * Difficulty tabs above the score pager, with a spring-animated indicator
- * that interpolates across tab positions while swiping.
- */
 @Composable
 private fun DifficultyTabRow(
     pagerState: androidx.compose.foundation.pager.PagerState,
@@ -1144,10 +1045,7 @@ private fun DifficultyTabRow(
 ) {
     PrimaryTabRow(
         selectedTabIndex = pagerState.currentPage,
-        modifier = Modifier.fillMaxWidth(),
-        indicator = {
-            SpringPagerIndicator(pagerState = pagerState)
-        }
+        modifier = Modifier.fillMaxWidth()
     ) {
         val scope = rememberCoroutineScope()
         availableDifficulties.forEachIndexed { index, diff ->

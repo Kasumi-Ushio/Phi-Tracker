@@ -31,7 +31,11 @@ class AnrWatchDog(
                 }
                 val beforePost = tickCounter
                 handler.post { tickCounter++ }
-                Thread.sleep(thresholdMs / 2)
+                try {
+                    Thread.sleep(thresholdMs / 2)
+                } catch (_: InterruptedException) {
+                    break
+                }
                 if (tickCounter == beforePost) {
                     onAnrDetected()
                 }
