@@ -82,6 +82,17 @@ class BuildB30RksHistogramUseCaseTest {
     }
 
     @Test
+    fun tickLabelsUseFixedTwoDecimals() {
+        val histogram = useCase(listOf(makeRecord(15f), makeRecord(16f)))
+
+        assertNotNull(histogram)
+        assertEquals(
+            listOf("14.75", "15.00", "15.25", "15.50", "15.75", "16.00", "16.25"),
+            histogram.ticks.map { it.label }
+        )
+    }
+
+    @Test
     fun slotLabelsNumberPhiAndBestSlotsIndependentlyInInputOrder() {
         val histogram = useCase(
             listOf(

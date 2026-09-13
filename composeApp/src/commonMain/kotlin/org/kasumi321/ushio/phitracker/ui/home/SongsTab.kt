@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -156,7 +155,7 @@ private fun FilterBottomSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .padding(bottom = 32.dp)
+            .padding(bottom = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
         Row(
@@ -170,10 +169,10 @@ private fun FilterBottomSheetContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text("难度", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 FilterChip(
@@ -195,10 +194,10 @@ private fun FilterBottomSheetContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Text("定数范围：$minLevel ~ $maxLevel", style = MaterialTheme.typography.titleMedium)
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
         var sliderPosition by remember(minLevel, maxLevel) { mutableStateOf(minLevel.toFloat()..maxLevel.toFloat()) }
         RangeSlider(
             value = sliderPosition,
@@ -217,7 +216,7 @@ private fun FilterBottomSheetContent(
             Text("17", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -231,26 +230,22 @@ private fun FilterBottomSheetContent(
                 }
             }
         }
-        Spacer(modifier = Modifier.height(8.dp))
-        // 章节区域限高 200dp，可滚动
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 200.dp)
-                .verticalScroll(rememberScrollState())
+        Spacer(modifier = Modifier.height(6.dp))
+        // The chapter FlowRow expands fully instead of scrolling inside a
+        // height cap: a nested vertical scroll here raced the sheet's own
+        // drag gesture and could dismiss the sheet mid-scroll. With a single
+        // scroll surface (the outer Column) the gesture routing is unambiguous.
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            androidx.compose.foundation.layout.FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                availableChapters.forEach { chapter ->
-                    FilterChip(
-                        selected = chapter in selectedChapters,
-                        onClick = { onToggleChapter(chapter) },
-                        label = { Text(chapter) }
-                    )
-                }
+            availableChapters.forEach { chapter ->
+                FilterChip(
+                    selected = chapter in selectedChapters,
+                    onClick = { onToggleChapter(chapter) },
+                    label = { Text(chapter) }
+                )
             }
         }
     }

@@ -24,6 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -38,6 +41,7 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
+import org.kasumi321.ushio.phitracker.ui.components.phiFontFamily
 import org.kasumi321.ushio.phitracker.ui.home.formatScoreCardLevel
 import org.kasumi321.ushio.phitracker.ui.home.formatScoreCardRks
 import org.kasumi321.ushio.phitracker.ui.home.scoreCardThumbnailSizePx
@@ -213,8 +217,18 @@ internal fun ExportPosterCard(
                     Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = rating.label,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            // A soft dark halo keeps the bright phi yellow (and
+                            // the other rating colors) readable against light
+                            // card backgrounds without switching to a badge.
+                            shadow = Shadow(
+                                color = Color.Black.copy(alpha = 0.25f),
+                                offset = Offset.Zero,
+                                blurRadius = 6f
+                            )
+                        ),
                         fontSize = 18.sp,
+                        fontFamily = if (rating == ScoreRating.Phi) phiFontFamily else null,
                         fontWeight = if (rating == ScoreRating.Phi) FontWeight.ExtraBold else FontWeight.Bold,
                         color = rating.color
                     )

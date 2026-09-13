@@ -78,8 +78,11 @@ class BuildB30RksHistogramUseCase {
     }
 
     private fun formatTick(value: Double): String {
-        val rounded = (value * 100).roundToInt() / 100.0
-        return rounded.toString()
+        // Fixed two-decimal labels keep the y-axis column visually aligned;
+        // Double.toString would alternate between "13.0", "12.5" and "12.75".
+        // Manual formatting because String.format is unavailable on iOS.
+        val scaled = (value * 100).roundToInt()
+        return "${scaled / 100}.${(scaled % 100).toString().padStart(2, '0')}"
     }
 
     private companion object {

@@ -63,6 +63,7 @@ fun ScoreRatingTag(
             text = rating.label,
             style = MaterialTheme.typography.labelSmall,
             color = rating.textColor,
+            fontFamily = if (rating == ScoreRating.Phi) phiFontFamily else null,
             fontWeight = if (rating == ScoreRating.Phi) FontWeight.ExtraBold else FontWeight.Bold,
             fontSize = fontSize
         )

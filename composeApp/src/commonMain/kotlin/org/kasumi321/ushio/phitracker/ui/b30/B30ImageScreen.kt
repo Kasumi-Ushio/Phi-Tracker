@@ -364,10 +364,11 @@ fun B30ImageScreen(
                 }
             }
         }
-    ) {
+    ) { innerPadding ->
         // Full-bleed preview: the generated image extends behind the glass bars.
         // The off-screen export path never touches this haze source, so exported
-        // pixels stay identical to before.
+        // pixels stay identical to before. Only the gesture viewport is inset by
+        // the bars, so zoomed panning can always reach the image edges.
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -398,6 +399,7 @@ fun B30ImageScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .padding(innerPadding)
                             .onSizeChanged { previewSize = it }
                             .pointerInput(preview) {
                                 // Double tap toggles between fit and 2x, since

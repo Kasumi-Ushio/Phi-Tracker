@@ -1,16 +1,23 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -30,7 +37,8 @@ import org.kasumi321.ushio.phitracker.ui.home.formatFour
  * Equivalent single-chart RKS distribution of the effective B30 slots,
  * following phi-plugin's b19 histogram panel ("RKS DISTRIBUTION / 等效 RKS
  * 直方图"): phi slots draw solid bars, best slots draw faded bars of the
- * same hue, and a dashed line marks the slot average.
+ * same hue, a legend row below the title maps the two swatches to P1-P3 and
+ * B1-B27, and a dashed line marks the slot average.
  */
 @Composable
 fun B30RksHistogramChart(
@@ -69,6 +77,22 @@ fun B30RksHistogramChart(
                 text = "平均 RKS ${histogram.average.formatFour()}",
                 style = labelStyle,
                 color = labelColor
+            )
+        }
+        // Legend: the solid swatch matches the phi bars, the faded one the
+        // best bars, mirroring the alpha used when drawing them below.
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HistogramLegendItem(
+                color = barColor,
+                label = "P1-P3",
+                labelStyle = labelStyle,
+                labelColor = labelColor
+            )
+            HistogramLegendItem(
+                color = barColor.copy(alpha = 0.38f),
+                label = "B1-B27",
+                labelStyle = labelStyle,
+                labelColor = labelColor
             )
         }
         Canvas(modifier = Modifier.fillMaxWidth().height(chartHeight)) {
@@ -148,5 +172,24 @@ fun B30RksHistogramChart(
                 )
             )
         }
+    }
+}
+
+@Composable
+private fun HistogramLegendItem(
+    color: Color,
+    label: String,
+    labelStyle: TextStyle,
+    labelColor: Color
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color)
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(text = label, style = labelStyle, color = labelColor)
     }
 }

@@ -120,6 +120,11 @@ room {
 }
 
 aboutLibraries {
+    collect {
+        // Custom attributions (e.g. the bundled Roboto font) live in
+        // config/libraries/*.json
+        configPath = file("config")
+    }
     export {
         outputFile = file("src/commonMain/composeResources/files/aboutlibraries.json")
     }

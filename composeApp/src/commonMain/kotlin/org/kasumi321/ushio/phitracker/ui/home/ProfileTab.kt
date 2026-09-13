@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +60,7 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.ui.b30.B30RksHistogramChart
 import org.kasumi321.ushio.phitracker.ui.b30.setImageRequestAllowHardware
+import org.kasumi321.ushio.phitracker.ui.components.phiFontFamily
 import org.kasumi321.ushio.phitracker.ui.glass.rememberExpansionArrowRotation
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
@@ -393,7 +395,7 @@ fun StatsTableCard(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 BadgeStatItem("FC", fcCount, FcColor, Color.White)
-                BadgeStatItem("\u03C6", phiCount, PhiColor, PhiTextColor)
+                BadgeStatItem("\u03C6", phiCount, PhiColor, PhiTextColor, fontFamily = phiFontFamily)
             }
         }
     }
@@ -418,7 +420,13 @@ private fun DifficultyStatItem(label: String, count: Int, color: Color) {
 }
 
 @Composable
-private fun BadgeStatItem(label: String, count: Int, bgColor: Color, textColor: Color) {
+private fun BadgeStatItem(
+    label: String,
+    count: Int,
+    bgColor: Color,
+    textColor: Color,
+    fontFamily: FontFamily? = null
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -433,6 +441,7 @@ private fun BadgeStatItem(label: String, count: Int, bgColor: Color, textColor: 
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
+                fontFamily = fontFamily,
                 color = textColor,
                 fontSize = 13.sp
             )

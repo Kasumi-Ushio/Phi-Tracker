@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.song
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -29,13 +30,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
+import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import kotlinx.coroutines.launch
@@ -53,7 +57,7 @@ import kotlin.math.roundToInt
  * The action buttons sit on a translucent dark scrim rather than a glass
  * capsule: the capsule samples the artwork through Haze, which washes the
  * white icons out on light artwork regardless of the app theme. Supports
- * pinch zoom and two-finger rotation; the corner button snaps rotation to
+ * pinch zoom, drag pan and two-finger rotation; the corner button snaps rotation to
  * 90° steps for inspecting details with the phone held sideways.
  */
 @Composable
@@ -71,6 +75,8 @@ fun IllustrationPreviewScreen(
     ) {
         var scale by rememberSaveable { mutableFloatStateOf(1f) }
         var rotation by rememberSaveable { mutableFloatStateOf(0f) }
+        var panOffset by remember { mutableStateOf(Offset.Zero) }
+        var containerSize by remember { mutableStateOf(IntSize.Zero) }
         val coroutineScope = rememberCoroutineScope()
         var isDownloading by remember { mutableStateOf(false) }
 
@@ -84,18 +90,47 @@ fun IllustrationPreviewScreen(
                     .build()
             }
         }
-        AsyncImage(
-            model = previewRequest,
+        val painter = rememberAsyncImagePainter(model = previewRequest)
+        Image(
+            painter = painter,
             contentDescription = "Full Illustration",
             modifier = Modifier
                 .fillMaxSize()
+                .onSizeChanged { containerSize = it }
                 .pointerInput(Unit) {
-                    detectTransformGestures { _, _, zoom, rotationDelta ->
-                        scale = (scale * zoom).coerceIn(0.5f, 5f)
+                    detectTransformGestures { _, pan, zoom, rotationDelta ->
+                        val newScale = (scale * zoom).coerceIn(0.5f, 5f)
+                        scale = newScale
                         rotation += rotationDelta
+                        val imageSize = painter.intrinsicSize
+                        val containerW = containerSize.width.toFloat()
+                        val containerH = containerSize.height.toFloat()
+                        if (imageSize.width > 0f && imageSize.height > 0f && containerW > 0f && containerH > 0f) {
+                            // Fit applies before rotation, so scale the raw
+                            // dimensions first, then swap the drawn extents
+                            // when a quarter turn is active.
+                            val fitScale = minOf(containerW / imageSize.width, containerH / imageSize.height)
+                            val drawnW = imageSize.width * fitScale
+                            val drawnH = imageSize.height * fitScale
+                            val quarterTurns = ((rotation.roundToInt() % 360) + 360) % 360 / 90
+                            val extentW = if (quarterTurns % 2 == 1) drawnH else drawnW
+                            val extentH = if (quarterTurns % 2 == 1) drawnW else drawnH
+                            val maxX = (extentW * newScale - containerW).coerceAtLeast(0f) / 2f
+                            val maxY = (extentH * newScale - containerH).coerceAtLeast(0f) / 2f
+                            panOffset = Offset(
+                                x = (panOffset.x + pan.x).coerceIn(-maxX, maxX),
+                                y = (panOffset.y + pan.y).coerceIn(-maxY, maxY)
+                            )
+                        }
                     }
                 }
-                .graphicsLayer(scaleX = scale, scaleY = scale, rotationZ = rotation),
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    rotationZ = rotation,
+                    translationX = panOffset.x,
+                    translationY = panOffset.y
+                ),
             contentScale = ContentScale.Fit
         )
 

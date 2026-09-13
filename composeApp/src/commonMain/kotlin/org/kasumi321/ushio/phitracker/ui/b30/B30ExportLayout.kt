@@ -261,7 +261,9 @@ internal fun B30ExportLayout(
                         ) {
                             B30RksHistogramChart(
                                 histogram = histogram,
-                                chartHeight = 132.dp,
+                                // 132 - 20: the legend row takes ~20dp, so the
+                                // chart shrinks to keep the card height fixed.
+                                chartHeight = 112.dp,
                                 modifier = Modifier.fillMaxSize().padding(16.dp)
                             )
                         }

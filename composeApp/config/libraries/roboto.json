@@ -1,0 +1,17 @@
+{
+  "uniqueId": "com.google.fonts:roboto",
+  "artifactVersion": "2.138",
+  "name": "Roboto",
+  "description": "Roboto Bold is bundled as the dedicated typeface for the phi (\u03C6) rating mark.",
+  "website": "https://github.com/googlefonts/roboto",
+  "developers": [
+    {
+      "name": "Google",
+      "organisationUrl": "https://github.com/googlefonts"
+    }
+  ],
+  "licenses": ["Apache-2.0"],
+  "scm": {
+    "url": "https://github.com/googlefonts/roboto"
+  }
+}
