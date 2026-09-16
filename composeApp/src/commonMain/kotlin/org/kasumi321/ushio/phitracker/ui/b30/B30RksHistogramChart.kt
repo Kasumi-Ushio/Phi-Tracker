@@ -106,11 +106,16 @@ fun B30RksHistogramChart(
                 tick to textLayout
             }
             val labelWidth = tickLayout.maxOfOrNull { it.second.size.width }?.toFloat() ?: 0f
+            // Reserve half a label height above the top tick and below the
+            // bottom tick so every label can sit exactly centered on its grid
+            // line — without this margin the outer labels were clamped back
+            // into the canvas and drifted off their lines.
+            val labelHalfHeight = (tickLayout.maxOfOrNull { it.second.size.height }?.toFloat() ?: 0f) / 2f
             val plotLeft = labelWidth + plotPadding
             val plotRight = size.width
-            val plotTop = 0f
+            val plotTop = labelHalfHeight
             // No x-axis labels: the bars' baseline sits on the bottom edge
-            val plotBottom = size.height
+            val plotBottom = size.height - labelHalfHeight
             if (plotRight <= plotLeft || plotBottom <= plotTop) return@Canvas
             val plotHeight = plotBottom - plotTop
 
@@ -127,7 +132,7 @@ fun B30RksHistogramChart(
                     textLayout,
                     topLeft = Offset(
                         x = (plotLeft - 8f - textLayout.size.width).coerceAtLeast(0f),
-                        y = (y - textLayout.size.height / 2f).coerceIn(0f, size.height - textLayout.size.height)
+                        y = y - textLayout.size.height / 2f
                     )
                 )
             }

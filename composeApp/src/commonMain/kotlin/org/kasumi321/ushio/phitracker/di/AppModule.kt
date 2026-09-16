@@ -16,6 +16,7 @@ import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailViewModel
+import org.kasumi321.ushio.phitracker.ui.suggest.SuggestViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -68,10 +69,17 @@ val appModule = module {
         )
     }
     viewModel {
-        HomeViewModel(
+        SuggestViewModel(
             repository = get(),
             getB30UseCase = get(),
             getSuggestUseCase = get(),
+            songDataProvider = get()
+        )
+    }
+    viewModel {
+        HomeViewModel(
+            repository = get(),
+            getB30UseCase = get(),
             syncSaveUseCase = get(),
             searchSongUseCase = get(),
             songDataProvider = get(),

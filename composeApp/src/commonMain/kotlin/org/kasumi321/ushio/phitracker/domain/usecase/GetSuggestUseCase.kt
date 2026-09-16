@@ -21,7 +21,11 @@ data class SuggestItem(
     val isFullCombo: Boolean,
     val targetAcc: Float,
     val currentRks: Float,
-    val potentialRks: Float
+    val potentialRks: Float,
+    // Total display-RKS impact if the target is reached, computed by
+    // simulating the candidate inside the phi3 + B27 contribution pool.
+    val deltaRks: Float = 0f,
+    val newDisplayRks: Float = 0f
 )
 
 class GetSuggestUseCase {
@@ -103,6 +107,8 @@ class GetSuggestUseCase {
         // modes disable it to surface every qualifying chart.
         enforceAchievableAccWindow: Boolean = true
     ): List<SuggestItem> {
+        val currentRecords = flattenCurrentRecords(records, difficulties, songNames)
+        val baselineContribution = calculateContribution(currentRecords)
         val suggestions = mutableListOf<SuggestItem>()
 
         for ((songId, songDiffs) in difficulties) {
@@ -137,7 +143,11 @@ class GetSuggestUseCase {
             }
         }
 
-        return suggestions.sortedBy { it.targetAcc - (it.currentAcc ?: 0f) }.take(limit)
+        return withDisplayRksImpact(
+            suggestions.sortedBy { it.targetAcc - (it.currentAcc ?: 0f) }.take(limit),
+            currentRecords,
+            baselineContribution
+        )
     }
 
     private fun buildPlayerTargetSuggestions(
@@ -231,8 +241,12 @@ class GetSuggestUseCase {
             }
         }
 
-        return suggestions
-            .sortedWith(compareBy<SuggestItem> { it.targetAcc - (it.currentAcc ?: 0f) }.thenByDescending { it.potentialRks })
+        return withDisplayRksImpact(
+            suggestions
+                .sortedWith(compareBy<SuggestItem> { it.targetAcc - (it.currentAcc ?: 0f) }.thenByDescending { it.potentialRks }),
+            currentRecords,
+            currentContribution
+        )
     }
 
     private data class ContributionRecord(
@@ -298,6 +312,30 @@ class GetSuggestUseCase {
             rks = candidateRks
         )
         return calculateContribution(withoutCandidate + candidateRecord)
+    }
+
+    private fun withDisplayRksImpact(
+        suggestions: List<SuggestItem>,
+        currentRecords: List<ContributionRecord>,
+        baselineContribution: Float
+    ): List<SuggestItem> {
+        return suggestions.map { item ->
+            val newContribution = contributionWithCandidate(
+                baseRecords = currentRecords,
+                candidate = CandidateRecord(
+                    songId = item.songId,
+                    songName = item.songName,
+                    difficulty = item.difficulty,
+                    chartConstant = item.chartConstant,
+                    currentLevel = null
+                ),
+                candidateRks = item.potentialRks
+            )
+            item.copy(
+                deltaRks = ((newContribution - baselineContribution) / 30f).coerceAtLeast(0f),
+                newDisplayRks = newContribution / 30f
+            )
+        }
     }
 
     private fun calculateContribution(records: List<ContributionRecord>): Float {

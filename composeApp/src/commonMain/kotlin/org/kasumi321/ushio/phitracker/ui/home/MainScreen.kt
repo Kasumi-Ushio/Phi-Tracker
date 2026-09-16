@@ -166,6 +166,7 @@ fun MainScreen(
     onNavigateToSongDetailWithDifficulty: (String, org.kasumi321.ushio.phitracker.domain.model.Difficulty?) -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToSuggest: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -493,15 +494,10 @@ fun MainScreen(
             HomeTab.Tools -> ToolsTab(
                 state = state.tools,
                 defaultRks = state.b30.displayRks,
-                onSuggestTargetModeChange = { viewModel.setSuggestTargetMode(it) },
-                onSuggestTargetInputChange = { viewModel.setSuggestTargetInput(it) },
+                onNavigateToSuggest = onNavigateToSuggest,
                 onFetchRankByUser = { viewModel.fetchApiRankByUser() },
                 onFetchRankByPosition = { viewModel.fetchApiRankByPosition(it) },
                 onFetchRksRank = { viewModel.fetchApiRksRankForValue(it) },
-                onSuggestionClick = { songId, difficulty ->
-                    onNavigateToSongDetailWithDifficulty(songId, difficulty)
-                },
-                getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
                 contentPadding = contentPadding,
                 scrollState = toolsScrollState
             )

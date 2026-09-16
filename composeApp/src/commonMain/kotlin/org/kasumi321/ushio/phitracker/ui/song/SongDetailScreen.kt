@@ -10,8 +10,6 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ContextualFlowRow
-import androidx.compose.foundation.layout.ContextualFlowRowOverflow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -97,6 +95,7 @@ import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
+import org.kasumi321.ushio.phitracker.ui.utils.chapterDisplayName
 import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import kotlin.math.roundToInt
@@ -378,7 +377,7 @@ private fun SongInfoHeader(
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "章节: ${songInfo.chapter}",
+                text = "章节: ${chapterDisplayName(songInfo.chapter)}",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -388,15 +387,17 @@ private fun SongInfoHeader(
 
 /**
  * Song aliases rendered as chips in the same visual language as chart tags.
- * Collapsed to two rows by default — the trailing toggle chip reports how many
- * aliases are hidden and expands the full set; expanding again collapses.
- * Expansion reveals the chips progressively as the bounds grow; collapse
- * crossfades the full set into the truncated rows so the hidden chips
- * disappear gradually instead of vanishing at once (see
+ * Collapsed to two rows by default with an expand control on the title row;
+ * expanding reveals the full set with a trailing collapse chip, and tapping
+ * again collapses. Expansion reveals the chips progressively as the bounds
+ * grow; collapse crossfades the full set into the truncated rows so the
+ * hidden chips disappear gradually instead of vanishing at once (see
  * expandCollapseTransition).
- * ContextualFlowRow (not FlowRow) because the hidden-count label needs the
- * overflow scope's item counts during composition; FlowRow's overflow scope
- * only provides them in the draw phase.
+ *
+ * The whole FlowLayout overflow API (ContextualFlowRow and FlowRow's overflow
+ * parameter) is deprecated and unmaintained, so the collapse is a plain
+ * two-line clip driven by maxLines and the expand control lives beside the
+ * section title where the hidden count is known statically.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -411,11 +412,25 @@ private fun AliasChips(nicknames: List<String>) {
         }
     }
     Column {
-        Text(
-            text = "别名",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "别名",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (!expanded) {
+                Text(
+                    text = "展开全部 (${nicknames.size})",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { expanded = true }
+                )
+            }
+        }
         Spacer(modifier = Modifier.height(4.dp))
         AnimatedContent(
             targetState = expanded,
@@ -423,24 +438,17 @@ private fun AliasChips(nicknames: List<String>) {
             label = "aliasChips",
             modifier = Modifier.fillMaxWidth()
         ) { targetExpanded ->
-            // The collapse toggle rides as a real last item when expanded, so
-            // the overflow indicator only ever handles the collapsed state
-            ContextualFlowRow(
-                itemCount = nicknames.size + if (targetExpanded) 1 else 0,
+            // The collapse toggle rides as a real last item when expanded
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 maxLines = if (targetExpanded) Int.MAX_VALUE else 2,
-                overflow = ContextualFlowRowOverflow.expandOrCollapseIndicator(
-                    expandIndicator = {
-                        AliasToggleChip(
-                            text = "还有 ${totalItemCount - shownItemCount} 个",
-                            onClick = { expanded = true }
-                        )
-                    },
-                    collapseIndicator = { }
-                ),
                 modifier = Modifier.fillMaxWidth()
-            ) { index -> chipContent(index) }
+            ) {
+                repeat(nicknames.size + if (targetExpanded) 1 else 0) { index ->
+                    chipContent(index)
+                }
+            }
         }
     }
 }

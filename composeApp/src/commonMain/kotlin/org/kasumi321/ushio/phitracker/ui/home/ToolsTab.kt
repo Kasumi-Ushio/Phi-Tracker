@@ -6,7 +6,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.ScrollState
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,7 +22,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -39,11 +37,9 @@ import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -59,50 +55,32 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil3.compose.AsyncImage
-import coil3.compose.LocalPlatformContext
-import coil3.request.CachePolicy
-import coil3.request.ImageRequest
-import coil3.request.crossfade
-import kotlin.math.ceil
 import org.kasumi321.ushio.phitracker.data.platform.copyToClipboard
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
-import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
-import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
-import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
-import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
-import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
-import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ToolsTab(
         state: ToolsUiState,
         defaultRks: Float,
-        onSuggestTargetModeChange: (SuggestTargetMode) -> Unit,
-        onSuggestTargetInputChange: (String) -> Unit,
+        onNavigateToSuggest: () -> Unit,
         onFetchRankByUser: () -> Unit,
         onFetchRankByPosition: (Int) -> Unit,
         onFetchRksRank: (Float) -> Unit,
-        onSuggestionClick: (String, Difficulty?) -> Unit,
-        getIllustrationUrl: (String) -> String?,
         contentPadding: PaddingValues = PaddingValues(),
         scrollState: ScrollState = rememberScrollState(),
         modifier: Modifier = Modifier
@@ -114,10 +92,6 @@ fun ToolsTab(
     val apiRankByUser = state.apiRankByUser
     val apiRankByPosition = state.apiRankByPosition
     val apiRksRankResult = state.apiRksRankResult
-    val suggestTargetMode = state.suggestTargetMode
-    val suggestTargetInput = state.suggestTargetInput
-    val suggestTargetError = state.suggestTargetError
-    val suggestItems = state.suggestItems
 
     // Full-bleed scroll: content scrolls behind the floating glass bars, with
     // spacers keeping the first and last cards clear of them
@@ -140,18 +114,7 @@ fun ToolsTab(
                     title = "推分建议",
                     subtitle = "根据你的成绩数据，推荐值得挑战的曲目",
                     icon = Icons.AutoMirrored.Filled.ShowChart
-            ) {
-                SuggestionContent(
-                        targetMode = suggestTargetMode,
-                        targetInput = suggestTargetInput,
-                        targetError = suggestTargetError,
-                        suggestItems = suggestItems,
-                        onTargetModeChange = onSuggestTargetModeChange,
-                        onTargetInputChange = onSuggestTargetInputChange,
-                        onSuggestionClick = onSuggestionClick,
-                        getIllustrationUrl = getIllustrationUrl
-                )
-            }
+            ) { SuggestEntryContent(onNavigateToSuggest) }
 
             CollapsibleToolCard(
                     title = "RKS 成长轨迹",
@@ -688,212 +651,11 @@ private fun SessionTokenContent(sessionToken: String?) {
 // ══════════════════════════════════════════════════════════════
 
 @Composable
-private fun SuggestionContent(
-        targetMode: SuggestTargetMode,
-        targetInput: String,
-        targetError: String?,
-        suggestItems: List<SuggestItem>,
-        onTargetModeChange: (SuggestTargetMode) -> Unit,
-        onTargetInputChange: (String) -> Unit,
-        onSuggestionClick: (String, Difficulty?) -> Unit,
-        getIllustrationUrl: (String) -> String?
-) {
-    Text(
-            text = "不填则根据当前成绩自动推荐；填写目标 RKS 后按所选模式分析。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-                selected = targetMode == SuggestTargetMode.PlayerDisplayRks,
-                onClick = { onTargetModeChange(SuggestTargetMode.PlayerDisplayRks) },
-                label = { Text("玩家最终 RKS") }
-        )
-        FilterChip(
-                selected = targetMode == SuggestTargetMode.SingleChartRks,
-                onClick = { onTargetModeChange(SuggestTargetMode.SingleChartRks) },
-                label = { Text("单谱面 RKS") }
-        )
-    }
-
-    OutlinedTextField(
-            value = targetInput,
-            onValueChange = onTargetInputChange,
-            label = { Text("目标 RKS") },
-            placeholder = { Text("例如 16.50") },
-            supportingText = { Text(targetError ?: "范围 0.00 到 17.00，最多两位小数") },
-            isError = targetError != null,
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth()
-    )
-
-    if (suggestItems.isEmpty()) {
-        Text(
-                text = targetError ?: "暂无推荐曲目。试试同步数据或调整目标 RKS？",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        return
-    }
-
-    val pageSize = 5
-    val pagedItems = remember(suggestItems) { suggestItems }
-    val totalPages =
-            remember(pagedItems) {
-                ceil(pagedItems.size / pageSize.toFloat()).toInt().coerceAtLeast(1)
-            }
-    var currentPage by rememberSaveable(pagedItems.size) { mutableStateOf(0) }
-    currentPage = currentPage.coerceIn(0, totalPages - 1)
-
-    val start = currentPage * pageSize
-    val end = (start + pageSize).coerceAtMost(pagedItems.size)
-    val pageItems = pagedItems.subList(start, end)
-
-    pageItems.forEach { item ->
-        SuggestScoreCard(
-                item = item,
-                illustrationUrl = getIllustrationUrl(item.songId),
-                onSuggestionClick = onSuggestionClick
-        )
-    }
-
-    if (totalPages > 1) {
-        Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedButton(
-                    onClick = { currentPage = (currentPage - 1).coerceAtLeast(0) },
-                    enabled = currentPage > 0
-            ) { Text("上一页") }
-            Text(
-                    text = "第 ${currentPage + 1} / $totalPages 页",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            OutlinedButton(
-                    onClick = { currentPage = (currentPage + 1).coerceAtMost(totalPages - 1) },
-                    enabled = currentPage < totalPages - 1
-            ) { Text("下一页") }
-        }
+private fun SuggestEntryContent(onNavigateToSuggest: () -> Unit) {
+    OutlinedButton(onClick = onNavigateToSuggest, modifier = Modifier.fillMaxWidth()) {
+        Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = null)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("查看推分建议")
     }
 }
 
-@Composable
-private fun SuggestScoreCard(
-        item: SuggestItem,
-        illustrationUrl: String?,
-        onSuggestionClick: (String, Difficulty?) -> Unit,
-        modifier: Modifier = Modifier
-) {
-    val diffColor = DifficultyColors.forDifficulty(item.difficulty)
-
-    val ccText =
-            remember(item.chartConstant, item.difficulty) {
-                "${DifficultyColors.labelFor(item.difficulty)} ${item.chartConstant.formatOne()}"
-            }
-    val rating =
-            remember(item.currentScore, item.isFullCombo) {
-                item.currentScore?.let { ScoreRating.fromScore(it, item.isFullCombo) }
-            }
-    val currentAccText =
-            remember(item.currentAcc) { item.currentAcc?.let { "${it.formatTwo()}%" } ?: "暂无" }
-    val targetAccText = remember(item.targetAcc) { "${item.targetAcc.formatTwo()}%" }
-    val currentRksText = remember(item.currentRks) { item.currentRks.formatFour() }
-    val potentialRksText = remember(item.potentialRks) { item.potentialRks.formatFour() }
-    val platformContext = LocalPlatformContext.current
-    val imageRequest =
-            remember(platformContext, illustrationUrl) {
-                illustrationUrl?.takeIf { it.isNotBlank() }?.let { url ->
-                    ImageRequest.Builder(platformContext)
-                            .data(url)
-                            .size(168)
-                            .networkCachePolicy(CachePolicy.READ_ONLY)
-                            .crossfade(200)
-                            .build()
-                }
-            }
-
-    Card(
-            modifier =
-                    modifier.fillMaxWidth().clickable {
-                        onSuggestionClick(item.songId, item.difficulty)
-                    },
-            colors =
-                    CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                    )
-    ) {
-        Row(
-                modifier = Modifier.fillMaxWidth().padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (imageRequest != null) {
-                AsyncImage(
-                        model = imageRequest,
-                        contentDescription = null,
-                        modifier = Modifier.size(56.dp).clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                        text = item.songName,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Box(
-                            modifier =
-                                    Modifier.clip(RoundedCornerShape(4.dp))
-                                            .background(diffColor)
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                                text = ccText,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.surface,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 10.sp
-                        )
-                    }
-
-                    if (rating != null) {
-                        ScoreRatingTag(rating = rating, fontSize = 10.sp)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                        text = "$currentAccText → $targetAccText",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.End
-                )
-                Text(
-                        text = "$currentRksText → $potentialRksText",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        textAlign = TextAlign.End
-                )
-            }
-        }
-    }
-}

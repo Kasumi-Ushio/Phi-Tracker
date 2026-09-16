@@ -61,6 +61,8 @@ import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
 import org.kasumi321.ushio.phitracker.ui.song.IllustrationPreviewScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailViewModel
+import org.kasumi321.ushio.phitracker.ui.suggest.SuggestScreen
+import org.kasumi321.ushio.phitracker.ui.suggest.SuggestViewModel
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -76,6 +78,7 @@ sealed class Screen(val route: String) {
     data object Licenses : Screen("licenses")
     data object PrivacyPolicy : Screen("privacy_policy")
     data object Settings : Screen("settings")
+    data object Suggest : Screen("suggest")
 }
 
 private const val NavTransitionDurationMillis = 250
@@ -208,6 +211,9 @@ fun PhiTrackerNavHost() {
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
+                onNavigateToSuggest = {
+                    navController.navigate(Screen.Suggest.route)
+                },
                 viewModel = homeViewModel
             )
         }
@@ -322,6 +328,25 @@ fun PhiTrackerNavHost() {
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAbout = { navController.navigate(Screen.About.route) },
                 onLogout = b30Navigation::settingsLogout
+            )
+        }
+        composable(
+            route = Screen.Suggest.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
+            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_suggest") }
+            val suggestViewModel: SuggestViewModel = koinViewModel()
+            val illustrationResolver: IllustrationUriResolver = koinInject()
+            SuggestScreen(
+                viewModel = suggestViewModel,
+                getIllustrationUrl = illustrationResolver::lowUri,
+                onNavigateToSongDetail = { songId, difficulty ->
+                    navController.navigate(SongDetailRoute.from(songId = songId, difficulty = difficulty))
+                },
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         composable(

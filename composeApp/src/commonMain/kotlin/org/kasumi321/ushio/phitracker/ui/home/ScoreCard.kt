@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -98,7 +99,8 @@ fun ScoreCardContent(
     modifier: Modifier = Modifier,
     allowHardwareImages: Boolean = true,
     imageSlotId: String? = null,
-    onIllustrationSettled: ((slotId: String, error: Throwable?) -> Unit)? = null
+    onIllustrationSettled: ((slotId: String, error: Throwable?) -> Unit)? = null,
+    footer: (@Composable ColumnScope.() -> Unit)? = null
 ) {
     val diffColor = DifficultyColors.forDifficulty(record.difficulty)
     val rating = remember(record.score, record.isFullCombo) {
@@ -151,9 +153,17 @@ fun ScoreCardContent(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow
         )
     ) {
+        // Fill-and-center restores the old fillMaxSize row behavior: bounded
+        // card slots (B30 export) center the content vertically, while in
+        // unbounded lists fillMaxSize degrades to wrap-content and the column
+        // just packs the row and footer together.
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center
+        ) {
         Row(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .padding(horizontal = contentHorizontalPadding, vertical = contentVerticalPadding),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -275,6 +285,9 @@ fun ScoreCardContent(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+        }
+
+        footer?.invoke(this)
         }
     }
 }

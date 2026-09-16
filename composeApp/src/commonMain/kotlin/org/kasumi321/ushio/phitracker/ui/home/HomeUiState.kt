@@ -7,8 +7,6 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
-import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
-import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 
@@ -81,11 +79,7 @@ data class ToolsUiState(
     val apiHistorySnapshots: List<SyncSnapshot> = emptyList(),
     val apiRankByUser: ApiToolResult = ApiToolResult(),
     val apiRankByPosition: ApiToolResult = ApiToolResult(),
-    val apiRksRankResult: ApiToolResult = ApiToolResult(),
-    val suggestTargetMode: SuggestTargetMode = SuggestTargetMode.PlayerDisplayRks,
-    val suggestTargetInput: String = "",
-    val suggestTargetError: String? = null,
-    val suggestItems: List<SuggestItem> = emptyList()
+    val apiRksRankResult: ApiToolResult = ApiToolResult()
 )
 
 data class SyncUiState(

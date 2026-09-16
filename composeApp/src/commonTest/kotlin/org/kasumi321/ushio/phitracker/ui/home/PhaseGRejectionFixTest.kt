@@ -45,11 +45,11 @@ class PhaseGRejectionFixTest {
     fun featureStateCopiesIsolateSiblingProgressAndErrors() {
         val state = HomeUiState(
             songs = SongsUiState(isPreloading = true, preloadCompleted = 2, preloadTotal = 4),
-            tools = ToolsUiState(suggestTargetInput = "15.25"),
+            tools = ToolsUiState(sessionToken = "token"),
             sync = SyncUiState(isSyncing = true, error = "retained")
         )
 
-        val changed = state.copy(tools = state.tools.copy(suggestTargetInput = ""))
+        val changed = state.copy(tools = state.tools.copy(sessionToken = null))
 
         assertEquals(2, changed.songs.preloadCompleted)
         assertEquals(4, changed.songs.preloadTotal)

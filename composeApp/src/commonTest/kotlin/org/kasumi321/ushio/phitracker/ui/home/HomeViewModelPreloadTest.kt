@@ -57,7 +57,6 @@ import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
-import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.ViewModelTestLifecycle
@@ -167,7 +166,6 @@ class HomeViewModelPreloadTest {
 
         viewModel.startPreloadIllustrations()
         viewModel.refresh()
-        viewModel.setSuggestTargetInput("invalid")
         viewModel.fetchApiRankByPosition(7)
         runCurrent()
 
@@ -195,8 +193,6 @@ class HomeViewModelPreloadTest {
         assertEquals(1, viewModel.uiState.value.songs.preloadCompleted)
         assertEquals(0.5f, viewModel.uiState.value.songs.preloadProgress)
         assertEquals("查询未成功，请检查网络或稍后重试", viewModel.uiState.value.tools.apiRankByPosition.message)
-        assertEquals("invalid", viewModel.uiState.value.tools.suggestTargetInput)
-        assertNotNull(viewModel.uiState.value.tools.suggestTargetError)
 
         repeat(2) {
             tabs.select(HomeTab.Tools)
@@ -220,8 +216,6 @@ class HomeViewModelPreloadTest {
         assertNull(viewModel.uiState.value.sync.error)
         assertEquals(1f, viewModel.uiState.value.songs.preloadProgress)
         assertEquals("查询未成功，请检查网络或稍后重试", viewModel.uiState.value.tools.apiRankByPosition.message)
-        assertEquals("invalid", viewModel.uiState.value.tools.suggestTargetInput)
-        assertNotNull(viewModel.uiState.value.tools.suggestTargetError)
     }
 
     @Test
@@ -372,7 +366,6 @@ class HomeViewModelPreloadTest {
         val viewModel = HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
-            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = testSongDataProvider,
@@ -422,7 +415,6 @@ class HomeViewModelPreloadTest {
         val viewModel = HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
-            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = testSongDataProvider,
@@ -496,7 +488,6 @@ class HomeViewModelPreloadTest {
         val viewModel = HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
-            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = testSongDataProvider,
@@ -572,9 +563,9 @@ class HomeViewModelPreloadTest {
     }
 
     /**
-     * The B30 collect recomputes suggestions inside withContext(Dispatchers.Default),
-     * which runs on a real background thread and is not driven by the test
-     * scheduler, so poll in real time before advancing virtual time.
+     * The B30 collect reacts to the cached-save flow on a real background
+     * thread which is not driven by the test scheduler, so poll in real time
+     * before advancing virtual time.
      */
     private suspend fun TestScope.awaitB30(viewModel: HomeViewModel) {
         withContext(Dispatchers.Default) {
@@ -613,7 +604,6 @@ class HomeViewModelPreloadTest {
         return HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
-            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = songDataProvider,
@@ -1197,96 +1187,6 @@ class HomeViewModelPreloadTest {
         assertEquals("ok", result.message)
     }
 
-    // ---- Phase C: suggestion tests ----
-
-    @Test
-    fun emptyB30YieldsEmptySuggestions(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val viewModel = createViewModel(settings, preloader)
-        advanceUntilIdle()
-
-        // No B30 records → empty suggestions
-        assertTrue(viewModel.uiState.value.tools.suggestItems.isEmpty(),
-            "Empty B30 should yield empty suggestions")
-    }
-
-    @Test
-    fun noCachedSaveYieldsEmptySuggestions(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        val existingRecords = listOf(
-            RecordEntity(songId = "song-a", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, updatedAt = 1_000L)
-        )
-        val recordDao = StatefulRecordDao(initialRecords = existingRecords, postSyncRecords = existingRecords)
-        // No cached save
-        val repository = FakePhigrosRepositoryForSync(
-            syncResult = Result.success(saveWithRks(15.5f)),
-            recordDao = recordDao,
-            initialCachedSave = null
-        )
-        val logFileStore = createTestLogFileStore()
-
-        val viewModel = HomeViewModel(
-            repository = repository,
-            getB30UseCase = GetB30UseCase(repository),
-            getSuggestUseCase = GetSuggestUseCase(),
-            syncSaveUseCase = SyncSaveUseCase(repository),
-            searchSongUseCase = SearchSongUseCase(),
-            songDataProvider = testSongDataProvider,
-            illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
-            tipsProvider = TipsProvider(FakeTextAssetReader),
-            settingsRepository = settings,
-            thumbnailPreloader = preloader
-        ).let(viewModelLifecycle::track)
-        advanceUntilIdle()
-
-        assertTrue(viewModel.uiState.value.tools.suggestItems.isEmpty(),
-            "No cached save should yield empty suggestions")
-    }
-
-    @Test
-    fun insufficientB30YieldsEmptySuggestions(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val preloader = RecordingPreloader()
-        // Only 1 record — below the 20 minimum
-        val existingRecords = listOf(
-            RecordEntity(songId = "song-a", difficulty = "IN", score = 950_000, accuracy = 95f, isFullCombo = false, updatedAt = 1_000L)
-        )
-        val recordDao = StatefulRecordDao(initialRecords = existingRecords, postSyncRecords = existingRecords)
-        val cachedSave = saveWithRecord(
-            songId = "song-a.0",
-            difficulty = Difficulty.IN,
-            score = 990_000,
-            accuracy = 99f,
-            isFullCombo = false
-        )
-        val repository = FakePhigrosRepositoryForSync(
-            syncResult = Result.success(saveWithRks(15.5f)),
-            recordDao = recordDao,
-            initialCachedSave = cachedSave
-        )
-        val logFileStore = createTestLogFileStore()
-
-        val viewModel = HomeViewModel(
-            repository = repository,
-            getB30UseCase = GetB30UseCase(repository),
-            getSuggestUseCase = GetSuggestUseCase(),
-            syncSaveUseCase = SyncSaveUseCase(repository),
-            searchSongUseCase = SearchSongUseCase(),
-            songDataProvider = testSongDataProvider,
-            illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
-            tipsProvider = TipsProvider(FakeTextAssetReader),
-            settingsRepository = settings,
-            thumbnailPreloader = preloader
-        ).let(viewModelLifecycle::track)
-        advanceUntilIdle()
-
-        // B30 has only 1 record (< 20 minimum) → empty suggestions
-        assertTrue(viewModel.uiState.value.tools.suggestItems.isEmpty(),
-            "B30 with < 20 records should yield empty suggestions")
-    }
-
     @Test
     fun getSuggestUseCaseProducesCorrectItems(): Unit = runTest(dispatcher) {
         val useCase = GetSuggestUseCase()
@@ -1350,31 +1250,6 @@ class HomeViewModelPreloadTest {
             "song-b IN should NOT be suggested (currentRks >= threshold)")
     }
 
-    @Test
-    fun suggestTargetInputKeepsIllegalTextAndReportsExplicitError(): Unit = runTest(dispatcher) {
-        val settings = FakeSettingsRepository(preloadDone = true)
-        val viewModel = createViewModel(settingsRepository = settings)
-        advanceUntilIdle()
-
-        viewModel.setSuggestTargetInput("16.123")
-        advanceUntilIdle()
-
-        assertEquals("16.123", viewModel.uiState.value.tools.suggestTargetInput)
-        assertEquals(
-            "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数",
-            viewModel.uiState.value.tools.suggestTargetError
-        )
-
-        viewModel.setSuggestTargetInput("abc")
-        advanceUntilIdle()
-
-        assertEquals("abc", viewModel.uiState.value.tools.suggestTargetInput)
-        assertEquals(
-            "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数",
-            viewModel.uiState.value.tools.suggestTargetError
-        )
-    }
-
     private fun createChapterFilterViewModel(
         settingsRepository: FakeSettingsRepository
     ): HomeViewModel {
@@ -1385,7 +1260,6 @@ class HomeViewModelPreloadTest {
         return HomeViewModel(
             repository = repository,
             getB30UseCase = GetB30UseCase(repository),
-            getSuggestUseCase = GetSuggestUseCase(),
             syncSaveUseCase = SyncSaveUseCase(repository),
             searchSongUseCase = SearchSongUseCase(),
             songDataProvider = songDataProvider,

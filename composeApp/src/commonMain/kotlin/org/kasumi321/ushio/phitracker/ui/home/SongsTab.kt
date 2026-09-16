@@ -5,12 +5,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -56,7 +59,9 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
+import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
+import org.kasumi321.ushio.phitracker.ui.utils.chapterDisplayName
 import kotlin.math.roundToInt
 
 private fun Float.formatLevel(): String {
@@ -131,7 +136,8 @@ fun SongsTab(
                 minLevel = minLevel,
                 maxLevel = maxLevel,
                 onLevelRangeSelect = onLevelRangeSelect,
-                onResetFilters = onResetFilters
+                onResetFilters = onResetFilters,
+                onClose = { onToggleFilterSheet(false) }
             )
         }
     }
@@ -149,8 +155,10 @@ private fun FilterBottomSheetContent(
     minLevel: Int,
     maxLevel: Int,
     onLevelRangeSelect: (Int, Int) -> Unit,
-    onResetFilters: () -> Unit
+    onResetFilters: () -> Unit,
+    onClose: () -> Unit
 ) {
+    var showChapterDialog by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -164,8 +172,13 @@ private fun FilterBottomSheetContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("筛选曲目", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            TextButton(onClick = onResetFilters) {
-                Text("重置")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onResetFilters) {
+                    Text("重置")
+                }
+                TextButton(onClick = onClose) {
+                    Text("完成")
+                }
             }
         }
 
@@ -218,37 +231,87 @@ private fun FilterBottomSheetContent(
 
         Spacer(modifier = Modifier.height(10.dp))
 
+        // The chapter list lives in its own dialog: 35+ chips made the sheet
+        // tall enough to fight the sheet's own drag gestures (see Issue 11).
+        // This row stays a compact summary and opens ChapterFilterDialog.
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { showChapterDialog = true }
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text("章节", style = MaterialTheme.typography.titleMedium)
-            if (selectedChapters.isNotEmpty()) {
-                TextButton(onClick = onClearChapters) {
-                    Text("全部清除 (${selectedChapters.size})")
-                }
-            }
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        // The chapter FlowRow expands fully instead of scrolling inside a
-        // height cap: a nested vertical scroll here raced the sheet's own
-        // drag gesture and could dismiss the sheet mid-scroll. With a single
-        // scroll surface (the outer Column) the gesture routing is unambiguous.
-        androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            availableChapters.forEach { chapter ->
-                FilterChip(
-                    selected = chapter in selectedChapters,
-                    onClick = { onToggleChapter(chapter) },
-                    label = { Text(chapter) }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = if (selectedChapters.isEmpty()) "点击选择" else "已选 ${selectedChapters.size} 个",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
+
+    if (showChapterDialog) {
+        ChapterFilterDialog(
+            availableChapters = availableChapters,
+            selectedChapters = selectedChapters,
+            onToggleChapter = onToggleChapter,
+            onClearChapters = onClearChapters,
+            onDismiss = { showChapterDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun ChapterFilterDialog(
+    availableChapters: List<String>,
+    selectedChapters: Set<String>,
+    onToggleChapter: (String) -> Unit,
+    onClearChapters: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AnimatedAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("选择章节") },
+        text = {
+            // A capped inner scroll is safe here: unlike the bottom sheet, a
+            // plain dialog has no drag-to-dismiss gesture competing for drags.
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                availableChapters.forEach { chapter ->
+                    FilterChip(
+                        selected = chapter in selectedChapters,
+                        onClick = { onToggleChapter(chapter) },
+                        label = { Text(chapterDisplayName(chapter)) }
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("完成") }
+        },
+        dismissButton = if (selectedChapters.isNotEmpty()) {
+            {
+                TextButton(onClick = onClearChapters) {
+                    Text("全部清除 (${selectedChapters.size})")
+                }
+            }
+        } else null
+    )
 }
 
 @Composable

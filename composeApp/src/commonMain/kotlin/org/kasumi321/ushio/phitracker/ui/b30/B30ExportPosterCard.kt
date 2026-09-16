@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -230,7 +231,12 @@ internal fun ExportPosterCard(
                         fontSize = 18.sp,
                         fontFamily = if (rating == ScoreRating.Phi) phiFontFamily else null,
                         fontWeight = if (rating == ScoreRating.Phi) FontWeight.ExtraBold else FontWeight.Bold,
-                        color = rating.color
+                        // The phi yellow is unreadable on light surfaces even
+                        // with the halo, so light export themes swap in a
+                        // darker gold via ScoreRating.displayColor.
+                        color = rating.displayColor(
+                            isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+                        )
                     )
                 }
             }

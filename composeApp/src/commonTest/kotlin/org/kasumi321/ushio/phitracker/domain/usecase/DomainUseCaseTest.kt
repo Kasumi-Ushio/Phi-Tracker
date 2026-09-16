@@ -270,6 +270,102 @@ class DomainUseCaseTest {
     }
 
     @Test
+    fun suggestItemCarriesDisplayRksImpact() {
+        // Candidate at acc 90 cc 16: current single RKS ≈ 9.679. Pushing it to
+        // single RKS 15 lifts the pool contribution by 15 - 9.679.
+        val useCase = GetSuggestUseCase()
+        val currentB30 = (0 until 20).map { i ->
+            BestRecord("b-$i", "B $i", Difficulty.IN, 900_000, 90f, false, 10f, 8f)
+        }
+        val records = mapOf(
+            "candidate" to SongRecord(
+                songId = "candidate",
+                levels = mapOf(Difficulty.IN to LevelRecord(900_000, 90f, false))
+            )
+        )
+        val difficulties = mapOf("candidate" to mapOf(Difficulty.IN to 16f))
+        val names = mapOf("candidate" to "Candidate")
+
+        val item = useCase(
+            currentB30 = currentB30,
+            records = records,
+            difficulties = difficulties,
+            songNames = names,
+            targetMode = SuggestTargetMode.SingleChartRks,
+            targetRks = 15f
+        ).single()
+
+        assertClose(15f / 30f, item.newDisplayRks, tolerance = 0.001f)
+        assertClose((15f - 9.679f) / 30f, item.deltaRks, tolerance = 0.001f)
+    }
+
+    @Test
+    fun suggestItemImpactCountsApCandidateInPhiAndB27Slots() {
+        // 26 charts at acc 95 cc 10 (single RKS ≈ 7.901 each) plus a candidate
+        // at acc 90 cc 16 (≈ 9.679). Pushing the candidate to AP adds it to
+        // BOTH the phi3 and the B27 slots: contribution moves from
+        // 26 * 7.901 + 9.679 ≈ 215.111 to 16 + (26 * 7.901 + 16) ≈ 237.432.
+        val useCase = GetSuggestUseCase()
+        val currentB30 = (0 until 20).map { i ->
+            BestRecord("b-$i", "B $i", Difficulty.IN, 900_000, 90f, false, 10f, 8f)
+        }
+        val records = mutableMapOf<String, SongRecord>()
+        val difficulties = mutableMapOf<String, Map<Difficulty, Float>>()
+        val names = mutableMapOf<String, String>()
+        repeat(26) { i ->
+            val songId = "base-$i"
+            records[songId] = SongRecord(songId, mapOf(Difficulty.IN to LevelRecord(900_000, 95f, false)))
+            difficulties[songId] = mapOf(Difficulty.IN to 10f)
+            names[songId] = "Base $i"
+        }
+        records["candidate"] = SongRecord(
+            "candidate",
+            mapOf(Difficulty.IN to LevelRecord(900_000, 90f, false))
+        )
+        difficulties["candidate"] = mapOf(Difficulty.IN to 16f)
+        names["candidate"] = "Candidate"
+
+        val result = useCase(
+            currentB30 = currentB30,
+            records = records,
+            difficulties = difficulties,
+            songNames = names,
+            targetMode = SuggestTargetMode.PlayerDisplayRks,
+            targetRks = 7.8f
+        )
+
+        val candidate = result.single { it.songId == "candidate" }
+        assertClose(0.744f, candidate.deltaRks, tolerance = 0.001f)
+        assertClose(7.914f, candidate.newDisplayRks, tolerance = 0.001f)
+    }
+
+    @Test
+    fun suggestItemBelowB30ThresholdHasZeroImpact() {
+        // 30 charts at acc 99 cc 10 (single RKS ≈ 9.560) fill all 27 best
+        // slots; a candidate pushed only to single RKS 5 cannot enter the pool.
+        val useCase = GetSuggestUseCase()
+        val records = (0 until 30).associate { i ->
+            "base-$i" to SongRecord("base-$i", mapOf(Difficulty.IN to LevelRecord(990_000, 99f, false)))
+        }
+        val difficulties = (0 until 30).associate { i ->
+            "base-$i" to mapOf(Difficulty.IN to 10f)
+        } + mapOf("candidate" to mapOf(Difficulty.IN to 16f))
+        val names = difficulties.keys.associateWith { it }
+
+        val item = useCase(
+            currentB30 = emptyList(),
+            records = records,
+            difficulties = difficulties,
+            songNames = names,
+            targetMode = SuggestTargetMode.SingleChartRks,
+            targetRks = 5f
+        ).single { it.songId == "candidate" }
+
+        assertClose(0f, item.deltaRks, tolerance = 0.0001f)
+        assertClose(9.5605f * 27f / 30f, item.newDisplayRks, tolerance = 0.001f)
+    }
+
+    @Test
     fun suggestPlayerTargetKeepsPhiAndB27AsSeparateContributionSlots() {
         val useCase = GetSuggestUseCase()
         val currentB30 = (0 until 20).map { i ->

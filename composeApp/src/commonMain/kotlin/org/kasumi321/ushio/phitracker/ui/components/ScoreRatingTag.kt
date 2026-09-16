@@ -30,6 +30,9 @@ enum class ScoreRating(
     Phi("\u03C6", Color(0xFFFFD54F), Color(0xFF5D4037));
 
     companion object {
+        /** Amber gold for the phi rating on light surfaces: the bright yellow is unreadable there. */
+        private val PHI_LIGHT_THEME_COLOR = Color(0xF7FFB300)
+
         fun fromScore(score: Int, isFullCombo: Boolean): ScoreRating {
             return when {
                 score >= 1_000_000 -> Phi
@@ -43,6 +46,14 @@ enum class ScoreRating(
             }
         }
     }
+
+    /**
+     * Theme-aware label color. Only [Phi] switches: its bright yellow has
+     * insufficient contrast against light backgrounds, so light themes render
+     * it in a darker gold while dark themes keep the original yellow.
+     */
+    fun displayColor(isDarkTheme: Boolean): Color =
+        if (this == Phi && !isDarkTheme) PHI_LIGHT_THEME_COLOR else color
 }
 
 @Composable
