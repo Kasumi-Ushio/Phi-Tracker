@@ -24,6 +24,7 @@ import org.kasumi321.ushio.phitracker.data.repository.SettingsRepositoryImpl
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
+import org.kasumi321.ushio.phitracker.data.song.SongDataUpdateCoordinator
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.QrLoginRepository
@@ -86,4 +87,5 @@ val dataModule = module {
     single { IllustrationUriResolver(get(), get()) }
     single { TipsProvider() }
     single { SongDataUpdater(get(), get(), get()) }
+    single { SongDataUpdateCoordinator(get(), get(), get(), get()) }
 }

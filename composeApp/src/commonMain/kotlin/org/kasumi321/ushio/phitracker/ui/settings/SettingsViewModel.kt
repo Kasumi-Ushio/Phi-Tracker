@@ -27,6 +27,7 @@ import org.kasumi321.ushio.phitracker.data.platform.clearImageCacheUrls
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
+import org.kasumi321.ushio.phitracker.data.song.SongDataUpdateCoordinator
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
@@ -42,7 +43,7 @@ class SettingsViewModel(
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
     getB30UseCase: GetB30UseCase,
     private val songDataProvider: SongDataProvider,
-    private val songDataUpdater: SongDataUpdater,
+    private val songDataUpdateCoordinator: SongDataUpdateCoordinator,
     private val illustrationProvider: IllustrationProvider,
     private val artworkFileCache: StandardArtworkCache,
     internal val runtimeLogExporter: RuntimeLogExporter,
@@ -223,50 +224,47 @@ class SettingsViewModel(
         if (mutableUiState.value.isUpdatingData) return
         viewModelScope.launch {
             val total = SongDataUpdater.FILE_NAMES.size
-            val oldSongIds = songDataProvider.getSongs().keys.toSet()
-            mutableUiState.update { it.copy(isUpdatingData = true, updateDataProgress = 0, updateDataTotal = total, updateDataFileName = "", updateDataError = null) }
+            mutableUiState.update { it.copy(isUpdatingData = true, updateDataPhase = UpdateDataPhase.Files, updateDataProgress = 0, updateDataTotal = total, updateDataFileName = "", updateDataError = null, updateResultSongNames = null) }
             AppLogger.event("data", "update_song_data_started", mapOf("totalFiles" to total.toString()))
-            val result = songDataUpdater.updateAll { current, count, fileName ->
-                mutableUiState.update { it.copy(updateDataProgress = current, updateDataTotal = count, updateDataFileName = fileName) }
-            }
-            if (result.isFailure) {
-                val message = result.exceptionOrNull()?.message
-                mutableUiState.update { it.copy(isUpdatingData = false, updateDataError = message) }
-                AppLogger.event("data", "update_song_data_failed", mapOf("error" to (message ?: "unknown")))
-                return@launch
-            }
-            val reconcile = runCatching { reconcileSongDataIllustrationCache(oldSongIds, songDataProvider.getSongs().keys.toSet()) }
-            mutableUiState.update { it.copy(isUpdatingData = false, updateDataProgress = total, updateDataFileName = "", updateDataError = reconcile.exceptionOrNull()?.message) }
-            AppLogger.event("data", "update_song_data_success", mapOf("cacheReconcile" to reconcile.isSuccess.toString()))
+            val result = songDataUpdateCoordinator.update(
+                onFileProgress = { current, count, fileName ->
+                    mutableUiState.update { it.copy(updateDataPhase = UpdateDataPhase.Files, updateDataProgress = current, updateDataTotal = count, updateDataFileName = fileName) }
+                },
+                onIllustrationProgress = { progress ->
+                    mutableUiState.update {
+                        it.copy(
+                            updateDataPhase = UpdateDataPhase.Illustrations,
+                            updateDataProgress = progress.completed,
+                            updateDataTotal = progress.total,
+                            updateDataFileName = progress.currentSongName
+                        )
+                    }
+                }
+            )
+            result.fold(
+                onSuccess = { outcome ->
+                    mutableUiState.update {
+                        it.copy(
+                            isUpdatingData = false,
+                            updateDataProgress = total,
+                            updateDataFileName = "",
+                            updateDataError = null,
+                            updateResultSongNames = outcome.addedSongNames
+                        )
+                    }
+                    AppLogger.event("data", "update_song_data_success", mapOf("addedSongs" to outcome.addedSongNames.size.toString()))
+                },
+                onFailure = { error ->
+                    val message = error.message
+                    mutableUiState.update { it.copy(isUpdatingData = false, updateDataError = message) }
+                    AppLogger.event("data", "update_song_data_failed", mapOf("error" to (message ?: "unknown")))
+                }
+            )
         }
     }
 
-    private suspend fun reconcileSongDataIllustrationCache(oldSongIds: Set<String>, newSongIds: Set<String>) {
-        val added = (newSongIds - oldSongIds).sorted()
-        val removed = (oldSongIds - newSongIds).sorted()
-        var failures = 0
-        coroutineScope {
-            val semaphore = Semaphore(6)
-            val mutex = Mutex()
-            added.map { songId ->
-                launch {
-                    semaphore.withPermit {
-                        val result = runCatching {
-                            val localUri = artworkFileCache.getOrDownloadThumbnail(songId, illustrationProvider.getLowUrl(songId))
-                            thumbnailPreloader.preload(localUri).getOrThrow()
-                        }
-                        mutex.withLock { if (result.isFailure) failures++ }
-                    }
-                }
-            }.forEach { it.join() }
-        }
-        if (removed.isNotEmpty()) {
-            clearCacheUrls(removed.flatMap { listOf(illustrationProvider.getLowUrl(it), illustrationProvider.getStandardUrl(it), illustrationProvider.getBlurUrl(it)) })
-            artworkFileCache.clearThumbnails(removed)
-            artworkFileCache.clearStandard(removed)
-        }
-        AppLogger.event("cache", "song_data_illustration_reconcile", mapOf("added" to added.size.toString(), "addedSuccess" to (added.size - failures).toString(), "addedFailure" to failures.toString(), "removed" to removed.size.toString()))
-        if (failures > 0) error("曲目数据已更新，但部分曲绘未能下载，可稍后在设置中重试")
+    fun dismissUpdateDataResult() {
+        mutableUiState.update { it.copy(updateResultSongNames = null) }
     }
 
 }

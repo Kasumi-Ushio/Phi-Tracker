@@ -46,7 +46,12 @@ data class SongsUiState(
     val preloadProgress: Float = 0f,
     val preloadTotal: Int = 0,
     val preloadCompleted: Int = 0,
-    val isPreloading: Boolean = false
+    val isPreloading: Boolean = false,
+    val songDataUpdateAvailable: Boolean = false,
+    val isSongDataRefreshing: Boolean = false,
+    val songDataStatusText: String? = null,
+    val songDataProgressFraction: Float? = null,
+    val songDataMessage: String? = null
 )
 
 data class B30UiState(

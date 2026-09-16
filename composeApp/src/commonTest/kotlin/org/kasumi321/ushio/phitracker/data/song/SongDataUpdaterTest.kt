@@ -210,6 +210,55 @@ class SongDataUpdaterTest {
         assertFalse(fs.exists(backupDir), "Backup dir should be cleaned up after failure")
     }
 
+    @Test
+    fun checkUpstreamChangedReturnsFalseWhenInfoCsvMatches() = runTest {
+        val provider = fakeProvider()
+        val localInfoCsv = provider.currentInfoCsv()
+        val mockEngine = MockEngine {
+            respond(
+                content = ByteReadChannel(localInfoCsv),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "text/plain")
+            )
+        }
+        val updater = SongDataUpdater(HttpClient(mockEngine), paths, provider)
+
+        val result = updater.checkUpstreamChanged()
+
+        assertTrue(result.isSuccess, "Expected checkUpstreamChanged to succeed")
+        assertEquals(false, result.getOrNull(), "Identical info.csv should report no upstream change")
+    }
+
+    @Test
+    fun checkUpstreamChangedReturnsTrueWhenInfoCsvDiffers() = runTest {
+        val provider = fakeProvider()
+        val mockEngine = MockEngine {
+            respond(
+                content = ByteReadChannel("id\tsong\tcomposer\nnew-song\tNew Song\tSomeone\n"),
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, "text/plain")
+            )
+        }
+        val updater = SongDataUpdater(HttpClient(mockEngine), paths, provider)
+
+        val result = updater.checkUpstreamChanged()
+
+        assertTrue(result.isSuccess, "Expected checkUpstreamChanged to succeed")
+        assertEquals(true, result.getOrNull(), "Differing info.csv should report an upstream change")
+    }
+
+    @Test
+    fun checkUpstreamChangedReturnsFailureOnNetworkError() = runTest {
+        val mockEngine = MockEngine {
+            throw RuntimeException("Network error")
+        }
+        val updater = SongDataUpdater(HttpClient(mockEngine), paths, fakeProvider())
+
+        val result = updater.checkUpstreamChanged()
+
+        assertTrue(result.isFailure, "Expected checkUpstreamChanged to fail on network error")
+    }
+
     /*
      * Note on commit-phase rollback testing:
      *

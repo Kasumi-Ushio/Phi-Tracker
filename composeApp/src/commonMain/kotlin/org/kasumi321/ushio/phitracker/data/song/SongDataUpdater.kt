@@ -22,6 +22,21 @@ open class SongDataUpdater(
         val FILE_NAMES = listOf("info.csv", "infolist.json", "notesInfo.json", "nicklist.yaml")
     }
 
+    /**
+     * Lightweight upstream-change probe: downloads info.csv only and compares
+     * it against the currently effective copy (downloaded file wins over the
+     * bundled fallback). Full downloads stay in [updateAll].
+     */
+    open suspend fun checkUpstreamChanged(): Result<Boolean> = runCatching {
+        val url = "$BASE_URL${FILE_NAMES.first()}"
+        val response = httpClient.get(url)
+        if (!response.status.isSuccess()) {
+            throw RuntimeException("Download failed (${response.status}): $url")
+        }
+        val upstream: String = response.body()
+        upstream != songDataProvider.currentInfoCsv()
+    }
+
     open suspend fun updateAll(
             onProgress: (Int, Int, String) -> Unit = { _, _, _ -> }
     ): Result<Unit> {

@@ -107,7 +107,9 @@ fun SettingsTab(
         updateDataProgress: Int = 0,
         updateDataTotal: Int = 0,
         updateDataFileName: String = "",
+        updateDataPhase: UpdateDataPhase = UpdateDataPhase.Files,
         updateDataError: String? = null,
+        updateResultSongNames: List<String>? = null,
         onUpdateSongData: () -> Unit = {},
         onDismissUpdateError: () -> Unit = {},
         includePreRelease: Boolean = false,
@@ -1022,7 +1024,10 @@ fun SettingsTab(
                     ) {
                         Text(
                                 text =
-                                        "正在下载: $updateDataFileName ($updateDataProgress/$updateDataTotal)",
+                                        if (updateDataPhase == UpdateDataPhase.Illustrations)
+                                                "正在同步新曲绘: $updateDataFileName ($updateDataProgress/$updateDataTotal)"
+                                        else
+                                                "正在下载: $updateDataFileName ($updateDataProgress/$updateDataTotal)",
                                 style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -1052,6 +1057,24 @@ fun SettingsTab(
                 title = { Text("更新失败") },
                 text = { Text("发生了错误：\n$updateDataError") },
                 confirmButton = { TextButton(onClick = onDismissUpdateError) { Text("确定") } }
+        )
+    }
+
+    if (updateResultSongNames != null) {
+        AnimatedAlertDialog(
+                onDismissRequest = onDismissUpdateResult,
+                title = { Text("更新完成") },
+                text = {
+                    if (updateResultSongNames.isEmpty()) {
+                        Text("本次更新无新增曲目。")
+                    } else {
+                        Text(
+                                "本次更新新增 ${updateResultSongNames.size} 首曲目：\n" +
+                                        updateResultSongNames.joinToString("、")
+                        )
+                    }
+                },
+                confirmButton = { TextButton(onClick = onDismissUpdateResult) { Text("确定") } }
         )
     }
 

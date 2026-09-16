@@ -37,6 +37,7 @@ import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
+import org.kasumi321.ushio.phitracker.data.song.SongDataUpdateCoordinator
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo
@@ -85,6 +86,7 @@ class HomeViewModel(
     private val appVersionNameProvider: () -> String = { getAppMetadata().versionName },
     private val analyzeB30TagsUseCase: AnalyzeB30TagsUseCase = AnalyzeB30TagsUseCase(),
     private val fetchGameUpdateInfoUseCase: FetchGameUpdateInfoUseCase = FetchGameUpdateInfoUseCase(repository),
+    private val songDataUpdateCoordinator: SongDataUpdateCoordinator,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -208,6 +210,15 @@ class HomeViewModel(
             val shouldAutoCheck = settingsRepository.autoCheckUpdate.first()
             if (shouldAutoCheck) {
                 checkForUpdate(appVersionNameProvider())
+                val upstreamResult = songDataUpdateCoordinator.checkUpstreamChanged()
+                upstreamResult.fold(
+                    onSuccess = { changed ->
+                        if (changed) updateSongs { it.copy(songDataUpdateAvailable = true) }
+                    },
+                    onFailure = { error ->
+                        AppLogger.event("data", "song_data_upstream_check_failed", mapOf("error" to (error.message ?: "unknown")))
+                    }
+                )
             }
         }
         loadGameUpdateInfo()
@@ -260,6 +271,74 @@ class HomeViewModel(
                 AppLogger.event("data", "song_data_load_failed", mapOf("error" to (e.message ?: "unknown")))
             }
         }
+    }
+
+    fun refreshSongData() {
+        if (_uiState.value.songs.isSongDataRefreshing) return
+        viewModelScope.launch {
+            updateSongs {
+                it.copy(
+                    isSongDataRefreshing = true,
+                    songDataStatusText = "正在检查曲目数据更新...",
+                    songDataProgressFraction = null,
+                    songDataMessage = null
+                )
+            }
+            val upstreamResult = songDataUpdateCoordinator.checkUpstreamChanged()
+            val changed = upstreamResult.getOrElse { error ->
+                finishSongDataRefresh("检查曲目数据更新失败：${error.message ?: "未知错误"}")
+                return@launch
+            }
+            if (!changed) {
+                finishSongDataRefresh("曲目数据已是最新")
+                return@launch
+            }
+            val result = songDataUpdateCoordinator.update(
+                onFileProgress = { current, count, fileName ->
+                    updateSongs {
+                        it.copy(
+                            songDataStatusText = "正在下载: $fileName ($current/$count)",
+                            songDataProgressFraction = if (count > 0) current.toFloat() / count else null
+                        )
+                    }
+                },
+                onIllustrationProgress = { progress ->
+                    updateSongs {
+                        it.copy(
+                            songDataStatusText = "正在同步新曲绘: ${progress.currentSongName} (${progress.completed}/${progress.total})",
+                            songDataProgressFraction = if (progress.total > 0) progress.completed.toFloat() / progress.total else null
+                        )
+                    }
+                }
+            )
+            result.fold(
+                onSuccess = { outcome ->
+                    val addedCount = outcome.addedSongNames.size
+                    finishSongDataRefresh(
+                        if (addedCount > 0) "曲目数据已更新，新增 $addedCount 首曲目" else "曲目数据已更新"
+                    )
+                },
+                onFailure = { error ->
+                    finishSongDataRefresh(error.message ?: "曲目数据更新失败")
+                }
+            )
+        }
+    }
+
+    private fun finishSongDataRefresh(message: String) {
+        updateSongs {
+            it.copy(
+                isSongDataRefreshing = false,
+                songDataUpdateAvailable = false,
+                songDataStatusText = null,
+                songDataProgressFraction = null,
+                songDataMessage = message
+            )
+        }
+    }
+
+    fun clearSongDataMessage() {
+        updateSongs { it.copy(songDataMessage = null) }
     }
 
     private fun observeB30() {

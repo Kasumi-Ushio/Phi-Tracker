@@ -33,6 +33,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RangeSlider
@@ -80,6 +81,7 @@ fun SongsTab(
     onLevelRangeSelect: (Int, Int) -> Unit,
     onToggleFilterSheet: (Boolean) -> Unit,
     onResetFilters: () -> Unit,
+    onRefreshSongData: () -> Unit,
     getIllustrationUrl: (String) -> String?,
     onSongClick: (String, Difficulty?) -> Unit,
     contentPadding: PaddingValues = PaddingValues(),
@@ -108,6 +110,32 @@ fun SongsTab(
         ),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
+        if (state.songDataUpdateAvailable && !state.isSongDataRefreshing) {
+            item(key = "song_data_update_banner", contentType = "song_data_banner") {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "曲目数据有更新",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        TextButton(onClick = onRefreshSongData) {
+                            Text("立即更新")
+                        }
+                    }
+                }
+            }
+        }
         items(
             songs,
             key = { it.id },
@@ -139,6 +167,42 @@ fun SongsTab(
                 onResetFilters = onResetFilters,
                 onClose = { onToggleFilterSheet(false) }
             )
+        }
+    }
+}
+
+@Composable
+fun SongDataRefreshProgressCard(
+    statusText: String,
+    progressFraction: Float?,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (progressFraction != null) {
+                LinearProgressIndicator(
+                    progress = { progressFraction },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

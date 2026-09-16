@@ -133,7 +133,8 @@ fun ScoreCardContent(
     val accStyle = if (compactText) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall
     val rksStyle = if (compactText) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium
     val tagFontSize = if (compactText) 9.sp else 10.sp
-    val rankFontSize = if (compactText) 15.sp else 16.sp
+    // Three-digit ranks would squeeze the rank slot at the base size.
+    val rankFontSize = (if (compactText) 15.sp else 16.sp) * (if (rank >= 100) 0.8f else 1f)
     val songFontSize = if (compactText) 15.sp else 16.sp
     val scoreFontSize = if (compactText) 12.sp else 14.sp
     val accFontSize = if (compactText) 10.sp else 12.sp

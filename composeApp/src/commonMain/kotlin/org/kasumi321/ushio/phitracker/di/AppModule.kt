@@ -60,7 +60,7 @@ val appModule = module {
             checkForUpdateUseCase = get(),
             getB30UseCase = get(),
             songDataProvider = get(),
-            songDataUpdater = get(),
+            songDataUpdateCoordinator = get(),
             illustrationProvider = get(),
             artworkFileCache = get(),
             runtimeLogExporter = get(),
@@ -89,6 +89,7 @@ val appModule = module {
             artworkFileCache = get(),
             checkForUpdateUseCase = get(),
             fetchGameUpdateInfoUseCase = get(),
+            songDataUpdateCoordinator = get(),
         )
     }
 }

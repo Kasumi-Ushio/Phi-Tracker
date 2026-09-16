@@ -1,6 +1,7 @@
 package org.kasumi321.ushio.phitracker.ui.suggest
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -25,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -47,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -86,7 +89,23 @@ fun SuggestScreen(
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 Text(
-                        text = "不填则根据当前成绩自动推荐；填写目标 RKS 后按所选模式分析。点击卡片可展开推分详情。",
+                        text = "不填则根据当前成绩自动推荐；填写目标 RKS 后按所选模式分析。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                        text = "玩家最终 RKS 选项将推荐所有有助于将最终 RKS 提升至目标的曲目，单铺面 RKS 选项则仅推荐可达成指定 RKS 的特定单曲。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                        text = "点击下方的卡片可以查看推分详情。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -213,6 +232,20 @@ private fun SuggestScoreCard(
             thumbnailScale = 1f,
             onClick = { _, _ -> expanded = !expanded },
             footer = {
+                val arrowRotation by
+                        animateFloatAsState(targetValue = if (expanded) 180f else 0f)
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 12.dp))
+                Box(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = if (expanded) "收起" else "展开",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp).rotate(arrowRotation)
+                    )
+                }
                 AnimatedVisibility(
                         visible = expanded,
                         enter = expandVertically() + fadeIn(),
@@ -223,8 +256,6 @@ private fun SuggestScoreCard(
                                     Modifier.fillMaxWidth()
                                             .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                     ) {
-                        HorizontalDivider(modifier = Modifier.padding(bottom = 10.dp))
-
                         SuggestDetailRow(label = "目标准确率", value = "$currentAccText → $targetAccText")
                         SuggestDetailRow(label = "单曲 RKS", value = "$currentRksText → $potentialRksText")
 

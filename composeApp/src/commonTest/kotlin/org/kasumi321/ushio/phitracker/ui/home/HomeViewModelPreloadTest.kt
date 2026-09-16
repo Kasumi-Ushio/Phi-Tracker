@@ -31,6 +31,7 @@ import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreload
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
+import org.kasumi321.ushio.phitracker.data.song.SongDataUpdateCoordinator
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.model.GameProgress
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
@@ -372,7 +373,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader
+            thumbnailPreloader = preloader,
+            songDataUpdateCoordinator = fakeSongDataUpdateCoordinator()
         ).let(viewModelLifecycle::track)
         advanceUntilIdle()
 
@@ -421,7 +423,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader
+            thumbnailPreloader = preloader,
+            songDataUpdateCoordinator = fakeSongDataUpdateCoordinator()
         ).let(viewModelLifecycle::track)
         advanceUntilIdle()
 
@@ -494,7 +497,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader
+            thumbnailPreloader = preloader,
+            songDataUpdateCoordinator = fakeSongDataUpdateCoordinator()
         ).let(viewModelLifecycle::track)
         advanceUntilIdle()
 
@@ -612,9 +616,26 @@ class HomeViewModelPreloadTest {
             settingsRepository = settingsRepository,
             artworkFileCache = artworkFileCache,
             thumbnailPreloader = preloader,
-            appVersionNameProvider = { appVersionName }
+            appVersionNameProvider = { appVersionName },
+            songDataUpdateCoordinator = fakeSongDataUpdateCoordinator(
+                songDataProvider = songDataProvider,
+                artworkFileCache = artworkFileCache
+            )
         ).let(viewModelLifecycle::track)
     }
+
+    private fun fakeSongDataUpdateCoordinator(
+        songDataProvider: SongDataProvider = testSongDataProvider,
+        artworkFileCache: StandardArtworkCache = RecordingStandardArtworkCache(),
+        updater: FakeSongDataUpdater = FakeSongDataUpdater()
+    ): SongDataUpdateCoordinator = SongDataUpdateCoordinator(
+        songDataUpdater = updater,
+        songDataProvider = songDataProvider,
+        illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
+        artworkFileCache = artworkFileCache,
+        thumbnailPreloader = RecordingPreloader(),
+        clearCacheUrls = {}
+    )
 
     private class RecordingPreloader(
         private val failOnUrl: String? = null
@@ -948,11 +969,14 @@ class HomeViewModelPreloadTest {
     ) {
         var updateCalled = false
             private set
+        var upstreamChanged = false
 
         override suspend fun updateAll(onProgress: (Int, Int, String) -> Unit): Result<Unit> {
             updateCalled = true
             return onUpdate(onProgress)
         }
+
+        override suspend fun checkUpstreamChanged(): Result<Boolean> = Result.success(upstreamChanged)
     }
 
     private class StatefulRecordDao(
@@ -1266,7 +1290,8 @@ class HomeViewModelPreloadTest {
             illustrationProvider = illustrationProvider,
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settingsRepository,
-            thumbnailPreloader = RecordingPreloader()
+            thumbnailPreloader = RecordingPreloader(),
+            songDataUpdateCoordinator = fakeSongDataUpdateCoordinator(songDataProvider = songDataProvider)
         ).let(viewModelLifecycle::track)
     }
 

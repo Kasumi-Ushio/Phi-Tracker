@@ -26,10 +26,14 @@ data class SettingsUiState(
     val isApiTesting: Boolean = false,
     val apiTestMessage: String? = null,
     val isUpdatingData: Boolean = false,
+    val updateDataPhase: UpdateDataPhase = UpdateDataPhase.Files,
     val updateDataProgress: Int = 0,
     val updateDataTotal: Int = 0,
     val updateDataFileName: String = "",
     val updateDataError: String? = null,
+    // Non-null after a successful song-data update; lists the newly added
+    // songs whose illustrations were synced, shown in the result dialog.
+    val updateResultSongNames: List<String>? = null,
     val includePreRelease: Boolean = false,
     val autoCheckUpdate: Boolean = true,
     val updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
@@ -38,6 +42,11 @@ data class SettingsUiState(
     val crashNotificationGuideShown: Boolean = false,
     val tip: String = ""
 )
+
+enum class UpdateDataPhase {
+    Files,
+    Illustrations
+}
 
 sealed interface SettingsEvent {
     data object LoggedOut : SettingsEvent

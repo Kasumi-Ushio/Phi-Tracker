@@ -204,6 +204,13 @@ fun MainScreen(
         }
     }
 
+    LaunchedEffect(state.songs.songDataMessage) {
+        state.songs.songDataMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearSongDataMessage()
+        }
+    }
+
     // Home-visible update dialog (Blocker 1 fix)
     // Composed BEFORE early returns so Available state is visible even during preload/loading
     val updateState = state.sync.updateCheckState
@@ -477,20 +484,57 @@ fun MainScreen(
                 listState = b30ListState,
                 onRetryTagAnalysis = { viewModel.retryTagAnalysis() }
             )
-            HomeTab.Songs -> SongsTab(
-                state = state.songs,
-                onSearchChange = { viewModel.searchSongs(it) },
-                onToggleChapter = { viewModel.toggleChapter(it) },
-                onClearChapters = { viewModel.resetFilters() },
-                onDifficultySelect = { viewModel.filterByDifficulty(it) },
-                onLevelRangeSelect = { min, max -> viewModel.filterByLevelRange(min, max) },
-                onToggleFilterSheet = { viewModel.toggleFilterSheet(it) },
-                onResetFilters = { viewModel.resetFilters() },
-                getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
-                onSongClick = { songId, _ -> onNavigateToSongDetail(songId) },
-                contentPadding = contentPadding,
-                listState = songsListState
-            )
+            HomeTab.Songs -> {
+                val pullRefreshState = rememberPullToRefreshState()
+                PullToRefreshBox(
+                    isRefreshing = state.songs.isSongDataRefreshing,
+                    onRefresh = { viewModel.refreshSongData() },
+                    state = pullRefreshState,
+                    modifier = Modifier.fillMaxSize(),
+                    indicator = {
+                        PullToRefreshDefaults.Indicator(
+                            state = pullRefreshState,
+                            isRefreshing = state.songs.isSongDataRefreshing,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = contentPadding.calculateTopPadding())
+                        )
+                    }
+                ) {
+                    SongsTab(
+                        state = state.songs,
+                        onSearchChange = { viewModel.searchSongs(it) },
+                        onToggleChapter = { viewModel.toggleChapter(it) },
+                        onClearChapters = { viewModel.resetFilters() },
+                        onDifficultySelect = { viewModel.filterByDifficulty(it) },
+                        onLevelRangeSelect = { min, max -> viewModel.filterByLevelRange(min, max) },
+                        onToggleFilterSheet = { viewModel.toggleFilterSheet(it) },
+                        onResetFilters = { viewModel.resetFilters() },
+                        onRefreshSongData = { viewModel.refreshSongData() },
+                        getIllustrationUrl = { viewModel.getLowIllustrationUrl(it) },
+                        onSongClick = { songId, _ -> onNavigateToSongDetail(songId) },
+                        contentPadding = contentPadding,
+                        listState = songsListState
+                    )
+                    // The progress card floats below the glass top bar instead of
+                    // scrolling with the list, so the pull gesture collapsing the
+                    // header can never slide it under the blurred area.
+                    val songDataStatusText = state.songs.songDataStatusText
+                    if (state.songs.isSongDataRefreshing && songDataStatusText != null) {
+                        SongDataRefreshProgressCard(
+                            statusText = songDataStatusText,
+                            progressFraction = state.songs.songDataProgressFraction,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(
+                                    start = 16.dp,
+                                    end = 16.dp,
+                                    top = contentPadding.calculateTopPadding() + 8.dp
+                                )
+                        )
+                    }
+                }
+            }
             HomeTab.Tools -> ToolsTab(
                 state = state.tools,
                 defaultRks = state.b30.displayRks,

@@ -78,6 +78,9 @@ class SongDataProvider(
     fun getDifficultyMap(): Map<String, Map<Difficulty, Float>> = getSongs().mapValues { it.value.difficulties }
     fun getSongNameMap(): Map<String, String> = getSongs().mapValues { it.value.name }
 
+    /** The currently effective info.csv text (downloaded copy wins over bundled). */
+    fun currentInfoCsv(): String = reader.readText("info.csv")
+
     private fun loadDifficulties(): Map<String, Map<Difficulty, Float>> {
         val result = mutableMapOf<String, Map<Difficulty, Float>>()
         // Upstream folded the difficulty constants into info.csv (removing the

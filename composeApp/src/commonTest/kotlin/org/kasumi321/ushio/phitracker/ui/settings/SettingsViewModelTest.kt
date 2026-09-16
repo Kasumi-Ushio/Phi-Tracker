@@ -24,6 +24,7 @@ import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
+import org.kasumi321.ushio.phitracker.data.song.SongDataUpdateCoordinator
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdater
 import org.kasumi321.ushio.phitracker.domain.model.ReleaseInfo
 import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
@@ -187,7 +188,7 @@ class SettingsViewModelTest {
             checkForUpdateUseCase = CheckForUpdateUseCase(repository),
             getB30UseCase = GetB30UseCase(repository),
             songDataProvider = provider,
-            songDataUpdater = updater,
+            songDataUpdateCoordinator = SongDataUpdateCoordinator(updater, provider, IllustrationProvider(), artworkCache, thumbnailPreloader, clearCacheUrls),
             illustrationProvider = IllustrationProvider(),
             artworkFileCache = artworkCache,
             runtimeLogExporter = RuntimeLogExporter(store),
