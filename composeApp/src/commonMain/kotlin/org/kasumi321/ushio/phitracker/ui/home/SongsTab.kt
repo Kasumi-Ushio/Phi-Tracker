@@ -442,9 +442,11 @@ fun SongItem(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // 定数标签行
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                // 定数标签行：FlowRow 允许在高缩放（大字体/高 dpi）下换行，
+                // 避免最右侧的 AT 标签被挤压变形
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     val orderedDiffs = remember { listOf(Difficulty.EZ, Difficulty.HD, Difficulty.IN, Difficulty.AT) }
                     for (diff in orderedDiffs) {

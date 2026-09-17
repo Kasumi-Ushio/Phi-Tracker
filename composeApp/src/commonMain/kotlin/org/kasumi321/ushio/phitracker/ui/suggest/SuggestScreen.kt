@@ -95,7 +95,10 @@ fun SuggestScreen(
 
     Scaffold(
             topBar = {
-                GlassTopBar(hazeState = hazeState, style = glassStyle, progressiveEndIntensity = 0.5f) {
+                // Uniform full-strength blur: this bar carries functional
+                // controls (chips, input), and a progressive gradient reads
+                // as uneven frosting when list cards sit under its bottom edge.
+                GlassTopBar(hazeState = hazeState, style = glassStyle, progressiveEndIntensity = 1f) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         TopAppBar(
                                 title = { Text("推分建议") },
@@ -109,7 +112,12 @@ fun SuggestScreen(
                                 },
                                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
                         )
-                        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 12.dp)
+                        ) {
                             AnimatedVisibility(
                                     visible = descriptionVisible,
                                     enter = expandVertically() + fadeIn(),
@@ -240,7 +248,10 @@ private fun SuggestScoreCard(
         illustrationUrl: String?,
         onNavigateToSongDetail: (String, Difficulty?) -> Unit
 ) {
-    var expanded by rememberSaveable { mutableStateOf(false) }
+    // Expanded by default: the suggestion details (target ACC, RKS delta) are
+    // the primary information on this page, so they should be visible at a
+    // glance; the divider arrow still allows collapsing individual cards.
+    var expanded by rememberSaveable { mutableStateOf(true) }
 
     val record =
             remember(item) {
@@ -270,6 +281,7 @@ private fun SuggestScoreCard(
             contentVerticalPadding = 12.dp,
             compactText = false,
             thumbnailScale = 1f,
+            marqueeSongTitle = true,
             onClick = { _, _ -> expanded = !expanded },
             footer = {
                 val arrowRotation by

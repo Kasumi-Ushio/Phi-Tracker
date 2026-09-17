@@ -27,8 +27,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -61,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -698,39 +701,6 @@ private fun BackgroundPickerDialog(
                 }
 
                 Text(
-                    text = "背景",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onSelectDefault, modifier = Modifier.weight(1f)) {
-                        Text("随机背景")
-                    }
-                    OutlinedButton(onClick = onSelectAlbum, modifier = Modifier.weight(1f)) {
-                        Text("相册图片")
-                    }
-                }
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
-                    modifier = Modifier.height(204.dp),
-                    contentPadding = PaddingValues(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(distinctSongs, key = { it.first }) { (songId, songName) ->
-                        val isSelected = selectedSongId == songId
-                        SongGridItem(
-                            songId = songId,
-                            songName = songName,
-                            getLowIllustrationUrl = getLowIllustrationUrl,
-                            platformContext = platformContext,
-                            isSelected = isSelected,
-                            onClick = { onSelectSong(songId) }
-                        )
-                    }
-                }
-
-                Text(
                     text = "背景模糊强度",
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -752,12 +722,94 @@ private fun BackgroundPickerDialog(
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
+
+                Text(
+                    text = "背景",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                // The random/album actions live inside the grid as its first
+                // two cells; on high-dpi devices the grid is the only section
+                // allowed to overflow, and it scrolls in place.
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier.height(204.dp),
+                    contentPadding = PaddingValues(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    item(key = "random_background") {
+                        BackgroundActionGridItem(
+                            icon = Icons.Filled.Shuffle,
+                            label = "随机背景",
+                            onClick = onSelectDefault
+                        )
+                    }
+                    item(key = "album_background") {
+                        BackgroundActionGridItem(
+                            icon = Icons.Filled.PhotoLibrary,
+                            label = "相册图片",
+                            onClick = onSelectAlbum
+                        )
+                    }
+                    items(distinctSongs, key = { it.first }) { (songId, songName) ->
+                        val isSelected = selectedSongId == songId
+                        SongGridItem(
+                            songId = songId,
+                            songName = songName,
+                            getLowIllustrationUrl = getLowIllustrationUrl,
+                            platformContext = platformContext,
+                            isSelected = isSelected,
+                            onClick = { onSelectSong(songId) }
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = onDismiss) { Text("关闭") }
         }
     )
+}
+
+@Composable
+private fun BackgroundActionGridItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .clickable { onClick() }
+            .padding(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(68.dp)
+                .clip(MaterialTheme.shapes.small)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
 }
 
 @Composable

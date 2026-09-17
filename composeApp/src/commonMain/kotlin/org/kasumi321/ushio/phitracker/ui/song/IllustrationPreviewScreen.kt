@@ -2,6 +2,7 @@ package org.kasumi321.ushio.phitracker.ui.song
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -58,9 +59,12 @@ import kotlin.math.roundToInt
  *
  * The action buttons sit on a translucent dark scrim rather than a glass
  * capsule: the capsule samples the artwork through Haze, which washes the
- * white icons out on light artwork regardless of the app theme. Supports
- * pinch zoom, drag pan and two-finger rotation; the corner button snaps rotation to
- * 90° steps for inspecting details with the phone held sideways.
+ * white icons out on light artwork regardless of the app theme. Gestures
+ * mirror the B30 image page: pinch zoom, drag pan and double-tap zoom.
+ * Rotation only advances in 90° steps via the corner button — free two-finger
+ * rotation was removed because the pan clamp below is only exact for quarter
+ * turns, and arbitrary angles mis-clamped the pan (stuck drags, unreachable
+ * edges).
  */
 @Composable
 fun IllustrationPreviewScreen(
@@ -94,6 +98,28 @@ fun IllustrationPreviewScreen(
         }
         val painter = rememberAsyncImagePainter(model = previewRequest)
         val painterState by painter.state.collectAsState()
+
+        // Clamps the pan so the fitted image edge never travels inside the
+        // viewport. Fit applies before rotation, so scale the raw dimensions
+        // first, then swap the drawn extents when a quarter turn is active.
+        fun clampPan(scaleValue: Float, rotationValue: Float, pan: Offset): Offset {
+            val imageSize = painter.intrinsicSize
+            val containerW = containerSize.width.toFloat()
+            val containerH = containerSize.height.toFloat()
+            if (imageSize.width <= 0f || imageSize.height <= 0f || containerW <= 0f || containerH <= 0f) {
+                return pan
+            }
+            val fitScale = minOf(containerW / imageSize.width, containerH / imageSize.height)
+            val drawnW = imageSize.width * fitScale
+            val drawnH = imageSize.height * fitScale
+            val quarterTurns = ((rotationValue.roundToInt() % 360) + 360) % 360 / 90
+            val extentW = if (quarterTurns % 2 == 1) drawnH else drawnW
+            val extentH = if (quarterTurns % 2 == 1) drawnW else drawnH
+            val maxX = (extentW * scaleValue - containerW).coerceAtLeast(0f) / 2f
+            val maxY = (extentH * scaleValue - containerH).coerceAtLeast(0f) / 2f
+            return Offset(pan.x.coerceIn(-maxX, maxX), pan.y.coerceIn(-maxY, maxY))
+        }
+
         Image(
             painter = painter,
             contentDescription = "Full Illustration",
@@ -101,30 +127,20 @@ fun IllustrationPreviewScreen(
                 .fillMaxSize()
                 .onSizeChanged { containerSize = it }
                 .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, rotationDelta ->
-                        val newScale = (scale * zoom).coerceIn(0.5f, 5f)
-                        scale = newScale
-                        rotation += rotationDelta
-                        val imageSize = painter.intrinsicSize
-                        val containerW = containerSize.width.toFloat()
-                        val containerH = containerSize.height.toFloat()
-                        if (imageSize.width > 0f && imageSize.height > 0f && containerW > 0f && containerH > 0f) {
-                            // Fit applies before rotation, so scale the raw
-                            // dimensions first, then swap the drawn extents
-                            // when a quarter turn is active.
-                            val fitScale = minOf(containerW / imageSize.width, containerH / imageSize.height)
-                            val drawnW = imageSize.width * fitScale
-                            val drawnH = imageSize.height * fitScale
-                            val quarterTurns = ((rotation.roundToInt() % 360) + 360) % 360 / 90
-                            val extentW = if (quarterTurns % 2 == 1) drawnH else drawnW
-                            val extentH = if (quarterTurns % 2 == 1) drawnW else drawnH
-                            val maxX = (extentW * newScale - containerW).coerceAtLeast(0f) / 2f
-                            val maxY = (extentH * newScale - containerH).coerceAtLeast(0f) / 2f
-                            panOffset = Offset(
-                                x = (panOffset.x + pan.x).coerceIn(-maxX, maxX),
-                                y = (panOffset.y + pan.y).coerceIn(-maxY, maxY)
-                            )
+                    // Double tap toggles between fit and 2x, matching the B30
+                    // image page.
+                    detectTapGestures(
+                        onDoubleTap = {
+                            val newScale = if (scale > 1.5f) 1f else 2f
+                            scale = newScale
+                            panOffset = if (newScale == 1f) Offset.Zero else clampPan(newScale, rotation, panOffset)
                         }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 5f)
+                        panOffset = clampPan(scale, rotation, panOffset + pan)
                     }
                 }
                 .graphicsLayer(
@@ -197,7 +213,12 @@ fun IllustrationPreviewScreen(
                 .padding(16.dp)
         ) {
             IconButton(
-                onClick = { rotation = (rotation / 90f).roundToInt() * 90f + 90f }
+                onClick = {
+                    rotation = (rotation / 90f).roundToInt() * 90f + 90f
+                    // A quarter turn swaps the drawn extents, so the current
+                    // pan may fall outside the new bounds.
+                    panOffset = clampPan(scale, rotation, panOffset)
+                }
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.RotateRight,
