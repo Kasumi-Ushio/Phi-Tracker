@@ -83,6 +83,16 @@ object RksCalculator {
         if (chartConstant <= 0f) return null
         val sqrtPart = sqrt((targetRks / chartConstant).toDouble()).toFloat()
         val neededAcc = sqrtPart * 45f + 55f
-        return if (neededAcc in 70f..100f) neededAcc else null
+        return when {
+            // Binary-search targets (player-RKS mode) can land a hair below the
+            // chart constant; the inverse acc then prints as 100.00% while the
+            // forward RKS shows an off-by-epsilon value like 15.1999. Snap to
+            // the exact ceiling inside a 0.001 window — legitimate inputs are
+            // capped at two decimals, so the nearest real target stays 0.015
+            // acc points away and is never swallowed by the snap.
+            neededAcc > 100f - 0.001f && neededAcc <= 100f -> 100f
+            neededAcc in 70f..100f -> neededAcc
+            else -> null
+        }
     }
 }

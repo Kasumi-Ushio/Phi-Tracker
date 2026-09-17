@@ -60,6 +60,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -397,13 +398,21 @@ private fun SongInfoHeader(
  * The whole FlowLayout overflow API (ContextualFlowRow and FlowRow's overflow
  * parameter) is deprecated and unmaintained, so the collapse is a plain
  * two-line clip driven by maxLines and the expand control lives beside the
- * section title where the hidden count is known statically.
+ * section title. Because the control is no longer overflow-aware on its own,
+ * an invisible unclipped copy of the chips is measured alongside the visible
+ * row: the expand control only appears when the full set is taller than the
+ * two collapsed rows, i.e. when there is actually more to reveal.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AliasChips(nicknames: List<String>) {
     var expanded by remember { mutableStateOf(false) }
     val reducedMotion = rememberReducedMotionEnabled()
+    var fullHeightPx by remember(nicknames) { mutableStateOf<Int?>(null) }
+    var collapsedHeightPx by remember(nicknames) { mutableStateOf<Int?>(null) }
+    val canExpand = fullHeightPx?.let { full ->
+        collapsedHeightPx?.let { collapsed -> full > collapsed }
+    } == true
     val chipContent: @Composable (Int) -> Unit = { index ->
         if (index < nicknames.size) {
             AliasChip(nicknames[index])
@@ -422,7 +431,7 @@ private fun AliasChips(nicknames: List<String>) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (!expanded) {
+            if (!expanded && canExpand) {
                 Text(
                     text = "展开全部 (${nicknames.size})",
                     style = MaterialTheme.typography.labelMedium,
@@ -432,21 +441,41 @@ private fun AliasChips(nicknames: List<String>) {
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
-        AnimatedContent(
-            targetState = expanded,
-            transitionSpec = { expandCollapseTransition(reducedMotion) },
-            label = "aliasChips",
-            modifier = Modifier.fillMaxWidth()
-        ) { targetExpanded ->
-            // The collapse toggle rides as a real last item when expanded
+        Box {
+            // Measurement copy: laid out with unlimited lines but reporting
+            // zero size, so it never affects layout or pixels.
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                maxLines = if (targetExpanded) Int.MAX_VALUE else 2,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(0f)
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints.copy(minHeight = 0))
+                        layout(0, 0) { placeable.place(0, 0) }
+                    }
+                    .onSizeChanged { fullHeightPx = it.height }
             ) {
-                repeat(nicknames.size + if (targetExpanded) 1 else 0) { index ->
-                    chipContent(index)
+                nicknames.forEach { AliasChip(it) }
+            }
+            AnimatedContent(
+                targetState = expanded,
+                transitionSpec = { expandCollapseTransition(reducedMotion) },
+                label = "aliasChips",
+                modifier = Modifier.fillMaxWidth()
+            ) { targetExpanded ->
+                // The collapse toggle rides as a real last item when expanded
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    maxLines = if (targetExpanded) Int.MAX_VALUE else 2,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onSizeChanged { if (!targetExpanded) collapsedHeightPx = it.height }
+                ) {
+                    repeat(nicknames.size + if (targetExpanded) 1 else 0) { index ->
+                        chipContent(index)
+                    }
                 }
             }
         }

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -39,8 +40,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -57,7 +61,11 @@ import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
+import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
+import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import org.kasumi321.ushio.phitracker.ui.home.ScoreCardContent
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import org.kasumi321.ushio.phitracker.ui.home.formatFour
 import org.kasumi321.ushio.phitracker.ui.home.formatTwo
 
@@ -70,108 +78,140 @@ fun SuggestScreen(
         onNavigateBack: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    val listState = rememberLazyListState()
+    // The description block collapses once the list leaves the top and only
+    // re-expands when the list is scrolled all the way back up.
+    val descriptionVisible by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+        }
+    }
+    // Page-level glass header (own HazeState, like the song detail page): the
+    // suggestion list draws full-bleed as the haze source and scrolls under the
+    // floating top bar; blur on/off and strength follow the settings entries
+    // through LocalGlassSettings.
+    val hazeState = rememberHazeState()
+    val glassStyle = rememberGlassHazeStyle()
 
     Scaffold(
             topBar = {
-                TopAppBar(
-                        title = { Text("推分建议") },
-                        navigationIcon = {
-                            IconButton(onClick = onNavigateBack) {
-                                Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "返回"
+                GlassTopBar(hazeState = hazeState, style = glassStyle, progressiveEndIntensity = 0.5f) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        TopAppBar(
+                                title = { Text("推分建议") },
+                                navigationIcon = {
+                                    IconButton(onClick = onNavigateBack) {
+                                        Icon(
+                                                Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = "返回"
+                                        )
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                        )
+                        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                            AnimatedVisibility(
+                                    visible = descriptionVisible,
+                                    enter = expandVertically() + fadeIn(),
+                                    exit = shrinkVertically() + fadeOut()
+                            ) {
+                                Column {
+                                    Text(
+                                            text = "不填则根据当前成绩自动推荐；填写目标 RKS 后按所选模式分析。",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Text(
+                                            text = "玩家最终 RKS 选项将推荐所有有助于将最终 RKS 提升至目标的曲目，单铺面 RKS 选项则仅推荐可达成指定 RKS 的特定单曲。",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Text(
+                                            text = "点击下方的卡片可以查看推分详情。",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(
+                                        selected = state.targetMode == SuggestTargetMode.PlayerDisplayRks,
+                                        onClick = { viewModel.setTargetMode(SuggestTargetMode.PlayerDisplayRks) },
+                                        label = { Text("玩家最终 RKS") }
+                                )
+                                FilterChip(
+                                        selected = state.targetMode == SuggestTargetMode.SingleChartRks,
+                                        onClick = { viewModel.setTargetMode(SuggestTargetMode.SingleChartRks) },
+                                        label = { Text("单谱面 RKS") }
                                 )
                             }
-                        }
-                )
-            }
-    ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                Text(
-                        text = "不填则根据当前成绩自动推荐；填写目标 RKS 后按所选模式分析。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                        text = "玩家最终 RKS 选项将推荐所有有助于将最终 RKS 提升至目标的曲目，单铺面 RKS 选项则仅推荐可达成指定 RKS 的特定单曲。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                        text = "点击下方的卡片可以查看推分详情。",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                            selected = state.targetMode == SuggestTargetMode.PlayerDisplayRks,
-                            onClick = { viewModel.setTargetMode(SuggestTargetMode.PlayerDisplayRks) },
-                            label = { Text("玩家最终 RKS") }
-                    )
-                    FilterChip(
-                            selected = state.targetMode == SuggestTargetMode.SingleChartRks,
-                            onClick = { viewModel.setTargetMode(SuggestTargetMode.SingleChartRks) },
-                            label = { Text("单谱面 RKS") }
-                    )
-                }
-
-                OutlinedTextField(
-                        value = state.targetInput,
-                        onValueChange = { viewModel.setTargetInput(it) },
-                        label = { Text("目标 RKS") },
-                        placeholder = { Text("例如 16.50") },
-                        supportingText = { Text(state.targetError ?: "范围 0.00 到 17.00，最多两位小数") },
-                        isError = state.targetError != null,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            when {
-                state.isLoading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                !state.hasSaveData -> {
-                    SuggestEmptyHint("请先回到首页同步存档后再使用此功能")
-                }
-                state.items.isEmpty() -> {
-                    SuggestEmptyHint(state.targetError ?: "暂无推荐曲目。试试同步数据或调整目标 RKS？")
-                }
-                else -> {
-                    LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    top = 4.dp,
-                                    bottom = 16.dp
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        itemsIndexed(
-                                state.items,
-                                key = { _, item -> "${item.songId}:${item.difficulty.name}" }
-                        ) { index, item ->
-                            SuggestScoreCard(
-                                    rank = index + 1,
-                                    item = item,
-                                    illustrationUrl = getIllustrationUrl(item.songId),
-                                    onNavigateToSongDetail = onNavigateToSongDetail
+                            OutlinedTextField(
+                                    value = state.targetInput,
+                                    onValueChange = { viewModel.setTargetInput(it) },
+                                    label = { Text("目标 RKS") },
+                                    placeholder = { Text("例如 16.50") },
+                                    supportingText = { Text(state.targetError ?: "范围 0.00 到 17.00，最多两位小数") },
+                                    isError = state.targetError != null,
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    modifier = Modifier.fillMaxWidth()
                             )
                         }
+                    }
+                }
+            }
+    ) { innerPadding ->
+        when {
+            state.isLoading -> {
+                Box(
+                        modifier = Modifier.fillMaxSize().padding(innerPadding),
+                        contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            !state.hasSaveData -> {
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                    SuggestEmptyHint("请先回到首页同步存档后再使用此功能")
+                }
+            }
+            state.items.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
+                    SuggestEmptyHint(state.targetError ?: "暂无推荐曲目。试试同步数据或调整目标 RKS？")
+                }
+            }
+            else -> {
+                LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize().hazeSource(hazeState),
+                        contentPadding = PaddingValues(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = innerPadding.calculateTopPadding() + 12.dp,
+                                bottom = innerPadding.calculateBottomPadding() + 16.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    itemsIndexed(
+                            state.items,
+                            key = { _, item -> "${item.songId}:${item.difficulty.name}" }
+                    ) { index, item ->
+                        SuggestScoreCard(
+                                rank = index + 1,
+                                item = item,
+                                illustrationUrl = getIllustrationUrl(item.songId),
+                                onNavigateToSongDetail = onNavigateToSongDetail
+                        )
                     }
                 }
             }

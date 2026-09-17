@@ -20,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +39,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImagePainter
 import coil3.compose.LocalPlatformContext
 import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
@@ -91,6 +93,7 @@ fun IllustrationPreviewScreen(
             }
         }
         val painter = rememberAsyncImagePainter(model = previewRequest)
+        val painterState by painter.state.collectAsState()
         Image(
             painter = painter,
             contentDescription = "Full Illustration",
@@ -133,6 +136,12 @@ fun IllustrationPreviewScreen(
                 ),
             contentScale = ContentScale.Fit
         )
+
+        // High-res artwork can take a moment on first load; surface the wait
+        // instead of staring at a black screen.
+        if (painterState is AsyncImagePainter.State.Loading) {
+            CircularProgressIndicator(color = Color.White)
+        }
 
         PreviewButtonCapsule(
             modifier = Modifier

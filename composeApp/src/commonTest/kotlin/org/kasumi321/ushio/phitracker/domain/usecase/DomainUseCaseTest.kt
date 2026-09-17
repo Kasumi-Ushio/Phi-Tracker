@@ -41,6 +41,23 @@ class DomainUseCaseTest {
     }
 
     @Test
+    fun targetAccSnapsToCeilingForBinarySearchResidue() {
+        // A target RKS a hair below the chart constant (as produced by the
+        // player-RKS binary search) must invert to exactly 100% so the forward
+        // RKS prints 15.2000 instead of 15.1999 (issue #13).
+        val snapped = RksCalculator.calculateTargetAcc(15.19995f, 15.2f)
+        assertEquals(100f, snapped)
+        assertEquals(15.2f, RksCalculator.calculateSingleRks(snapped!!, 15.2f))
+
+        // A legitimate two-decimal target just below the constant keeps its
+        // real accuracy instead of being swallowed by the snap.
+        val genuine = RksCalculator.calculateTargetAcc(15.19f, 15.2f)
+        assertTrue(genuine != null && genuine < 100f && genuine > 99.9f)
+
+        assertEquals(null, RksCalculator.calculateTargetAcc(17f, 15f))
+    }
+
+    @Test
     fun b30ListKeepsPhiFirstThenTopRecords() {
         val records = mapOf(
             "song-a" to SongRecord(
