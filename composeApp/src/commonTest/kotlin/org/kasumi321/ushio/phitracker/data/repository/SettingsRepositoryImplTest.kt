@@ -410,4 +410,39 @@ class SettingsRepositoryImplTest {
         val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
         assertEquals("score_focus", repo2.b30CardStyle.first())
     }
+
+    @Test
+    fun b30ThemeOverrideDefaultsToFollowGlobalWithUnsetMode(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals(true, repo.b30ThemeFollowGlobal.first())
+        assertEquals(null, repo.b30ExportThemeMode.first())
+    }
+
+    @Test
+    fun b30ThemeOverrideRoundTripsAndClampsMode(): Unit = runTest {
+        val repo = createRepo()
+        repo.setB30ThemeFollowGlobal(false)
+        repo.setB30ExportThemeMode(3)
+        assertEquals(false, repo.b30ThemeFollowGlobal.first())
+        assertEquals(3, repo.b30ExportThemeMode.first())
+
+        repo.setB30ExportThemeMode(9)
+        assertEquals(3, repo.b30ExportThemeMode.first())
+        repo.setB30ExportThemeMode(0)
+        assertEquals(1, repo.b30ExportThemeMode.first())
+    }
+
+    @Test
+    fun b30ThemeOverridePersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setB30ThemeFollowGlobal(false)
+        repo1.setB30ExportThemeMode(2)
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(false, repo2.b30ThemeFollowGlobal.first())
+        assertEquals(2, repo2.b30ExportThemeMode.first())
+    }
 }

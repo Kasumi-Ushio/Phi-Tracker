@@ -97,6 +97,27 @@ class SettingsRepositoryImpl(
         b30CardStyleState.value = normalized
     }
 
+    private val b30ThemeFollowGlobalState = MutableStateFlow(
+        storage.getString(KEY_B30_THEME_FOLLOW_GLOBAL)?.toBooleanStrictOrNull() ?: true
+    )
+    override val b30ThemeFollowGlobal: Flow<Boolean> = b30ThemeFollowGlobalState.asStateFlow()
+
+    override suspend fun setB30ThemeFollowGlobal(follow: Boolean) {
+        storage.putString(KEY_B30_THEME_FOLLOW_GLOBAL, follow.toString())
+        b30ThemeFollowGlobalState.value = follow
+    }
+
+    private val b30ExportThemeModeState = MutableStateFlow(
+        storage.getString(KEY_B30_EXPORT_THEME_MODE)?.toIntOrNull()?.coerceIn(1, 3)
+    )
+    override val b30ExportThemeMode: Flow<Int?> = b30ExportThemeModeState.asStateFlow()
+
+    override suspend fun setB30ExportThemeMode(mode: Int) {
+        val normalized = mode.coerceIn(1, 3)
+        storage.putString(KEY_B30_EXPORT_THEME_MODE, normalized.toString())
+        b30ExportThemeModeState.value = normalized
+    }
+
     private val hazeBlurEnabledState = MutableStateFlow(storage.getString(KEY_HAZE_BLUR_ENABLED)?.toBooleanStrictOrNull() ?: true)
     override val hazeBlurEnabled: Flow<Boolean> = hazeBlurEnabledState.asStateFlow()
 
@@ -243,6 +264,8 @@ class SettingsRepositoryImpl(
         const val KEY_B30_CARD_STYLE = "b30_card_style"
         const val B30_CARD_STYLE_CLASSIC = "classic"
         const val B30_CARD_STYLE_SCORE_FOCUS = "score_focus"
+        const val KEY_B30_THEME_FOLLOW_GLOBAL = "b30_theme_follow_global"
+        const val KEY_B30_EXPORT_THEME_MODE = "b30_export_theme_mode"
         const val KEY_PRELOAD_DONE = "preload_done"
         const val KEY_AVATAR_URI = "avatar_uri"
         const val KEY_MONEY_STRING = "money_string"

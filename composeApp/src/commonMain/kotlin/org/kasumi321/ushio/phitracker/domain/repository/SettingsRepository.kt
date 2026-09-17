@@ -19,6 +19,18 @@ interface SettingsRepository {
     val b30CardStyle: Flow<String>
     suspend fun setB30CardStyle(style: String)
 
+    /**
+     * B30 export theme override: when [b30ThemeFollowGlobal] is true (default)
+     * the export image follows the app theme; otherwise [b30ExportThemeMode]
+     * decides. Mode values mirror themeMode (1 = light, 2 = dark, 3 = AMOLED);
+     * a null value means the user never picked one and the current global
+     * theme applies.
+     */
+    val b30ThemeFollowGlobal: Flow<Boolean>
+    val b30ExportThemeMode: Flow<Int?>
+    suspend fun setB30ThemeFollowGlobal(follow: Boolean)
+    suspend fun setB30ExportThemeMode(mode: Int)
+
     val hazeBlurEnabled: Flow<Boolean>
     val hazeBlurStrength: Flow<Float>
     suspend fun setHazeBlurEnabled(enabled: Boolean)

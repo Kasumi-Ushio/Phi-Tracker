@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker.ui.b30
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -40,6 +41,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -141,12 +143,22 @@ fun B30ImageScreen(
     val cardStyleKey by settingsRepository.b30CardStyle.collectAsState(initial = null)
     val cardStyle = cardStyleKey?.let(B30ExportCardStyle::fromStorageKey)
     val systemDark = isSystemInDarkTheme()
-    val exportDarkTheme = when (themeSettings.themeMode) {
-        1 -> false
-        2, 3 -> true
-        else -> systemDark
+    // themeMode 0 (follow system) is not a valid manual export choice, so the
+    // global mode is resolved to a concrete value before use as the manual default.
+    val resolvedGlobalThemeMode = when (themeSettings.themeMode) {
+        1 -> 1
+        2, 3 -> themeSettings.themeMode
+        else -> if (systemDark) 2 else 1
     }
-    val exportAmoled = themeSettings.themeMode == 3
+    // Until the persisted values arrive both defaults reproduce the legacy
+    // behavior (follow the app theme), so there is no generation race.
+    val b30ThemeFollowGlobal by settingsRepository.b30ThemeFollowGlobal.collectAsState(initial = true)
+    val b30ExportThemeMode by settingsRepository.b30ExportThemeMode.collectAsState(initial = null)
+    val effectiveThemeMode =
+        if (b30ThemeFollowGlobal) resolvedGlobalThemeMode
+        else b30ExportThemeMode ?: resolvedGlobalThemeMode
+    val exportDarkTheme = effectiveThemeMode != 1
+    val exportAmoled = effectiveThemeMode == 3
 
     val pickBackground = rememberB30BackgroundPicker { uri ->
         if (uri != null) {
@@ -471,6 +483,23 @@ fun B30ImageScreen(
                 AppLogger.event("b30_export", "card_style_changed", mapOf("style" to style.storageKey))
                 coroutineScope.launch { settingsRepository.setB30CardStyle(style.storageKey) }
             },
+            themeFollowGlobal = b30ThemeFollowGlobal,
+            exportThemeMode = b30ExportThemeMode ?: resolvedGlobalThemeMode,
+            onThemeFollowGlobalChange = { follow ->
+                AppLogger.event("b30_export", "theme_follow_global_changed", mapOf("follow" to follow.toString()))
+                coroutineScope.launch {
+                    // Prefill the manual mode with the current global theme so
+                    // turning the switch off never flips the image appearance.
+                    if (!follow && b30ExportThemeMode == null) {
+                        settingsRepository.setB30ExportThemeMode(resolvedGlobalThemeMode)
+                    }
+                    settingsRepository.setB30ThemeFollowGlobal(follow)
+                }
+            },
+            onExportThemeModeChange = { mode ->
+                AppLogger.event("b30_export", "theme_mode_changed", mapOf("mode" to mode.toString()))
+                coroutineScope.launch { settingsRepository.setB30ExportThemeMode(mode) }
+            },
             onSelectDefault = {
                 AppLogger.event("b30_export", "background_selected", mapOf("type" to "auto"))
                 backgroundMode = B30BackgroundMode.Auto
@@ -587,6 +616,10 @@ private fun BackgroundPickerDialog(
     getLowIllustrationUrl: (String) -> String?,
     cardStyle: B30ExportCardStyle,
     onCardStyleChange: (B30ExportCardStyle) -> Unit,
+    themeFollowGlobal: Boolean,
+    exportThemeMode: Int,
+    onThemeFollowGlobalChange: (Boolean) -> Unit,
+    onExportThemeModeChange: (Int) -> Unit,
     onSelectDefault: () -> Unit,
     onSelectAlbum: () -> Unit,
     onSelectSong: (String) -> Unit,
@@ -603,11 +636,14 @@ private fun BackgroundPickerDialog(
         icon = { Icon(Icons.Filled.Image, contentDescription = null) },
         title = { Text("导出设置") },
         text = {
+            // Compact spacing and a two-row background grid keep every control
+            // inside one screen on small devices; the scroll stays as a
+            // fallback for even shorter viewports.
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = "卡片样式",
@@ -631,6 +667,36 @@ private fun BackgroundPickerDialog(
                     }
                 }
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "主题跟随全局",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Switch(
+                        checked = themeFollowGlobal,
+                        onCheckedChange = onThemeFollowGlobalChange
+                    )
+                }
+                AnimatedVisibility(visible = !themeFollowGlobal) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        val themeLabels = listOf("浅色", "深色", "AMOLED")
+                        themeLabels.forEachIndexed { index, label ->
+                            SegmentedButton(
+                                selected = exportThemeMode == index + 1,
+                                onClick = { onExportThemeModeChange(index + 1) },
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = themeLabels.size)
+                            ) {
+                                Text(label)
+                            }
+                        }
+                    }
+                }
+
                 Text(
                     text = "背景",
                     style = MaterialTheme.typography.labelLarge,
@@ -646,7 +712,7 @@ private fun BackgroundPickerDialog(
                 }
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    modifier = Modifier.height(300.dp),
+                    modifier = Modifier.height(204.dp),
                     contentPadding = PaddingValues(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)

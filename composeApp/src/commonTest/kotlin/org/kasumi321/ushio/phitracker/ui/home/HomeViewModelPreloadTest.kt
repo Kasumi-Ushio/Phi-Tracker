@@ -772,6 +772,10 @@ class HomeViewModelPreloadTest {
         override val overflowCount: Flow<Int> = flowOf(9)
         override val b30CardStyle: Flow<String> = flowOf("classic")
         override suspend fun setB30CardStyle(style: String) = Unit
+        override val b30ThemeFollowGlobal: Flow<Boolean> = flowOf(true)
+        override val b30ExportThemeMode: Flow<Int?> = flowOf(null)
+        override suspend fun setB30ThemeFollowGlobal(follow: Boolean) = Unit
+        override suspend fun setB30ExportThemeMode(mode: Int) = Unit
         override val hazeBlurEnabled: Flow<Boolean> = flowOf(true)
         override val hazeBlurStrength: Flow<Float> = flowOf(0.75f)
         var preloadDone = preloadDone
