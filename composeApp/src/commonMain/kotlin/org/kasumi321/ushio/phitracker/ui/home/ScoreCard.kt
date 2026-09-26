@@ -81,6 +81,7 @@ fun ScoreCard(
         contentVerticalPadding = 12.dp,
         compactText = false,
         thumbnailScale = 1f,
+        marqueeSongTitle = true,
         onClick = onSongClick,
         modifier = modifier
     )
