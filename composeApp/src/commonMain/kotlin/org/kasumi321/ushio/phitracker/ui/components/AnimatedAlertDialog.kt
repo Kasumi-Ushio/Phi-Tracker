@@ -152,7 +152,19 @@ private fun AnimatedAlertDialogContent(
                     }
                     if (title != null) {
                         CompositionLocalProvider(LocalContentColor provides titleContentColor) {
-                            ProvideTextStyle(MaterialTheme.typography.headlineSmall, title)
+                            ProvideTextStyle(MaterialTheme.typography.headlineSmall) {
+                                // Match Material3 AlertDialog: the title is
+                                // centered when an icon is present, start-aligned
+                                // otherwise.
+                                if (icon != null) {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.Center
+                                    ) { title() }
+                                } else {
+                                    title()
+                                }
+                            }
                         }
                         if (text != null) Spacer(modifier = Modifier.height(16.dp))
                     }
