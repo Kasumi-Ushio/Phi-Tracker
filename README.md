@@ -119,14 +119,14 @@ sudo apt install openjdk-21-jdk unzip wget
 
     若要构建 Debug 版本，请运行：
     ```bash
-    ./gradlew :composeApp:assembleDebug
+    ./gradlew :androidApp:assembleDebug
     ```
     若要构建 Release 版本，请运行：
     ```bash
-    ./gradlew :composeApp:assembleRelease
+    ./gradlew :androidApp:assembleRelease
     ```
 
-构建完成后，您可以在 `composeApp/build/outputs/apk/debug` 或 `composeApp/build/outputs/apk/release` 目录下找到生成的 APK 文件。
+构建完成后，您可以在 `androidApp/build/outputs/apk/debug` 或 `androidApp/build/outputs/apk/release` 目录下找到生成的 APK 文件。
 </details>
 
 

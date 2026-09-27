@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
  * (without the ".0" suffix).
  *
  * Reads the resource straight from the source tree via the phitracker.projectDir
- * system property (set for Gradle Test tasks). Lives in androidUnitTest because
+ * system property (set for Gradle Test tasks). Lives in androidHostTest because
  * java.lang.System is unavailable in the iOS test klibrary.
  */
 class NicklistYamlTest {

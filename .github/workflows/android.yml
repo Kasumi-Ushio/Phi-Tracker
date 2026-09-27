@@ -46,17 +46,16 @@ jobs:
         run: |
           ./gradlew \
             :composeApp:compileKotlinMetadata \
-            :composeApp:compileDebugKotlinAndroid \
-            :composeApp:compileReleaseKotlinAndroid
+            :composeApp:compileAndroidMain
 
       - name: Build debug APK from compiled outputs
-        run: ./gradlew :composeApp:assembleDebug
+        run: ./gradlew :androidApp:assembleDebug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: android-debug-apk
-          path: composeApp/build/outputs/apk/**/*.apk
+          path: androidApp/build/outputs/apk/**/*.apk
           if-no-files-found: error
 
       - name: Decode release keystore
@@ -84,7 +83,7 @@ jobs:
 
       - name: Build release APK from compiled outputs
         if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-        run: ./gradlew :composeApp:assembleRelease
+        run: ./gradlew :androidApp:assembleRelease
 
       - name: Cleanup sensitive files
         if: always()
@@ -95,5 +94,5 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: android-release-apk
-          path: composeApp/build/outputs/apk/release/*.apk
+          path: androidApp/build/outputs/apk/release/*.apk
           if-no-files-found: error

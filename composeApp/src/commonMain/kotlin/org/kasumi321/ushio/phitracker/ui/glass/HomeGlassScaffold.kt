@@ -9,7 +9,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -23,8 +23,8 @@ import dev.chrisbanes.haze.rememberHazeState
 @Composable
 fun HomeGlassScaffold(
     snackbarHostState: SnackbarHostState,
-    topBar: @Composable (HazeState, HazeStyle) -> Unit,
-    bottomBar: @Composable (HazeState, HazeStyle) -> Unit,
+    topBar: @Composable (HazeState, HazeBlurStyle) -> Unit,
+    bottomBar: @Composable (HazeState, HazeBlurStyle) -> Unit,
     content: @Composable (PaddingValues) -> Unit
 ) {
     val hazeState = rememberHazeState()

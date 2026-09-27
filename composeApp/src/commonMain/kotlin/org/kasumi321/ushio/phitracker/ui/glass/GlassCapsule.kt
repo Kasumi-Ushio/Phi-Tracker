@@ -7,9 +7,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.hazeBlur
 
 /**
  * Small glass capsule for action buttons floating directly on top of images.
@@ -18,15 +19,14 @@ import dev.chrisbanes.haze.hazeEffect
 @Composable
 fun GlassCapsule(
     hazeState: HazeState,
-    style: HazeStyle,
+    style: HazeBlurStyle,
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit
 ) {
-    val glassBlurEnabled = rememberGlassBlurEnabled()
     Row(
         modifier = modifier
             .clip(CircleShape)
-            .hazeEffect(state = hazeState, style = style) { blurEnabled = glassBlurEnabled },
+            .hazeBlur(input = HazeInput.Sources(hazeState), style = style),
         verticalAlignment = Alignment.CenterVertically,
         content = content
     )

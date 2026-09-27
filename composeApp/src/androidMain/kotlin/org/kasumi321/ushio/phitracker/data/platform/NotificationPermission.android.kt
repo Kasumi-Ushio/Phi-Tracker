@@ -38,7 +38,7 @@ actual fun requestCrashNotificationPermission(onResult: (Boolean) -> Unit) {
     }
 }
 
-internal object NotificationPermissionRequester {
+object NotificationPermissionRequester {
     private var callback: ((Boolean) -> Unit)? = null
 
     fun request(activity: Activity, onResult: (Boolean) -> Unit) {

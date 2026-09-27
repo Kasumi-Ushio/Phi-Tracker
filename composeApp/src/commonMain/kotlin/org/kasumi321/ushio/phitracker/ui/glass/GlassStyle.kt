@@ -7,10 +7,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
-import dev.chrisbanes.haze.HazeEffectScope
 import dev.chrisbanes.haze.HazeProgressive
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.HazeColorEffect
 
 /**
  * User-configurable glass behavior, provided from the app root and backed by
@@ -39,18 +38,20 @@ private const val GLASS_NOISE_FACTOR = 0.3f
  * from that same container color, more opaque per tier. Alpha pairs mirror the
  * well-known material tiers, picked by container luminance.
  */
-private fun glassTier(container: Color, lightAlpha: Float, darkAlpha: Float): HazeStyle =
-    HazeStyle(
-        backgroundColor = container,
-        tints = listOf(
-            HazeTint(
-                container.copy(
-                    alpha = if (container.luminance() >= 0.5f) lightAlpha else darkAlpha
+private fun glassTier(container: Color, lightAlpha: Float, darkAlpha: Float): HazeBlurStyle =
+    HazeBlurStyle {
+        backgroundColor(container)
+        colorEffects(
+            listOf(
+                HazeColorEffect.tint(
+                    container.copy(
+                        alpha = if (container.luminance() >= 0.5f) lightAlpha else darkAlpha
+                    )
                 )
             )
-        ),
-        blurRadius = GlassBlurRadius
-    )
+        )
+        blurRadius(GlassBlurRadius)
+    }
 
 /**
  * App-wide glass style. The tint derives from the themed container color, so
@@ -58,12 +59,12 @@ private fun glassTier(container: Color, lightAlpha: Float, darkAlpha: Float): Ha
  * color, palette styles and image-based seed colors all adapt automatically.
  * [GlassSettings.blurStrength] picks the tier (ultraThin/thin/regular/thick)
  * and scales its blur radius; the noise factor is raised above the Haze
- * default for a frosted texture. When blurring is disabled (by the user or by
- * an unsupported low-API Android), Haze renders the style's fallbackTint
- * instead.
+ * default for a frosted texture. [GlassSettings.blurEnabled] is folded into
+ * the style: when false, Haze renders the effect's fallback instead of
+ * blurring.
  */
 @Composable
-fun rememberGlassHazeStyle(): HazeStyle {
+fun rememberGlassHazeStyle(): HazeBlurStyle {
     val settings = LocalGlassSettings.current
     val container = MaterialTheme.colorScheme.surface
     val base = when {
@@ -72,27 +73,26 @@ fun rememberGlassHazeStyle(): HazeStyle {
         settings.blurStrength < STRENGTH_REGULAR_MAX -> glassTier(container, 0.73f, 0.8f)
         else -> glassTier(container, 0.83f, 0.9f)
     }
-    return remember(base, settings.blurStrength) {
-        base.copy(
-            blurRadius = base.blurRadius * settings.blurStrength,
-            noiseFactor = GLASS_NOISE_FACTOR
-        )
+    return remember(base, settings.blurEnabled, settings.blurStrength) {
+        base.then {
+            blurEnabled(settings.blurEnabled)
+            blurRadius(GlassBlurRadius * settings.blurStrength)
+            noiseFactor(GLASS_NOISE_FACTOR)
+        }
     }
 }
-
-/** Whether the user allows real blurring; false renders the fallback scrim only. */
-@Composable
-fun rememberGlassBlurEnabled(): Boolean = LocalGlassSettings.current.blurEnabled
 
 /**
  * Top bar progressive blur: full blur near the status bar, easing towards
  * [endIntensity] at the bottom edge. The default 0f fades fully transparent;
  * pass a higher value to keep the blur covering content near the bar's bottom.
  */
-fun HazeEffectScope.applyTopBarProgressive(endIntensity: Float = 0f) {
-    progressive = HazeProgressive.verticalGradient(
-        startIntensity = 1f,
-        endIntensity = endIntensity,
-        preferPerformance = true
-    )
-}
+fun HazeBlurStyle.withTopBarProgressive(endIntensity: Float = 0f): HazeBlurStyle =
+    then {
+        progressive(
+            HazeProgressive.verticalGradient(
+                startIntensity = 1f,
+                endIntensity = endIntensity
+            )
+        )
+    }

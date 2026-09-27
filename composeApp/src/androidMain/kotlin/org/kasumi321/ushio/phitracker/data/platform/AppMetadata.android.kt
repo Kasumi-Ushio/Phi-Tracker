@@ -4,7 +4,6 @@ import android.content.pm.ApplicationInfo
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import org.kasumi321.ushio.phitracker.BuildConfig
 
 actual fun getAppMetadata(): AppMetadata {
     val context = AndroidPlatformContext.applicationContext
@@ -33,4 +32,4 @@ actual fun getAppMetadata(): AppMetadata {
 }
 
 private fun formatBuildTime(): String =
-    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(BuildConfig.BUILD_TIME_MILLIS))
+    SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(ANDROID_BUILD_TIME_MILLIS))

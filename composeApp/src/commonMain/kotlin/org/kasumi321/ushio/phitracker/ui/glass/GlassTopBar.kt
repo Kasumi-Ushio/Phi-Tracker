@@ -20,9 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.lerp
+import dev.chrisbanes.haze.HazeInput
+import dev.chrisbanes.haze.HazePerformanceMode
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.blur.HazeBlurStyle
+import dev.chrisbanes.haze.blur.hazeBlur
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 
 /**
@@ -36,19 +38,19 @@ import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 @Composable
 fun GlassTopBar(
     hazeState: HazeState,
-    style: HazeStyle,
+    style: HazeBlurStyle,
     modifier: Modifier = Modifier,
     progressiveEndIntensity: Float = 0f,
     content: @Composable () -> Unit
 ) {
-    val glassBlurEnabled = rememberGlassBlurEnabled()
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .hazeEffect(state = hazeState, style = style) {
-                applyTopBarProgressive(progressiveEndIntensity)
-                blurEnabled = glassBlurEnabled
-            }
+            .hazeBlur(
+                input = HazeInput.Sources(hazeState),
+                style = style.withTopBarProgressive(progressiveEndIntensity),
+                performanceMode = HazePerformanceMode.Performance
+            )
     ) {
         content()
     }

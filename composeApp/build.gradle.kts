@@ -1,10 +1,9 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.api.tasks.testing.Test
-import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
@@ -16,7 +15,8 @@ plugins {
 // Baked into a generated iosMain source at build time so the About screen
 // shows the real compile timestamp instead of relying on the bundle
 // executable's mtime, which re-signing and installation refresh. The millis
-// are formatted on device, mirroring the Android BuildConfig approach.
+// are formatted on device; the Android target uses the same generated-source
+// approach via generateAndroidBuildTime below.
 val generateIosBuildTime = tasks.register("generateIosBuildTime") {
     val outputDir = layout.buildDirectory.dir("generated/sources/iosBuildTime")
     outputs.dir(outputDir)
@@ -30,6 +30,21 @@ val generateIosBuildTime = tasks.register("generateIosBuildTime") {
     }
 }
 
+// Android counterpart of the iOS build-time source above. Lives in this
+// module because the library cannot read the app module's BuildConfig.
+val generateAndroidBuildTime = tasks.register("generateAndroidBuildTime") {
+    val outputDir = layout.buildDirectory.dir("generated/sources/androidBuildTime")
+    outputs.dir(outputDir)
+    doLast {
+        val dir = outputDir.get().asFile
+        dir.mkdirs()
+        File(dir, "AndroidBuildTime.kt").writeText(
+            "package org.kasumi321.ushio.phitracker.data.platform\n\n" +
+                "internal const val ANDROID_BUILD_TIME_MILLIS: Long = ${System.currentTimeMillis()}L\n"
+        )
+    }
+}
+
 kotlin {
     // expect/actual classes are still Beta (KT-61573); the flag silences the
     // diagnostic for the expect objects and KSP-generated actuals.
@@ -37,12 +52,26 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 
-    androidTarget {
+    android {
+        namespace = "org.kasumi321.ushio.phitracker.shared"
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
+
+        androidResources {
+            enable = true
+        }
+
+        // Host-side (JVM) tests; Robolectric needs Android resources on the
+        // test classpath. Source set/dir is androidHostTest under this plugin.
+        withHostTest {
+            isIncludeAndroidResources = true
+        }
     }
-    
+
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -52,18 +81,23 @@ kotlin {
             isStatic = true
         }
     }
-    
+
     sourceSets {
-        androidMain.dependencies {
-            implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.androidx.security.crypto)
-            implementation(libs.ktor.client.okhttp)
-            implementation(libs.coil3.core)
+        androidMain {
+            kotlin.srcDir(generateAndroidBuildTime)
+            dependencies {
+                implementation(libs.compose.uiToolingPreview)
+                implementation(libs.androidx.activity.compose)
+                implementation(libs.androidx.security.crypto)
+                implementation(libs.ktor.client.okhttp)
+                implementation(libs.coil3.core)
+            }
         }
-        androidUnitTest.dependencies {
-            implementation("androidx.test:core:1.5.0")
-            implementation("org.robolectric:robolectric:4.14.1")
+        named("androidHostTest") {
+            dependencies {
+                implementation("androidx.test:core:1.7.0")
+                implementation("org.robolectric:robolectric:4.17")
+            }
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -99,6 +133,7 @@ kotlin {
             implementation(libs.aboutlibraries.compose.m3)
             implementation(libs.multiplatform.markdown.renderer.m3)
             implementation(libs.haze)
+            implementation(libs.haze.blur)
         }
         iosMain {
             kotlin.srcDir(generateIosBuildTime)
@@ -140,67 +175,15 @@ tasks.matching { it.name.startsWith("copy") && it.name.endsWith("ForCommonMain")
 
 tasks.withType<Test>().configureEach {
     systemProperty("phitracker.projectDir", rootProject.projectDir.absolutePath)
-}
-
-val keystoreProperties = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) load(file.inputStream())
-}
-
-android {
-    namespace = "org.kasumi321.ushio.phitracker"
-    signingConfigs {
-        create("release") {
-            storeFile = keystoreProperties.getProperty("RELEASE_STORE_FILE")?.let { rootProject.file(it) }
-            storePassword = keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
-            keyAlias = keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
-            keyPassword = keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
-        }
-    }
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    defaultConfig {
-        applicationId = "org.kasumi321.ushio.phitracker"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 11
-        versionName = "0.3.0"
-        // Baked at build time so the About screen shows the real compile
-        // timestamp instead of the package install/update time. Store epoch
-        // millis and format on device so it renders in the user's timezone
-        // regardless of the build machine's timezone (CI builds run in UTC).
-        buildConfigField("long", "BUILD_TIME_MILLIS", "${System.currentTimeMillis()}L")
-    }
-    buildFeatures {
-        buildConfig = true
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    buildTypes {
-        getByName("debug") {
-            applicationIdSuffix = ".debug"
-        }
-        getByName("release") {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            signingConfig = signingConfigs.getByName("release")
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
+    // Robolectric SDK 37 instrumentation reflects into JRE internals
+    // (robolectric#11434); export the package to the unnamed module.
+    jvmArgs("--add-exports", "java.base/jdk.internal.access=ALL-UNNAMED")
 }
 
 dependencies {
-    debugImplementation(libs.compose.uiTooling)
+    // The Android-KMP library plugin has no build variants; uiTooling goes to
+    // the shared Android runtime classpath instead of debugImplementation.
+    androidRuntimeClasspath(libs.compose.uiTooling)
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspIosArm64", libs.androidx.room.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room.compiler)
