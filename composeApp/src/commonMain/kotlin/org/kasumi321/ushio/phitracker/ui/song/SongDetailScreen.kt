@@ -47,6 +47,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.PrimaryTabRow
@@ -56,6 +57,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -362,11 +364,11 @@ private fun SongInfoHeader(
                     lineHeight = TextUnit.Unspecified
                 ),
                 autoSize = TextAutoSize.StepBased(
-                    minFontSize = 14.sp,
+                    minFontSize = 12.sp,
                     maxFontSize = MaterialTheme.typography.titleLarge.fontSize,
                     stepSize = 1.sp
                 ),
-                maxLines = 2,
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -982,11 +984,16 @@ private fun ChartTagVoteSheet(
     // top (sheet gestures stay off for the whole gesture); only a drag that
     // begins with the list already at the top may drag the sheet to dismiss.
     var sheetGesturesEnabled by remember { mutableStateOf(true) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Gestures also stay off until the entry animation settles on Expanded:
+    // a swipe that lands while the sheet is still rising must not be able to
+    // fling it back off screen.
+    val sheetSettled by remember { derivedStateOf { sheetState.currentValue == SheetValue.Expanded } }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        sheetGesturesEnabled = sheetGesturesEnabled
+        sheetState = sheetState,
+        sheetGesturesEnabled = sheetGesturesEnabled && sheetSettled
     ) {
         Column(
             modifier = Modifier
