@@ -58,6 +58,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
+import org.jetbrains.compose.resources.stringResource
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.action_settings
+import phitracker.composeapp.generated.resources.action_sync
+import phitracker.composeapp.generated.resources.home_tab_profile
+import phitracker.composeapp.generated.resources.home_tab_songs
+import phitracker.composeapp.generated.resources.home_tab_tools
+import phitracker.composeapp.generated.resources.preload_dialog_downloading
+import phitracker.composeapp.generated.resources.preload_dialog_message
+import phitracker.composeapp.generated.resources.preload_dialog_skip
+import phitracker.composeapp.generated.resources.preload_dialog_start
+import phitracker.composeapp.generated.resources.preload_dialog_title
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.b30.B30ExportPayload
@@ -177,10 +189,10 @@ fun MainScreen(
     val reducedMotionEnabled = rememberReducedMotionEnabled()
 
     val navItems = listOf(
-        BottomNavItem(HomeTab.Profile, "首页", Icons.Filled.Home, Icons.Outlined.Home),
+        BottomNavItem(HomeTab.Profile, stringResource(Res.string.home_tab_profile), Icons.Filled.Home, Icons.Outlined.Home),
         BottomNavItem(HomeTab.B30, "B30", Icons.Filled.Star, Icons.Outlined.StarBorder),
-        BottomNavItem(HomeTab.Songs, "曲目", Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
-        BottomNavItem(HomeTab.Tools, "工具", Icons.Filled.Build, Icons.Outlined.Build)
+        BottomNavItem(HomeTab.Songs, stringResource(Res.string.home_tab_songs), Icons.Filled.MusicNote, Icons.Outlined.MusicNote),
+        BottomNavItem(HomeTab.Tools, stringResource(Res.string.home_tab_tools), Icons.Filled.Build, Icons.Outlined.Build)
     )
 
     LaunchedEffect(state.sync.isLoggedOut) {
@@ -391,7 +403,7 @@ fun MainScreen(
                     )
                     HomeTab.Profile -> HomeGlassTopBar(
                         spec = HomeHeaderSpec(
-                            title = "首页",
+                            title = stringResource(Res.string.home_tab_profile),
                             tip = tip,
                             compact = !profileAtTop,
                             actions = {
@@ -402,17 +414,17 @@ fun MainScreen(
                                     )
                                 } else {
                                     IconButton(onClick = { viewModel.refresh() }) {
-                                        Icon(Icons.Default.Refresh, contentDescription = "同步")
+                                        Icon(Icons.Default.Refresh, contentDescription = stringResource(Res.string.action_sync))
                                     }
                                 }
                                 IconButton(onClick = onNavigateToSettings) {
-                                    Icon(Icons.Default.Settings, contentDescription = "设置")
+                                    Icon(Icons.Default.Settings, contentDescription = stringResource(Res.string.action_settings))
                                 }
                             }
                         )
                     )
                     HomeTab.Tools -> HomeGlassTopBar(
-                        spec = HomeHeaderSpec(title = "工具", tip = tip, compact = !toolsAtTop)
+                        spec = HomeHeaderSpec(title = stringResource(Res.string.home_tab_tools), tip = tip, compact = !toolsAtTop)
                     )
                 }
             }
@@ -560,7 +572,7 @@ private fun IllustrationPreloadDialog(
 ) {
     AnimatedAlertDialog(
         onDismissRequest = { },
-        title = { Text("下载曲绘资源") },
+        title = { Text(stringResource(Res.string.preload_dialog_title)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -568,7 +580,7 @@ private fun IllustrationPreloadDialog(
             ) {
                 if (isPreloading) {
                     Text(
-                        text = "正在下载曲绘缩略图… ($completed/$total)",
+                        text = stringResource(Res.string.preload_dialog_downloading, completed, total),
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(16.dp))
@@ -584,7 +596,7 @@ private fun IllustrationPreloadDialog(
                     )
                 } else {
                     Text(
-                        text = "首次使用需要下载曲绘缩略图资源包以正常显示曲目封面。\n\n预计约 60 MB，推荐在 Wi-Fi 下完成。",
+                        text = stringResource(Res.string.preload_dialog_message),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Start
                     )
@@ -594,14 +606,14 @@ private fun IllustrationPreloadDialog(
         confirmButton = {
             if (!isPreloading) {
                 TextButton(onClick = onStartDownload) {
-                    Text("开始下载")
+                    Text(stringResource(Res.string.preload_dialog_start))
                 }
             }
         },
         dismissButton = {
             if (!isPreloading) {
                 TextButton(onClick = onDismiss) {
-                    Text("跳过")
+                    Text(stringResource(Res.string.preload_dialog_skip))
                 }
             }
         }
