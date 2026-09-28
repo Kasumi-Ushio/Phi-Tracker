@@ -207,6 +207,9 @@ jobs:
             OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED=YES \
             FRAMEWORK_SEARCH_PATHS="$(pwd)/composeApp/build/bin/iosArm64/releaseFramework" \
             OTHER_LDFLAGS="-framework ComposeApp" \
+            DEPLOYMENT_POSTPROCESSING=YES \
+            STRIP_INSTALLED_PRODUCT=YES \
+            STRIP_STYLE=all \
             build
 
       - name: Copy Compose resources into Release app bundle

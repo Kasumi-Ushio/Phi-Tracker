@@ -79,6 +79,8 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
             isStatic = true
+            // Size-optimized release binaries (-Oz); no effect on debug builds.
+            binaryOption("smallBinary", "true")
         }
     }
 
@@ -163,6 +165,17 @@ aboutLibraries {
     export {
         outputFile = file("src/commonMain/composeResources/files/aboutlibraries.json")
     }
+}
+
+// The plugin also wires variant-scoped exports into generated platform res
+// (build/generated/aboutLibraries/<variant>/res/raw/aboutlibraries.json).
+// The About screen parses the Compose-resources copy via CMP Res instead,
+// so those duplicates never ship: keep only the root export task.
+tasks.matching {
+    it.name.startsWith("prepareLibraryDefinitions") ||
+        (it.name.startsWith("exportLibraryDefinitions") && it.name != "exportLibraryDefinitions")
+}.configureEach {
+    enabled = false
 }
 
 // Compose resources copy tasks for commonMain consume the export output file.

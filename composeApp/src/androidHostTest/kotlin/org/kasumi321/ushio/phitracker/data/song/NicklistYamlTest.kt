@@ -23,7 +23,7 @@ import kotlin.test.assertTrue
 class NicklistYamlTest {
 
     private val filesDir: okio.Path? = System.getProperty("phitracker.projectDir")
-        ?.let { it.toPath() / "composeApp/src/commonMain/composeResources/files" }
+        ?.let { it.toPath() / "composeApp/src/androidMain/assets" }
 
     @Test
     fun bundledNicklistYamlParsesWithKaml() {
