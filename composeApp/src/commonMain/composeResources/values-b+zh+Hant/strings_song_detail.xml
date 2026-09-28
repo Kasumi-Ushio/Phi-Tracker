@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="song_detail_tags_load_failed">標籤資料取得失敗，請稍後重試</string>
+    <string name="song_detail_vote_no_token">缺少 API Token：請先在設定頁開啟「使用查分 API」並填寫 API Token（向任意 Phi-Plugin 機器人傳送 /setApiToken &lt;自訂Token&gt; 設定）。我們不會上傳你的 sessionToken。</string>
+    <string name="song_detail_vote_failed">投票失敗，請稍後重試</string>
+    <string name="song_detail_data_load_failed">資料取得失敗，請稍後重試</string>
+</resources>

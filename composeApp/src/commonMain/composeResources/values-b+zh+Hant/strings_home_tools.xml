@@ -37,4 +37,24 @@
     <string name="tools_copy_and_close">複製並關閉</string>
     <string name="tools_close">關閉</string>
     <string name="tools_view_suggestions">檢視推分建議</string>
+    <string name="tools_api_query_failed">查詢未成功，請檢查網路或稍後重試</string>
+    <string name="tools_api_invalid_rank">請輸入大於 0 的名次</string>
+    <string name="tools_api_invalid_rks">請輸入有效的 RKS</string>
+    <string name="tools_api_summary_rank_by_user">總人數: %1$s  |  我的名次: %2$s%3$s%4$s</string>
+    <string name="tools_api_summary_part_player">  |  玩家: %1$s</string>
+    <string name="tools_api_summary_part_rks">  |  RKS: %1$s</string>
+    <string name="tools_api_summary_rank_by_position">名次: %1$s%2$s  |  使用者: %3$s%4$s</string>
+    <string name="tools_api_summary_part_closest">（最接近請求 %1$d）</string>
+    <string name="tools_api_summary_rks_rank">高於 %1$s 的使用者數: %2$s / %3$s</string>
+    <string name="tools_api_row_player">玩家暱稱</string>
+    <string name="tools_api_row_my_rank">我的名次</string>
+    <string name="tools_api_row_total">總人數</string>
+    <string name="tools_api_row_requested_rank">請求名次</string>
+    <string name="tools_api_row_returned_rank">返回名次</string>
+    <string name="tools_api_row_match_status">匹配狀態</string>
+    <string name="tools_api_match_exact">精確匹配</string>
+    <string name="tools_api_match_closest">最接近匹配</string>
+    <string name="tools_api_row_target_rks">目標 RKS</string>
+    <string name="tools_api_row_users_above">高於該 RKS 使用者數</string>
+    <string name="tools_api_unknown_player">未知</string>
 </resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="login_error_expired_no_save">登入已失效或網路不可用，且無本機存檔，請重新登入</string>
+    <string name="login_error_empty_token">請輸入 sessionToken</string>
+    <string name="login_error_credential_expired">登入憑證已失效，請重新登入</string>
+    <string name="login_error_sync_failed">同步失敗，請檢查網路後重試</string>
+    <string name="login_qr_fetch_failed">取得 QR 碼失敗，請重試</string>
+    <string name="login_qr_status_failed">QR 碼狀態查詢失敗，請重試</string>
+    <string name="login_qr_auth_failed">QR 碼授權失敗，請重試</string>
+    <string name="login_qr_sync_failed">存檔同步失敗，請檢查網路後重試</string>
+    <string name="login_failed_fallback">登入失敗</string>
+</resources>

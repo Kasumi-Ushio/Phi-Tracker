@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="suggest_target_invalid">Target RKS must be a number between 0.00 and 17.00 with up to two decimal places</string>
+    <string name="suggest_target_reached">Target already reached with the current data, or no charts can help you reach it</string>
+</resources>

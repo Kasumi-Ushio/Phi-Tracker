@@ -9,6 +9,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
 
 data class HomeUiState(
     val profile: ProfileUiState = ProfileUiState(),
@@ -49,9 +50,9 @@ data class SongsUiState(
     val isPreloading: Boolean = false,
     val songDataUpdateAvailable: Boolean = false,
     val isSongDataRefreshing: Boolean = false,
-    val songDataStatusText: String? = null,
+    val songDataStatusText: UiText? = null,
     val songDataProgressFraction: Float? = null,
-    val songDataMessage: String? = null
+    val songDataMessage: UiText? = null
 )
 
 data class B30UiState(
@@ -67,7 +68,7 @@ data class B30UiState(
 
 data class B30TagAnalysisState(
     val isLoading: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
     val analysis: B30TagAnalysis? = null
 )
 
@@ -90,7 +91,7 @@ data class ToolsUiState(
 data class SyncUiState(
     val isLoading: Boolean = false,
     val isSyncing: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
     val isLoggedOut: Boolean = false,
     val gameUpdateInfo: GameUpdateInfo? = null,
     val updateCheckState: UpdateCheckState = UpdateCheckState.Idle

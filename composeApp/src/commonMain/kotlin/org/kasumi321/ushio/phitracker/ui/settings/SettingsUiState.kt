@@ -1,6 +1,7 @@
 package org.kasumi321.ushio.phitracker.ui.settings
 
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
 
 data class SettingsUiState(
     val themeMode: Int = 0,
@@ -16,7 +17,7 @@ data class SettingsUiState(
     val isCachingB30Artwork: Boolean = false,
     val b30ArtworkCacheCompleted: Int = 0,
     val b30ArtworkCacheTotal: Int = 0,
-    val b30ArtworkCacheError: String? = null,
+    val b30ArtworkCacheError: UiText? = null,
     val apiEnabled: Boolean = false,
     val useApiData: Boolean = false,
     val apiUserId: String = "",
@@ -24,13 +25,13 @@ data class SettingsUiState(
     val apiPlatformId: String = "",
     val apiToken: String = "",
     val isApiTesting: Boolean = false,
-    val apiTestMessage: String? = null,
+    val apiTestMessage: UiText? = null,
     val isUpdatingData: Boolean = false,
     val updateDataPhase: UpdateDataPhase = UpdateDataPhase.Files,
     val updateDataProgress: Int = 0,
     val updateDataTotal: Int = 0,
     val updateDataFileName: String = "",
-    val updateDataError: String? = null,
+    val updateDataError: UiText? = null,
     // Non-null after a successful song-data update; lists the newly added
     // songs whose illustrations were synced, shown in the result dialog.
     val updateResultSongNames: List<String>? = null,

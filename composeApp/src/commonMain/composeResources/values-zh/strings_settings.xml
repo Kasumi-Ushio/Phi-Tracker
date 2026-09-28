@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_api_test_failed">连接失败：%1$s</string>
+    <string name="settings_api_test_ok">连接正常</string>
+    <string name="settings_api_test_partial">已连接，但账号查询失败：%1$s</string>
+    <string name="settings_redownload_failed">重新下载曲绘失败: %1$s</string>
+    <string name="settings_b30_cache_no_songs">当前没有可缓存的 B30 曲目</string>
+    <string name="settings_b30_cache_partial_failed">%1$d 个 B30 高清曲绘缓存失败</string>
+</resources>

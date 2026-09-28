@@ -20,13 +20,17 @@ import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.suggest_target_invalid
+import phitracker.composeapp.generated.resources.suggest_target_reached
 
 data class SuggestUiState(
     val isLoading: Boolean = true,
     val hasSaveData: Boolean = false,
     val targetMode: SuggestTargetMode = SuggestTargetMode.PlayerDisplayRks,
     val targetInput: String = "",
-    val targetError: String? = null,
+    val targetError: UiText? = null,
     val items: List<SuggestItem> = emptyList()
 )
 
@@ -108,7 +112,7 @@ class SuggestViewModel(
 
     private data class SuggestBuildResult(
         val items: List<SuggestItem>,
-        val error: String?
+        val error: UiText?
     )
 
     private suspend fun buildSuggestItems(
@@ -137,12 +141,12 @@ class SuggestViewModel(
 
         val targetInputPattern = Regex("""\d+(\.\d{0,2})?""")
         if (!targetInputPattern.matches(normalizedInput)) {
-            return SuggestBuildResult(emptyList(), "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数")
+            return SuggestBuildResult(emptyList(), UiText.Res(Res.string.suggest_target_invalid))
         }
 
         val targetRks = normalizedInput.toFloatOrNull()
         if (targetRks == null || targetRks !in 0f..17f) {
-            return SuggestBuildResult(emptyList(), "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数")
+            return SuggestBuildResult(emptyList(), UiText.Res(Res.string.suggest_target_invalid))
         }
 
         val items = withContext(Dispatchers.Default) {
@@ -157,7 +161,7 @@ class SuggestViewModel(
             )
         }
         val error = if (mode == SuggestTargetMode.PlayerDisplayRks && items.isEmpty()) {
-            "当前数据下已达到目标，或没有可提升的谱面能帮助达成该目标"
+            UiText.Res(Res.string.suggest_target_reached)
         } else null
         return SuggestBuildResult(items, error)
     }

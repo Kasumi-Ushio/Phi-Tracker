@@ -16,4 +16,5 @@
     <string name="b30_header_rks_label">RKS</string>
     <string name="b30_header_best_phi">Best φ</string>
     <string name="b30_header_b27_floor">B27 末位: %1$s</string>
+    <string name="b30_tag_analysis_failed">標籤統計取得失敗，請稍後重試</string>
 </resources>

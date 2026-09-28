@@ -37,4 +37,24 @@
     <string name="tools_copy_and_close">Copy and close</string>
     <string name="tools_close">Close</string>
     <string name="tools_view_suggestions">View RKS Push Suggestions</string>
+    <string name="tools_api_query_failed">Query unsuccessful. Check your network or try again later.</string>
+    <string name="tools_api_invalid_rank">Please enter a rank greater than 0</string>
+    <string name="tools_api_invalid_rks">Please enter a valid RKS</string>
+    <string name="tools_api_summary_rank_by_user">Total players: %1$s  |  My rank: %2$s%3$s%4$s</string>
+    <string name="tools_api_summary_part_player">  |  Player: %1$s</string>
+    <string name="tools_api_summary_part_rks">  |  RKS: %1$s</string>
+    <string name="tools_api_summary_rank_by_position">Rank: %1$s%2$s  |  Player: %3$s%4$s</string>
+    <string name="tools_api_summary_part_closest"> (closest to requested %1$d)</string>
+    <string name="tools_api_summary_rks_rank">Players above %1$s: %2$s / %3$s</string>
+    <string name="tools_api_row_player">Player</string>
+    <string name="tools_api_row_my_rank">My rank</string>
+    <string name="tools_api_row_total">Total players</string>
+    <string name="tools_api_row_requested_rank">Requested rank</string>
+    <string name="tools_api_row_returned_rank">Returned rank</string>
+    <string name="tools_api_row_match_status">Match status</string>
+    <string name="tools_api_match_exact">Exact match</string>
+    <string name="tools_api_match_closest">Closest match</string>
+    <string name="tools_api_row_target_rks">Target RKS</string>
+    <string name="tools_api_row_users_above">Players above this RKS</string>
+    <string name="tools_api_unknown_player">Unknown</string>
 </resources>

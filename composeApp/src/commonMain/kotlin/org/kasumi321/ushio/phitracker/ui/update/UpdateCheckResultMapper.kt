@@ -14,5 +14,5 @@ fun Result<ReleaseInfo?>.toUpdateCheckState(): UpdateCheckState = fold(
             )
         }
     },
-    onFailure = { error -> UpdateCheckState.Error(error.message ?: "未知错误") }
+    onFailure = { error -> UpdateCheckState.Error(error.message ?: "Unknown error") }
 )

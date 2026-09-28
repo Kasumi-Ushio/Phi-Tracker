@@ -54,6 +54,8 @@ import org.kasumi321.ushio.phitracker.ui.theme.argbToColor
 import org.kasumi321.ushio.phitracker.ui.theme.colorToArgb
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import org.kasumi321.ushio.phitracker.ui.utils.asString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,7 +97,7 @@ fun SettingsTab(
         apiPlatformId: String = "",
         apiToken: String = "",
         isApiTesting: Boolean = false,
-        apiTestMessage: String? = null,
+        apiTestMessage: UiText? = null,
         onApiEnabledChange: (Boolean) -> Unit = {},
         onUseApiDataChange: (Boolean) -> Unit = {},
         onApiUserIdChange: (String) -> Unit = {},
@@ -108,7 +110,7 @@ fun SettingsTab(
         updateDataTotal: Int = 0,
         updateDataFileName: String = "",
         updateDataPhase: UpdateDataPhase = UpdateDataPhase.Files,
-        updateDataError: String? = null,
+        updateDataError: UiText? = null,
         updateResultSongNames: List<String>? = null,
         onUpdateSongData: () -> Unit = {},
         onDismissUpdateError: () -> Unit = {},
@@ -927,9 +929,9 @@ fun SettingsTab(
                             Text(if (isApiTesting) "测试中..." else "测试连接")
                         }
 
-                        if (!apiTestMessage.isNullOrBlank()) {
+                        if (apiTestMessage != null) {
                             Text(
-                                    text = apiTestMessage,
+                                    text = apiTestMessage.asString(),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -1055,7 +1057,7 @@ fun SettingsTab(
         AnimatedAlertDialog(
                 onDismissRequest = onDismissUpdateError,
                 title = { Text("更新失败") },
-                text = { Text("发生了错误：\n$updateDataError") },
+                text = { Text("发生了错误：\n${updateDataError.asString()}") },
                 confirmButton = { TextButton(onClick = onDismissUpdateError) { Text("确定") } }
         )
     }

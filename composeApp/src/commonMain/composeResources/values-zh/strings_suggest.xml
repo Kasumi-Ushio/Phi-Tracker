@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="suggest_target_invalid">目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数</string>
+    <string name="suggest_target_reached">当前数据下已达到目标，或没有可提升的谱面能帮助达成该目标</string>
+</resources>

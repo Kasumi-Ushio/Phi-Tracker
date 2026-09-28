@@ -68,6 +68,7 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.kasumi321.ushio.phitracker.ui.home.formatFour
 import org.kasumi321.ushio.phitracker.ui.home.formatTwo
+import org.kasumi321.ushio.phitracker.ui.utils.asString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,7 +169,7 @@ fun SuggestScreen(
                                     onValueChange = { viewModel.setTargetInput(it) },
                                     label = { Text("目标 RKS") },
                                     placeholder = { Text("例如 16.50") },
-                                    supportingText = { Text(state.targetError ?: "范围 0.00 到 17.00，最多两位小数") },
+                                    supportingText = { Text(state.targetError?.asString() ?: "范围 0.00 到 17.00，最多两位小数") },
                                     isError = state.targetError != null,
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -195,7 +196,7 @@ fun SuggestScreen(
             }
             state.items.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                    SuggestEmptyHint(state.targetError ?: "暂无推荐曲目。试试同步数据或调整目标 RKS？")
+                    SuggestEmptyHint(state.targetError?.asString() ?: "暂无推荐曲目。试试同步数据或调整目标 RKS？")
                 }
             }
             else -> {

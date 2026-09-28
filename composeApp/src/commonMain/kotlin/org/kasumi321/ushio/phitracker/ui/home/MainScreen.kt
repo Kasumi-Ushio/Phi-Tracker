@@ -81,7 +81,9 @@ import org.kasumi321.ushio.phitracker.ui.glass.HomeGlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.HomeHeaderSpec
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
+import org.kasumi321.ushio.phitracker.ui.utils.asString
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
+import org.kasumi321.ushio.phitracker.ui.utils.resolve
 import org.koin.compose.viewmodel.koinViewModel
 
 private const val B30_TAG_ANALYSIS_SETTLE_TIMEOUT_MS = 10_000L
@@ -211,14 +213,14 @@ fun MainScreen(
 
     LaunchedEffect(state.sync.error) {
         state.sync.error?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it.resolve())
             viewModel.clearError()
         }
     }
 
     LaunchedEffect(state.songs.songDataMessage) {
         state.songs.songDataMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it.resolve())
             viewModel.clearSongDataMessage()
         }
     }
@@ -534,7 +536,7 @@ fun MainScreen(
                     val songDataStatusText = state.songs.songDataStatusText
                     if (state.songs.isSongDataRefreshing && songDataStatusText != null) {
                         SongDataRefreshProgressCard(
-                            statusText = songDataStatusText,
+                            statusText = songDataStatusText.asString(),
                             progressFraction = state.songs.songDataProgressFraction,
                             modifier = Modifier
                                 .align(Alignment.TopCenter)

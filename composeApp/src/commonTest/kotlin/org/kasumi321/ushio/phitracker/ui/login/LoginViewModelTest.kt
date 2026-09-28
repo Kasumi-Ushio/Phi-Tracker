@@ -240,7 +240,7 @@ class LoginViewModelTest {
 
         profileRequest.complete(Unit)
         advanceUntilIdle()
-        assertEquals(QrStatus.Success, vm.uiState.value.qrStatus, vm.uiState.value.qrError)
+        assertEquals(QrStatus.Success, vm.uiState.value.qrStatus, vm.uiState.value.qrError?.toString())
         assertTrue(vm.uiState.value.isLoggedIn)
         assertEquals("qr-session", vm.uiState.value.token)
         assertEquals(listOf("qr-session" to Server.CN), repo.persistedTokens)

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_api_test_failed">連線失敗：%1$s</string>
+    <string name="settings_api_test_ok">連線正常</string>
+    <string name="settings_api_test_partial">已連線，但帳號查詢失敗：%1$s</string>
+    <string name="settings_redownload_failed">重新下載曲繪失敗: %1$s</string>
+    <string name="settings_b30_cache_no_songs">目前沒有可快取的 B30 曲目</string>
+    <string name="settings_b30_cache_partial_failed">%1$d 個 B30 高畫質曲繪快取失敗</string>
+</resources>

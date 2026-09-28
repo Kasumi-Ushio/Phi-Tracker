@@ -33,6 +33,13 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.api_error_missing_fields
+import phitracker.composeapp.generated.resources.settings_api_test_failed
+import phitracker.composeapp.generated.resources.settings_api_test_ok
+import phitracker.composeapp.generated.resources.settings_api_test_partial
+import phitracker.composeapp.generated.resources.settings_b30_cache_partial_failed
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsMaintenanceViewModelTest {
@@ -51,7 +58,7 @@ class SettingsMaintenanceViewModelTest {
         advanceUntilIdle()
         viewModel.testApiConnection()
         advanceUntilIdle()
-        assertEquals("请先填写平台名称、平台 ID 与 API 用户 ID", viewModel.uiState.value.apiTestMessage)
+        assertEquals(UiText.Res(Res.string.api_error_missing_fields), viewModel.uiState.value.apiTestMessage)
         viewModel.setApiPlatform("qq")
         viewModel.setApiPlatformId("42")
         viewModel.setApiUserId("7")
@@ -60,7 +67,7 @@ class SettingsMaintenanceViewModelTest {
         repository.bind = Result.success(JsonObject(emptyMap()))
         viewModel.testApiConnection()
         advanceUntilIdle()
-        assertEquals("连接正常", viewModel.uiState.value.apiTestMessage)
+        assertEquals(UiText.Res(Res.string.settings_api_test_ok), viewModel.uiState.value.apiTestMessage)
     }
 
     @Test
@@ -74,7 +81,7 @@ class SettingsMaintenanceViewModelTest {
         viewModel.testApiConnection()
         advanceUntilIdle()
         assertFalse(viewModel.uiState.value.isApiTesting)
-        assertEquals("连接失败：offline", viewModel.uiState.value.apiTestMessage)
+        assertEquals(UiText.Res(Res.string.settings_api_test_failed, "offline"), viewModel.uiState.value.apiTestMessage)
     }
 
     @Test
@@ -91,7 +98,7 @@ class SettingsMaintenanceViewModelTest {
         viewModel.testApiConnection()
         advanceUntilIdle()
         assertFalse(viewModel.uiState.value.isApiTesting)
-        assertEquals("已连接，但账号查询失败：not bound", viewModel.uiState.value.apiTestMessage)
+        assertEquals(UiText.Res(Res.string.settings_api_test_partial, "not bound"), viewModel.uiState.value.apiTestMessage)
     }
 
     @Test
@@ -112,7 +119,7 @@ class SettingsMaintenanceViewModelTest {
         assertTrue(requireNotNull(cacheResult).isFailure)
         assertEquals(2, cache.standardDownloads.size)
         assertEquals(2, viewModel.uiState.value.b30ArtworkCacheCompleted)
-        assertEquals("1 个 B30 高清曲绘缓存失败", viewModel.uiState.value.b30ArtworkCacheError)
+        assertEquals(UiText.Res(Res.string.settings_b30_cache_partial_failed, 1), viewModel.uiState.value.b30ArtworkCacheError)
     }
 
     @Test
@@ -162,7 +169,7 @@ class SettingsMaintenanceViewModelTest {
         assertTrue(requireNotNull(result).isFailure)
         viewModel.updateSongData()
         advanceUntilIdle()
-        assertEquals("offline", viewModel.uiState.value.updateDataError)
+        assertEquals(UiText.Raw("offline"), viewModel.uiState.value.updateDataError)
         viewModel.dismissUpdateDataError()
         assertEquals(null, viewModel.uiState.value.updateDataError)
     }

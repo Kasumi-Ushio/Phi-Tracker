@@ -5,7 +5,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.platform.PlatformAlertController
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.common_confirm
 
 @Composable
 fun PlatformAlertHost() {
@@ -18,7 +21,7 @@ fun PlatformAlertHost() {
         text = { Text(content.message) },
         confirmButton = {
             TextButton(onClick = { PlatformAlertController.dismiss(content.id) }) {
-                Text("确定")
+                Text(stringResource(Res.string.common_confirm))
             }
         }
     )

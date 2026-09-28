@@ -18,4 +18,13 @@
     <string name="songs_chapters_selected_count">%1$d selected</string>
     <string name="songs_select_chapters_title">Select Chapters</string>
     <string name="songs_clear_all_count">Clear all (%1$d)</string>
+    <string name="songs_songdata_checking">Checking for song data updates…</string>
+    <string name="songs_songdata_check_failed">Failed to check for song data updates: %1$s</string>
+    <string name="songs_songdata_up_to_date">Song data is already up to date</string>
+    <string name="songs_songdata_downloading">Downloading: %1$s (%2$d/%3$d)</string>
+    <string name="songs_songdata_syncing_illustrations">Syncing new illustrations: %1$s (%2$d/%3$d)</string>
+    <string name="songs_songdata_updated_count">Song data updated — %1$d new songs added</string>
+    <string name="songs_songdata_updated">Song data updated</string>
+    <string name="songs_songdata_update_failed">Failed to update song data</string>
+    <string name="songs_preload_partial_failed">Some illustrations could not be loaded</string>
 </resources>

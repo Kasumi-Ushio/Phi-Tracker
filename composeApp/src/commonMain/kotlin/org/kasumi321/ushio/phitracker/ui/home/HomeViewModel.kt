@@ -57,16 +57,51 @@ import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.FetchGameUpdateInfoUseCase
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.toUpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.api_error_missing_fields
+import phitracker.composeapp.generated.resources.b30_tag_analysis_failed
+import phitracker.composeapp.generated.resources.common_unknown_error
+import phitracker.composeapp.generated.resources.songs_preload_partial_failed
+import phitracker.composeapp.generated.resources.songs_songdata_check_failed
+import phitracker.composeapp.generated.resources.songs_songdata_checking
+import phitracker.composeapp.generated.resources.songs_songdata_downloading
+import phitracker.composeapp.generated.resources.songs_songdata_syncing_illustrations
+import phitracker.composeapp.generated.resources.songs_songdata_up_to_date
+import phitracker.composeapp.generated.resources.songs_songdata_update_failed
+import phitracker.composeapp.generated.resources.songs_songdata_updated
+import phitracker.composeapp.generated.resources.songs_songdata_updated_count
+import phitracker.composeapp.generated.resources.sync_login_required
+import phitracker.composeapp.generated.resources.tools_api_invalid_rank
+import phitracker.composeapp.generated.resources.tools_api_invalid_rks
+import phitracker.composeapp.generated.resources.tools_api_match_closest
+import phitracker.composeapp.generated.resources.tools_api_match_exact
+import phitracker.composeapp.generated.resources.tools_api_query_failed
+import phitracker.composeapp.generated.resources.tools_api_row_match_status
+import phitracker.composeapp.generated.resources.tools_api_row_my_rank
+import phitracker.composeapp.generated.resources.tools_api_row_player
+import phitracker.composeapp.generated.resources.tools_api_row_requested_rank
+import phitracker.composeapp.generated.resources.tools_api_row_returned_rank
+import phitracker.composeapp.generated.resources.tools_api_row_target_rks
+import phitracker.composeapp.generated.resources.tools_api_row_total
+import phitracker.composeapp.generated.resources.tools_api_row_users_above
+import phitracker.composeapp.generated.resources.tools_api_summary_part_closest
+import phitracker.composeapp.generated.resources.tools_api_summary_part_player
+import phitracker.composeapp.generated.resources.tools_api_summary_part_rks
+import phitracker.composeapp.generated.resources.tools_api_summary_rank_by_position
+import phitracker.composeapp.generated.resources.tools_api_summary_rank_by_user
+import phitracker.composeapp.generated.resources.tools_api_summary_rks_rank
+import phitracker.composeapp.generated.resources.tools_api_unknown_player
 
 data class ApiToolResult(
     val isLoading: Boolean = false,
-    val message: String? = null,
+    val message: UiText? = null,
     val rows: List<ApiToolRow> = emptyList()
 )
 
 data class ApiToolRow(
-    val label: String,
-    val value: String
+    val label: UiText,
+    val value: UiText
 )
 
 private val GameUpdateJson = Json { ignoreUnknownKeys = true }
@@ -279,25 +314,30 @@ class HomeViewModel(
             updateSongs {
                 it.copy(
                     isSongDataRefreshing = true,
-                    songDataStatusText = "正在检查曲目数据更新...",
+                    songDataStatusText = UiText.Res(Res.string.songs_songdata_checking),
                     songDataProgressFraction = null,
                     songDataMessage = null
                 )
             }
             val upstreamResult = songDataUpdateCoordinator.checkUpstreamChanged()
             val changed = upstreamResult.getOrElse { error ->
-                finishSongDataRefresh("检查曲目数据更新失败：${error.message ?: "未知错误"}")
+                finishSongDataRefresh(
+                    UiText.Res(
+                        Res.string.songs_songdata_check_failed,
+                        error.message ?: UiText.Res(Res.string.common_unknown_error)
+                    )
+                )
                 return@launch
             }
             if (!changed) {
-                finishSongDataRefresh("曲目数据已是最新")
+                finishSongDataRefresh(UiText.Res(Res.string.songs_songdata_up_to_date))
                 return@launch
             }
             val result = songDataUpdateCoordinator.update(
                 onFileProgress = { current, count, fileName ->
                     updateSongs {
                         it.copy(
-                            songDataStatusText = "正在下载: $fileName ($current/$count)",
+                            songDataStatusText = UiText.Res(Res.string.songs_songdata_downloading, fileName, current, count),
                             songDataProgressFraction = if (count > 0) current.toFloat() / count else null
                         )
                     }
@@ -305,7 +345,7 @@ class HomeViewModel(
                 onIllustrationProgress = { progress ->
                     updateSongs {
                         it.copy(
-                            songDataStatusText = "正在同步新曲绘: ${progress.currentSongName} (${progress.completed}/${progress.total})",
+                            songDataStatusText = UiText.Res(Res.string.songs_songdata_syncing_illustrations, progress.currentSongName, progress.completed, progress.total),
                             songDataProgressFraction = if (progress.total > 0) progress.completed.toFloat() / progress.total else null
                         )
                     }
@@ -315,17 +355,23 @@ class HomeViewModel(
                 onSuccess = { outcome ->
                     val addedCount = outcome.addedSongNames.size
                     finishSongDataRefresh(
-                        if (addedCount > 0) "曲目数据已更新，新增 $addedCount 首曲目" else "曲目数据已更新"
+                        if (addedCount > 0) {
+                            UiText.Res(Res.string.songs_songdata_updated_count, addedCount)
+                        } else {
+                            UiText.Res(Res.string.songs_songdata_updated)
+                        }
                     )
                 },
                 onFailure = { error ->
-                    finishSongDataRefresh(error.message ?: "曲目数据更新失败")
+                    finishSongDataRefresh(
+                        error.message?.let(UiText::Raw) ?: UiText.Res(Res.string.songs_songdata_update_failed)
+                    )
                 }
             )
         }
     }
 
-    private fun finishSongDataRefresh(message: String) {
+    private fun finishSongDataRefresh(message: UiText) {
         updateSongs {
             it.copy(
                 isSongDataRefreshing = false,
@@ -411,7 +457,7 @@ class HomeViewModel(
                     updateB30 {
                         it.copy(
                             tagAnalysis = B30TagAnalysisState(
-                                error = "标签统计获取失败，请稍后重试"
+                                error = UiText.Res(Res.string.b30_tag_analysis_failed)
                             )
                         )
                     }
@@ -529,10 +575,10 @@ class HomeViewModel(
             jobs.forEach { it.join() }
 
             val errorMessage = if (hasChildError) {
-                "部分曲绘图片未能加载"
+                UiText.Res(Res.string.songs_preload_partial_failed)
             } else {
                 val persistResult = runCatching { settingsRepository.setPreloadDone(true) }
-                persistResult.exceptionOrNull()?.message
+                persistResult.exceptionOrNull()?.message?.let(UiText::Raw)
             }
 
             _uiState.update { state ->
@@ -567,7 +613,7 @@ class HomeViewModel(
             try {
                 val tokenPair = repository.getSessionToken()
                 if (tokenPair == null) {
-                    updateSync { it.copy(isSyncing = false, error = "请先登录后再操作") }
+                    updateSync { it.copy(isSyncing = false, error = UiText.Res(Res.string.sync_login_required)) }
                     return@launch
                 }
 
@@ -624,14 +670,14 @@ class HomeViewModel(
                     updateSync {
                         it.copy(
                             isSyncing = false,
-                            error = result.exceptionOrNull()?.message
+                            error = result.exceptionOrNull()?.message?.let(UiText::Raw)
                         )
                     }
                     AppLogger.event("sync", "refresh_failed", mapOf("error" to (result.exceptionOrNull()?.message ?: "unknown")))
                 }
             } catch (e: Exception) {
                 updateSync {
-                    it.copy(isSyncing = false, error = e.message)
+                    it.copy(isSyncing = false, error = e.message?.let(UiText::Raw))
                 }
                 AppLogger.event("sync", "refresh_failed", mapOf("error" to (e.message ?: "unknown")))
             }
@@ -826,7 +872,7 @@ class HomeViewModel(
         val platformId = state.apiPlatformId.trim()
         val apiUserId = state.apiUserId.trim()
         if (platform.isBlank() || platformId.isBlank() || apiUserId.isBlank()) {
-            updateTools { it.copy(apiRankByUser = ApiToolResult(message = "请先填写平台名称、平台 ID 与 API 用户 ID")) }
+            updateTools { it.copy(apiRankByUser = ApiToolResult(message = UiText.Res(Res.string.api_error_missing_fields))) }
             return
         }
 
@@ -837,7 +883,7 @@ class HomeViewModel(
                 updateTools {
                     it.copy(
                         apiRankByUser = ApiToolResult(
-                            message = "查询未成功，请检查网络或稍后重试"
+                            message = UiText.Res(Res.string.tools_api_query_failed)
                         )
                     )
                 }
@@ -863,17 +909,18 @@ class HomeViewModel(
                 ?: meObj?.get("save")?.asObject()?.get("summary")?.asObject()?.get("rankingScore")?.asFloat()
                 ?: meFromUsers?.get("saveInfo")?.asObject()?.get("summary")?.asObject()?.get("rankingScore")?.asFloat()
 
-            val msg = buildString {
-                append("总人数: ${total ?: "—"}")
-                append("  |  我的名次: ${meRank ?: "—"}")
-                if (!mePlayerId.isNullOrBlank()) append("  |  玩家: $mePlayerId")
-                if (meRks != null) append("  |  RKS: ${formatFourDecimals(meRks)}")
-            }
+            val msg = UiText.Res(
+                Res.string.tools_api_summary_rank_by_user,
+                total?.toString() ?: "—",
+                meRank?.toString() ?: "—",
+                if (!mePlayerId.isNullOrBlank()) UiText.Res(Res.string.tools_api_summary_part_player, mePlayerId) else UiText.Raw(""),
+                if (meRks != null) UiText.Res(Res.string.tools_api_summary_part_rks, formatFourDecimals(meRks)) else UiText.Raw("")
+            )
             val rows = buildList {
-                if (!mePlayerId.isNullOrBlank()) add(ApiToolRow("玩家昵称", mePlayerId))
-                if (meRks != null) add(ApiToolRow("RKS", formatFourDecimals(meRks)))
-                if (meRank != null) add(ApiToolRow("我的名次", meRank.toString()))
-                add(ApiToolRow("总人数", total?.toString() ?: "—"))
+                if (!mePlayerId.isNullOrBlank()) add(ApiToolRow(UiText.Res(Res.string.tools_api_row_player), UiText.Raw(mePlayerId)))
+                if (meRks != null) add(ApiToolRow(UiText.Raw("RKS"), UiText.Raw(formatFourDecimals(meRks))))
+                if (meRank != null) add(ApiToolRow(UiText.Res(Res.string.tools_api_row_my_rank), UiText.Raw(meRank.toString())))
+                add(ApiToolRow(UiText.Res(Res.string.tools_api_row_total), UiText.Raw(total?.toString() ?: "—")))
             }
             updateTools { it.copy(apiRankByUser = ApiToolResult(message = msg, rows = rows)) }
         }
@@ -881,7 +928,7 @@ class HomeViewModel(
 
     fun fetchApiRankByPosition(position: Int) {
         if (position <= 0) {
-            updateTools { it.copy(apiRankByPosition = ApiToolResult(message = "请输入大于 0 的名次")) }
+            updateTools { it.copy(apiRankByPosition = ApiToolResult(message = UiText.Res(Res.string.tools_api_invalid_rank))) }
             return
         }
         viewModelScope.launch {
@@ -891,7 +938,7 @@ class HomeViewModel(
                 updateTools {
                     it.copy(
                         apiRankByPosition = ApiToolResult(
-                            message = "查询未成功，请检查网络或稍后重试"
+                            message = UiText.Res(Res.string.tools_api_query_failed)
                         )
                     )
                 }
@@ -910,18 +957,33 @@ class HomeViewModel(
             val rks = userObj?.get("saveInfo")?.asObject()?.get("summary")?.asObject()?.get("rankingScore")?.asFloat()
                 ?: userObj?.get("gameuser")?.asObject()?.get("rankingScore")?.asFloat()
             val exact = rank == position
-            val msg = buildString {
-                append("名次: ${rank ?: position}")
-                if (!exact && rank != null) append("（最接近请求 ${position}）")
-                append("  |  用户: ${playerId ?: "未知"}")
-                if (rks != null) append("  |  RKS: ${formatFourDecimals(rks)}")
-            }
+            val msg = UiText.Res(
+                Res.string.tools_api_summary_rank_by_position,
+                (rank ?: position).toString(),
+                if (!exact && rank != null) UiText.Res(Res.string.tools_api_summary_part_closest, position) else UiText.Raw(""),
+                playerId ?: UiText.Res(Res.string.tools_api_unknown_player),
+                if (rks != null) UiText.Res(Res.string.tools_api_summary_part_rks, formatFourDecimals(rks)) else UiText.Raw("")
+            )
             val rows = buildList {
-                add(ApiToolRow("请求名次", position.toString()))
-                add(ApiToolRow("返回名次", rank?.toString() ?: "—"))
-                add(ApiToolRow("玩家昵称", playerId ?: "未知"))
-                if (rks != null) add(ApiToolRow("RKS", formatFourDecimals(rks)))
-                add(ApiToolRow("匹配状态", if (exact) "精确匹配" else "最接近匹配"))
+                add(ApiToolRow(UiText.Res(Res.string.tools_api_row_requested_rank), UiText.Raw(position.toString())))
+                add(ApiToolRow(UiText.Res(Res.string.tools_api_row_returned_rank), UiText.Raw(rank?.toString() ?: "—")))
+                add(
+                    ApiToolRow(
+                        UiText.Res(Res.string.tools_api_row_player),
+                        playerId?.let(UiText::Raw) ?: UiText.Res(Res.string.tools_api_unknown_player)
+                    )
+                )
+                if (rks != null) add(ApiToolRow(UiText.Raw("RKS"), UiText.Raw(formatFourDecimals(rks))))
+                add(
+                    ApiToolRow(
+                        UiText.Res(Res.string.tools_api_row_match_status),
+                        if (exact) {
+                            UiText.Res(Res.string.tools_api_match_exact)
+                        } else {
+                            UiText.Res(Res.string.tools_api_match_closest)
+                        }
+                    )
+                )
             }
             updateTools { it.copy(apiRankByPosition = ApiToolResult(message = msg, rows = rows)) }
         }
@@ -929,7 +991,7 @@ class HomeViewModel(
 
     fun fetchApiRksRankForValue(rks: Float) {
         if (rks <= 0f) {
-            updateTools { it.copy(apiRksRankResult = ApiToolResult(message = "请输入有效的 RKS")) }
+            updateTools { it.copy(apiRksRankResult = ApiToolResult(message = UiText.Res(Res.string.tools_api_invalid_rks))) }
             return
         }
         viewModelScope.launch {
@@ -939,7 +1001,7 @@ class HomeViewModel(
                 updateTools {
                     it.copy(
                         apiRksRankResult = ApiToolResult(
-                            message = "查询未成功，请检查网络或稍后重试"
+                            message = UiText.Res(Res.string.tools_api_query_failed)
                         )
                     )
                 }
@@ -953,11 +1015,16 @@ class HomeViewModel(
                     apiTotalUsers = total,
                     apiRksRank = rank,
                     apiRksRankResult = ApiToolResult(
-                        message = "大于 ${formatFourDecimals(rks)} 的用户数: ${rank ?: "—"} / ${total ?: "—"}",
+                        message = UiText.Res(
+                            Res.string.tools_api_summary_rks_rank,
+                            formatFourDecimals(rks),
+                            rank?.toString() ?: "—",
+                            total?.toString() ?: "—"
+                        ),
                         rows = listOf(
-                            ApiToolRow("目标 RKS", formatFourDecimals(rks)),
-                            ApiToolRow("大于该 RKS 用户数", rank?.toString() ?: "—"),
-                            ApiToolRow("总人数", total?.toString() ?: "—")
+                            ApiToolRow(UiText.Res(Res.string.tools_api_row_target_rks), UiText.Raw(formatFourDecimals(rks))),
+                            ApiToolRow(UiText.Res(Res.string.tools_api_row_users_above), UiText.Raw(rank?.toString() ?: "—")),
+                            ApiToolRow(UiText.Res(Res.string.tools_api_row_total), UiText.Raw(total?.toString() ?: "—"))
                         )
                     )
                 )

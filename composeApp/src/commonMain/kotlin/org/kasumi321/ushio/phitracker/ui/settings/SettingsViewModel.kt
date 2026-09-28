@@ -36,6 +36,21 @@ import org.kasumi321.ushio.phitracker.domain.usecase.CheckForUpdateUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.toUpdateCheckState
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import org.kasumi321.ushio.phitracker.ui.utils.resolve
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.api_error_missing_fields
+import phitracker.composeapp.generated.resources.common_unknown_error
+import phitracker.composeapp.generated.resources.settings_api_test_failed
+import phitracker.composeapp.generated.resources.settings_api_test_ok
+import phitracker.composeapp.generated.resources.settings_api_test_partial
+import phitracker.composeapp.generated.resources.settings_b30_cache_no_songs
+import phitracker.composeapp.generated.resources.settings_b30_cache_partial_failed
+import phitracker.composeapp.generated.resources.settings_redownload_failed
+
+internal class NoB30SongsToCacheException : IllegalStateException("no B30 songs to cache")
+internal class B30ArtworkCachePartialFailure(val failures: Int) :
+    IllegalStateException("$failures B30 artwork cache failures")
 
 class SettingsViewModel(
     internal val repository: PhigrosRepository,
@@ -108,15 +123,20 @@ class SettingsViewModel(
             val platformId = mutableUiState.value.apiPlatformId.trim()
             val apiUserId = mutableUiState.value.apiUserId.trim()
             if (platform.isBlank() || platformId.isBlank() || apiUserId.isBlank()) {
-                mutableUiState.update { it.copy(apiTestMessage = "请先填写平台名称、平台 ID 与 API 用户 ID") }
+                mutableUiState.update { it.copy(apiTestMessage = UiText.Res(Res.string.api_error_missing_fields)) }
                 return@launch
             }
             mutableUiState.update { it.copy(isApiTesting = true, apiTestMessage = null) }
             AppLogger.event("api", "test_started")
             val status = repository.apiTest()
             if (status.isFailure) {
-                val message = status.exceptionOrNull()?.message ?: "未知错误"
-                mutableUiState.update { it.copy(isApiTesting = false, apiTestMessage = "连接失败：$message") }
+                val message = status.exceptionOrNull()?.message ?: "unknown"
+                mutableUiState.update {
+                    it.copy(
+                        isApiTesting = false,
+                        apiTestMessage = UiText.Res(Res.string.settings_api_test_failed, message)
+                    )
+                }
                 AppLogger.event("api", "test_failed", mapOf("error" to message))
                 return@launch
             }
@@ -124,7 +144,15 @@ class SettingsViewModel(
             mutableUiState.update {
                 it.copy(
                     isApiTesting = false,
-                    apiTestMessage = if (accountLookup.isSuccess) "连接正常" else "已连接，但账号查询失败：${accountLookup.exceptionOrNull()?.message ?: "未知错误"}"
+                    apiTestMessage = if (accountLookup.isSuccess) {
+                        UiText.Res(Res.string.settings_api_test_ok)
+                    } else {
+                        UiText.Res(
+                            Res.string.settings_api_test_partial,
+                            accountLookup.exceptionOrNull()?.message
+                                ?: UiText.Res(Res.string.common_unknown_error)
+                        )
+                    }
                 )
             }
             AppLogger.event(
@@ -158,7 +186,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             val songIds = b30.map { it.songId }.distinct()
             if (songIds.isEmpty()) {
-                onComplete(Result.failure(IllegalStateException("当前没有可缓存的 B30 曲目")))
+                onComplete(Result.failure(NoB30SongsToCacheException()))
                 return@launch
             }
             mutableUiState.update { it.copy(isCachingB30Artwork = true, b30ArtworkCacheTotal = songIds.size, b30ArtworkCacheCompleted = 0, b30ArtworkCacheError = null) }
@@ -182,8 +210,13 @@ class SettingsViewModel(
                     }
                 }
             }.forEach { it.join() }
-            val result = if (failures == 0) Result.success(Unit) else Result.failure(IllegalStateException("$failures 个 B30 高清曲绘缓存失败"))
-            mutableUiState.update { it.copy(isCachingB30Artwork = false, b30ArtworkCacheError = result.exceptionOrNull()?.message) }
+            val result = if (failures == 0) Result.success(Unit) else Result.failure(B30ArtworkCachePartialFailure(failures))
+            mutableUiState.update {
+                it.copy(
+                    isCachingB30Artwork = false,
+                    b30ArtworkCacheError = result.exceptionOrNull()?.let(::b30ArtworkCacheErrorText)
+                )
+            }
             AppLogger.event("cache", "b30_standard_artwork_finished", mapOf("count" to songIds.size.toString(), "failures" to failures.toString()))
             onComplete(result)
         }
@@ -212,10 +245,11 @@ class SettingsViewModel(
                 AppLogger.event("cache", "redownload_reset_success")
                 eventChannel.send(SettingsEvent.RestartRequested)
             } else {
-                val message = result.exceptionOrNull()?.message ?: "未知错误"
+                val message = result.exceptionOrNull()?.message ?: "unknown"
                 AppLogger.event("cache", "redownload_reset_failed", mapOf("error" to message))
-                platformMessage("重新下载曲绘失败: $message")
-                mutableUiState.update { it.copy(updateDataError = "重新下载曲绘失败: $message") }
+                val errorText = UiText.Res(Res.string.settings_redownload_failed, message)
+                platformMessage(errorText.resolve())
+                mutableUiState.update { it.copy(updateDataError = errorText) }
             }
         }
     }
@@ -256,11 +290,17 @@ class SettingsViewModel(
                 },
                 onFailure = { error ->
                     val message = error.message
-                    mutableUiState.update { it.copy(isUpdatingData = false, updateDataError = message) }
+                    mutableUiState.update { it.copy(isUpdatingData = false, updateDataError = message?.let(UiText::Raw)) }
                     AppLogger.event("data", "update_song_data_failed", mapOf("error" to (message ?: "unknown")))
                 }
             )
         }
+    }
+
+    private fun b30ArtworkCacheErrorText(error: Throwable): UiText = when (error) {
+        is NoB30SongsToCacheException -> UiText.Res(Res.string.settings_b30_cache_no_songs)
+        is B30ArtworkCachePartialFailure -> UiText.Res(Res.string.settings_b30_cache_partial_failed, error.failures)
+        else -> error.message?.let(UiText::Raw) ?: UiText.Res(Res.string.common_unknown_error)
     }
 
     fun dismissUpdateDataResult() {

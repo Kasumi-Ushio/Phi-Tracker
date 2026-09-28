@@ -65,7 +65,12 @@ import io.github.alexzhirkevich.qrose.options.circle
 import io.github.alexzhirkevich.qrose.options.roundCorners
 import io.github.alexzhirkevich.qrose.options.solid
 import io.github.alexzhirkevich.qrose.rememberQrCodePainter
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.domain.model.Server
+import org.kasumi321.ushio.phitracker.ui.utils.asString
+import org.kasumi321.ushio.phitracker.ui.utils.resolve
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.login_failed_fallback
 
 private val QrCodeMaxSize = 280.dp
 
@@ -87,7 +92,7 @@ fun LoginScreen(
     LaunchedEffect(state.error, state.qrError) {
         val msg = state.error ?: state.qrError
         msg?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(it.resolve())
             viewModel.clearError()
         }
     }
@@ -333,7 +338,7 @@ internal fun QrLoginContent(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = state.qrError ?: "登录失败",
+                    text = state.qrError?.asString() ?: stringResource(Res.string.login_failed_fallback),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center

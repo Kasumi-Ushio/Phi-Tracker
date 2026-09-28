@@ -42,6 +42,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.login_qr_auth_failed
+import phitracker.composeapp.generated.resources.login_qr_fetch_failed
+import phitracker.composeapp.generated.resources.login_qr_status_failed
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class LoginViewModelQrRepositoryTest {
@@ -199,19 +204,16 @@ class LoginViewModelQrRepositoryTest {
         }
 
         assertError(FakeQrRepository(requestFailure = IllegalStateException("request DEVICE_UI_SECRET")))
-        assertEquals("获取二维码失败，请重试", latestQrError)
-        assertFalse("DEVICE_UI_SECRET" in latestQrError.orEmpty())
+        assertEquals(UiText.Res(Res.string.login_qr_fetch_failed), latestQrError)
         assertError(FakeQrRepository(pollFailure = IllegalStateException("poll ACCESS_UI_SECRET")))
-        assertEquals("二维码状态查询失败，请重试", latestQrError)
-        assertFalse("ACCESS_UI_SECRET" in latestQrError.orEmpty())
+        assertEquals(UiText.Res(Res.string.login_qr_status_failed), latestQrError)
         assertError(
             FakeQrRepository(
                 polls = ArrayDeque(listOf(QrLoginPollResult.Authorized(QrAuthorizationId("auth")))),
                 exchangeFailure = IllegalStateException("exchange SESSION_UI_SECRET")
             )
         )
-        assertEquals("二维码授权失败，请重试", latestQrError)
-        assertFalse("SESSION_UI_SECRET" in latestQrError.orEmpty())
+        assertEquals(UiText.Res(Res.string.login_qr_auth_failed), latestQrError)
         val syncRepo = FakePhigrosRepository(syncOk = false)
         assertError(
             FakeQrRepository(polls = ArrayDeque(listOf(QrLoginPollResult.Authorized(QrAuthorizationId("auth"))))),
@@ -257,7 +259,7 @@ class LoginViewModelQrRepositoryTest {
         }
     }
 
-    private var latestQrError: String? = null
+    private var latestQrError: UiText? = null
 
     private class FakePhigrosRepository(private val syncOk: Boolean) : PhigrosRepository {
         val persistedTokens = mutableListOf<Pair<String, Server>>()

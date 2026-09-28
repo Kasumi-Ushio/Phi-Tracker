@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="song_detail_tags_load_failed">Failed to load tag data. Please try again later.</string>
+    <string name="song_detail_vote_no_token">Missing API token: enable &quot;Use score lookup API&quot; in Settings and fill in your API token first (send /setApiToken &lt;your-token&gt; to any Phi-Plugin bot to set it). Your sessionToken is never uploaded.</string>
+    <string name="song_detail_vote_failed">Vote failed. Please try again later.</string>
+    <string name="song_detail_data_load_failed">Failed to load data. Please try again later.</string>
+</resources>

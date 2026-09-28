@@ -32,6 +32,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.song_detail_tags_load_failed
+import phitracker.composeapp.generated.resources.song_detail_vote_no_token
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SongDetailViewModelTest {
@@ -326,7 +330,7 @@ class SongDetailViewModelTest {
         // Then
         val state = viewModel.getChartTagState(Difficulty.IN)
         assertFalse(state.isLoading)
-        assertEquals("标签数据获取失败，请稍后重试", state.error)
+        assertEquals(UiText.Res(Res.string.song_detail_tags_load_failed), state.error)
         assertTrue(state.categories.isEmpty())
     }
 
@@ -345,7 +349,7 @@ class SongDetailViewModelTest {
         // Then
         val state = viewModel.getChartTagState(Difficulty.IN)
         assertFalse(state.voteSubmitting)
-        assertTrue(state.voteError.orEmpty().contains("API Token"))
+        assertEquals(UiText.Res(Res.string.song_detail_vote_no_token), state.voteError)
         assertTrue(repository.voteChartTagRequests.isEmpty())
     }
 

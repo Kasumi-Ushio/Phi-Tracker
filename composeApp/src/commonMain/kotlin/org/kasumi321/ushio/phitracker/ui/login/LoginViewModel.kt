@@ -20,6 +20,16 @@ import org.kasumi321.ushio.phitracker.domain.model.SyncMode
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.QrLoginRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.login_error_credential_expired
+import phitracker.composeapp.generated.resources.login_error_empty_token
+import phitracker.composeapp.generated.resources.login_error_expired_no_save
+import phitracker.composeapp.generated.resources.login_error_sync_failed
+import phitracker.composeapp.generated.resources.login_qr_auth_failed
+import phitracker.composeapp.generated.resources.login_qr_fetch_failed
+import phitracker.composeapp.generated.resources.login_qr_status_failed
+import phitracker.composeapp.generated.resources.login_qr_sync_failed
 
 /** QR 扫码状态 */
 enum class QrStatus {
@@ -37,12 +47,12 @@ data class LoginUiState(
     val token: String = "",
     val server: Server = Server.CN,
     val isLoading: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
     val isLoggedIn: Boolean = false,
     val isCheckingToken: Boolean = true,
     val qrCodeUrl: String? = null,
     val qrStatus: QrStatus = QrStatus.Idle,
-    val qrError: String? = null,
+    val qrError: UiText? = null,
     val qrRemainingSeconds: Int = 0
 )
 
@@ -122,7 +132,7 @@ class LoginViewModel(
                     server = server,
                     isCheckingToken = false,
                     isLoggedIn = false,
-                    error = "登录已失效或网络不可用，且无本地存档，请重新登录"
+                    error = UiText.Res(Res.string.login_error_expired_no_save)
                 )
             }
             AppLogger.event("login", "state_checked", mapOf("tokenPresent" to "true", "loggedIn" to "false"))
@@ -140,7 +150,7 @@ class LoginViewModel(
     fun login() {
         val state = _uiState.value
         if (state.token.isBlank()) {
-            _uiState.update { it.copy(error = "请输入 sessionToken") }
+            _uiState.update { it.copy(error = UiText.Res(Res.string.login_error_empty_token)) }
             return
         }
 
@@ -152,7 +162,7 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = "登录凭据已失效，请重新登录"
+                        error = UiText.Res(Res.string.login_error_credential_expired)
                     )
                 }
                 return@launch
@@ -165,7 +175,7 @@ class LoginViewModel(
                 _uiState.update {
                     it.copy(
                         isLoading = false,
-                        error = "同步失败，请检查网络后重试"
+                        error = UiText.Res(Res.string.login_error_sync_failed)
                     )
                 }
                 return@launch
@@ -184,7 +194,7 @@ class LoginViewModel(
         }
 
         qrPollingJob = viewModelScope.launch {
-            var failureMessage = "获取二维码失败，请重试"
+            var failureMessage = UiText.Res(Res.string.login_qr_fetch_failed)
             try {
                 val challenge = qrLoginRepository.requestChallenge(server)
                 val expiresIn = remainingSeconds(challenge.expiresAt)
@@ -200,11 +210,11 @@ class LoginViewModel(
                 while (clockMillis() < challenge.expiresAt) {
                     _uiState.update { it.copy(qrRemainingSeconds = remainingSeconds(challenge.expiresAt)) }
 
-                    failureMessage = "二维码状态查询失败，请重试"
+                    failureMessage = UiText.Res(Res.string.login_qr_status_failed)
                     when (val result = qrLoginRepository.poll(challenge.id)) {
                         is QrLoginPollResult.Authorized -> {
                             _uiState.update { it.copy(qrStatus = QrStatus.Exchanging) }
-                            failureMessage = "二维码授权失败，请重试"
+                            failureMessage = UiText.Res(Res.string.login_qr_auth_failed)
                             val sessionToken = qrLoginRepository.exchangeForSessionToken(result.authorizationId)
 
                             repository.saveSessionToken(sessionToken, server)
@@ -213,7 +223,7 @@ class LoginViewModel(
                                 _uiState.update {
                                     it.copy(
                                         qrStatus = QrStatus.Error,
-                                        qrError = "存档同步失败，请检查网络后重试"
+                                        qrError = UiText.Res(Res.string.login_qr_sync_failed)
                                     )
                                 }
                                 return@launch

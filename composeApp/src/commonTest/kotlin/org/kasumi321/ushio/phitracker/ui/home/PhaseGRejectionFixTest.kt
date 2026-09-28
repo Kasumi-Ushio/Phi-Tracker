@@ -10,6 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
 
 class PhaseGRejectionFixTest {
 
@@ -46,7 +47,7 @@ class PhaseGRejectionFixTest {
         val state = HomeUiState(
             songs = SongsUiState(isPreloading = true, preloadCompleted = 2, preloadTotal = 4),
             tools = ToolsUiState(sessionToken = "token"),
-            sync = SyncUiState(isSyncing = true, error = "retained")
+            sync = SyncUiState(isSyncing = true, error = UiText.Raw("retained"))
         )
 
         val changed = state.copy(tools = state.tools.copy(sessionToken = null))
@@ -55,7 +56,7 @@ class PhaseGRejectionFixTest {
         assertEquals(4, changed.songs.preloadTotal)
         assertTrue(changed.songs.isPreloading)
         assertTrue(changed.sync.isSyncing)
-        assertEquals("retained", changed.sync.error)
+        assertEquals(UiText.Raw("retained"), changed.sync.error)
     }
 
     @Test

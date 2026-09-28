@@ -45,6 +45,9 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.suggest_target_invalid
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SuggestViewModelTest {
@@ -110,7 +113,7 @@ class SuggestViewModelTest {
 
         assertEquals("16.123", viewModel.uiState.value.targetInput)
         assertEquals(
-            "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数",
+            UiText.Res(Res.string.suggest_target_invalid),
             viewModel.uiState.value.targetError
         )
 
@@ -119,7 +122,7 @@ class SuggestViewModelTest {
 
         assertEquals("abc", viewModel.uiState.value.targetInput)
         assertEquals(
-            "目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数",
+            UiText.Res(Res.string.suggest_target_invalid),
             viewModel.uiState.value.targetError
         )
     }

@@ -23,10 +23,16 @@ import org.kasumi321.ushio.phitracker.domain.usecase.ChartTagApiIdentity
 import org.kasumi321.ushio.phitracker.domain.usecase.GetChartTagsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.song_detail_data_load_failed
+import phitracker.composeapp.generated.resources.song_detail_tags_load_failed
+import phitracker.composeapp.generated.resources.song_detail_vote_failed
+import phitracker.composeapp.generated.resources.song_detail_vote_no_token
 
 data class SongApiDetailState(
     val isLoading: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
     val userRank: Int? = null,
     val totalUsers: Int? = null,
     val avgAcc: Float? = null,
@@ -36,11 +42,11 @@ data class SongApiDetailState(
 
 data class ChartTagUiState(
     val isLoading: Boolean = false,
-    val error: String? = null,
+    val error: UiText? = null,
     val categories: List<ChartTagCategoryDisplay> = emptyList(),
     val allCategories: List<ChartTagCategoryDisplay> = emptyList(),
     val voteSubmitting: Boolean = false,
-    val voteError: String? = null,
+    val voteError: UiText? = null,
     val voteSucceeded: Boolean = false
 )
 
@@ -118,7 +124,7 @@ class SongDetailViewModel(
                             onFailure = {
                                 ChartTagUiState(
                                     isLoading = false,
-                                    error = "标签数据获取失败，请稍后重试"
+                                    error = UiText.Res(Res.string.song_detail_tags_load_failed)
                                 )
                             }
                         )
@@ -142,7 +148,7 @@ class SongDetailViewModel(
             updateChartTags(difficulty) {
                 (it ?: ChartTagUiState()).copy(
                     voteSubmitting = false,
-                    voteError = "缺少 API Token：请先在设置页开启「使用查分 API」并填写 API Token（向任意 Phi-Plugin 机器人发送 /setApiToken <自定义Token> 设置）。我们不会上传你的 sessionToken。"
+                    voteError = UiText.Res(Res.string.song_detail_vote_no_token)
                 )
             }
             return
@@ -166,7 +172,7 @@ class SongDetailViewModel(
                     updateChartTags(difficulty) {
                         (it ?: ChartTagUiState()).copy(
                             voteSubmitting = false,
-                            voteError = error.message ?: "投票失败，请稍后重试"
+                            voteError = error.message?.let(UiText::Raw) ?: UiText.Res(Res.string.song_detail_vote_failed)
                         )
                     }
                 }
@@ -203,7 +209,7 @@ class SongDetailViewModel(
                             onFailure = {
                                 SongApiDetailState(
                                     isLoading = false,
-                                    error = "数据获取失败，请稍后重试"
+                                    error = UiText.Res(Res.string.song_detail_data_load_failed)
                                 )
                             }
                         )

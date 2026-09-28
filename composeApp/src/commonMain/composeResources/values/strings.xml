@@ -14,4 +14,8 @@
     <string name="nav_song_not_found">Song not found</string>
     <string name="nav_song_id">Song ID: %1$s</string>
     <string name="action_back">Back</string>
+    <string name="common_unknown_error">Unknown error</string>
+    <string name="common_confirm">OK</string>
+    <string name="sync_login_required">Please log in before continuing</string>
+    <string name="api_error_missing_fields">Please fill in the platform name, platform ID and API user ID first</string>
 </resources>

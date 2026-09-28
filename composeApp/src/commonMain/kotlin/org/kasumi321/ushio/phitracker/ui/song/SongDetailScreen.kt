@@ -105,6 +105,7 @@ import org.kasumi321.ushio.phitracker.ui.components.ScoreRating
 import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
+import org.kasumi321.ushio.phitracker.ui.utils.asString
 import org.kasumi321.ushio.phitracker.ui.utils.chapterDisplayName
 import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
@@ -636,7 +637,7 @@ private fun DifficultyContent(
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
                     } else if (songApiDetail.error != null) {
                         Text(
-                            text = songApiDetail.error,
+                            text = songApiDetail.error!!.asString(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -886,7 +887,7 @@ private fun ChartTagSection(
 
             when {
                 state.error != null -> Text(
-                    text = state.error,
+                    text = state.error!!.asString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -1094,7 +1095,7 @@ private fun ChartTagVoteSheet(
 
             state.voteError?.let { error ->
                 Text(
-                    text = error,
+                    text = error.asString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )

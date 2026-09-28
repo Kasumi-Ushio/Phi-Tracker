@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_api_test_failed">Connection failed: %1$s</string>
+    <string name="settings_api_test_ok">Connection OK</string>
+    <string name="settings_api_test_partial">Connected, but account lookup failed: %1$s</string>
+    <string name="settings_redownload_failed">Failed to re-download illustrations: %1$s</string>
+    <string name="settings_b30_cache_no_songs">There are no B30 songs to cache</string>
+    <string name="settings_b30_cache_partial_failed">Failed to cache HD illustrations for %1$d B30 songs</string>
+</resources>

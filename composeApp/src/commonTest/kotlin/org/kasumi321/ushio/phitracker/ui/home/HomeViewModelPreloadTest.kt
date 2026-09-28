@@ -73,6 +73,11 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
+import org.kasumi321.ushio.phitracker.ui.utils.UiText
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.b30_tag_analysis_failed
+import phitracker.composeapp.generated.resources.songs_preload_partial_failed
+import phitracker.composeapp.generated.resources.tools_api_query_failed
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelPreloadTest {
@@ -148,7 +153,7 @@ class HomeViewModelPreloadTest {
         assertFalse(settings.preloadDone)
         assertTrue(viewModel.uiState.value.songs.illustrationReady)
         assertFalse(viewModel.uiState.value.songs.showPreloadDialog)
-        assertEquals("部分曲绘图片未能加载", viewModel.uiState.value.sync.error)
+        assertEquals(UiText.Res(Res.string.songs_preload_partial_failed), viewModel.uiState.value.sync.error)
         assertEquals(2, viewModel.uiState.value.songs.preloadCompleted)
         assertEquals(1f, viewModel.uiState.value.songs.preloadProgress)
     }
@@ -193,7 +198,7 @@ class HomeViewModelPreloadTest {
         runCurrent()
         assertEquals(1, viewModel.uiState.value.songs.preloadCompleted)
         assertEquals(0.5f, viewModel.uiState.value.songs.preloadProgress)
-        assertEquals("查询未成功，请检查网络或稍后重试", viewModel.uiState.value.tools.apiRankByPosition.message)
+        assertEquals(UiText.Res(Res.string.tools_api_query_failed), viewModel.uiState.value.tools.apiRankByPosition.message)
 
         repeat(2) {
             tabs.select(HomeTab.Tools)
@@ -209,14 +214,14 @@ class HomeViewModelPreloadTest {
         repository.completeSync()
         artworkCache.complete("song-b.0")
         advanceUntilIdle()
-        assertEquals("部分曲绘图片未能加载", viewModel.uiState.value.sync.error)
+        assertEquals(UiText.Res(Res.string.songs_preload_partial_failed), viewModel.uiState.value.sync.error)
         assertEquals(1f, viewModel.uiState.value.songs.preloadProgress)
-        assertEquals("查询未成功，请检查网络或稍后重试", viewModel.uiState.value.tools.apiRankByPosition.message)
+        assertEquals(UiText.Res(Res.string.tools_api_query_failed), viewModel.uiState.value.tools.apiRankByPosition.message)
 
         viewModel.clearError()
         assertNull(viewModel.uiState.value.sync.error)
         assertEquals(1f, viewModel.uiState.value.songs.preloadProgress)
-        assertEquals("查询未成功，请检查网络或稍后重试", viewModel.uiState.value.tools.apiRankByPosition.message)
+        assertEquals(UiText.Res(Res.string.tools_api_query_failed), viewModel.uiState.value.tools.apiRankByPosition.message)
     }
 
     @Test
@@ -525,7 +530,7 @@ class HomeViewModelPreloadTest {
         val keys = viewModel.uiState.value.b30.b30.map { it.songId to it.difficulty }
         assertTrue(keys.isNotEmpty())
         assertEquals(listOf(keys), repository.b30ChartTagRequests)
-        assertEquals("标签统计获取失败，请稍后重试", viewModel.uiState.value.b30.tagAnalysis.error)
+        assertEquals(UiText.Res(Res.string.b30_tag_analysis_failed), viewModel.uiState.value.b30.tagAnalysis.error)
 
         // Given a successful batch for the current B30 content
         repository.b30ChartTags = Result.success(b30TagBatchFixture(keys))
@@ -563,7 +568,7 @@ class HomeViewModelPreloadTest {
 
         assertTrue(viewModel.uiState.value.b30.b30.isNotEmpty())
         assertEquals(1, repository.b30ChartTagRequests.size)
-        assertEquals("标签统计获取失败，请稍后重试", viewModel.uiState.value.b30.tagAnalysis.error)
+        assertEquals(UiText.Res(Res.string.b30_tag_analysis_failed), viewModel.uiState.value.b30.tagAnalysis.error)
     }
 
     /**
@@ -1205,14 +1210,14 @@ class HomeViewModelPreloadTest {
     @Test
     fun apiToolResultPreservesRows() {
         val rows = listOf(
-            ApiToolRow("标签 A", "值 A"),
-            ApiToolRow("标签 B", "值 B")
+            ApiToolRow(UiText.Raw("标签 A"), UiText.Raw("值 A")),
+            ApiToolRow(UiText.Raw("标签 B"), UiText.Raw("值 B"))
         )
-        val result = ApiToolResult(message = "ok", rows = rows)
+        val result = ApiToolResult(message = UiText.Raw("ok"), rows = rows)
         assertEquals(2, result.rows.size)
-        assertEquals("标签 A", result.rows[0].label)
-        assertEquals("值 A", result.rows[0].value)
-        assertEquals("ok", result.message)
+        assertEquals(UiText.Raw("标签 A"), result.rows[0].label)
+        assertEquals(UiText.Raw("值 A"), result.rows[0].value)
+        assertEquals(UiText.Raw("ok"), result.message)
     }
 
     @Test

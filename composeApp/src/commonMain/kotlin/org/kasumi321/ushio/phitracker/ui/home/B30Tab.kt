@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.b30.B30TagAnalysisContent
+import org.kasumi321.ushio.phitracker.ui.utils.asString
 import phitracker.composeapp.generated.resources.Res
 import phitracker.composeapp.generated.resources.b30_action_collapse
 import phitracker.composeapp.generated.resources.b30_action_expand
@@ -242,7 +243,7 @@ private fun CollapsibleTagAnalysis(
                 when {
                     state.error != null -> Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = state.error,
+                            text = state.error!!.asString(),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.weight(1f)

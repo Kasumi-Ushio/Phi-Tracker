@@ -109,6 +109,7 @@ import phitracker.composeapp.generated.resources.tools_view_suggestions
 import org.kasumi321.ushio.phitracker.data.platform.copyToClipboard
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
+import org.kasumi321.ushio.phitracker.ui.utils.asString
 import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 
@@ -593,13 +594,13 @@ private fun ApiToolResultPanel(state: ApiToolResult) {
             Column(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) { state.rows.forEach { row -> RankInfoRow(label = row.label, value = row.value) } }
+            ) { state.rows.forEach { row -> RankInfoRow(label = row.label.asString(), value = row.value.asString()) } }
         }
         return
     }
 
     Text(
-            text = state.message ?: stringResource(Res.string.tools_not_queried_yet),
+            text = state.message?.asString() ?: stringResource(Res.string.tools_not_queried_yet),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
     )
