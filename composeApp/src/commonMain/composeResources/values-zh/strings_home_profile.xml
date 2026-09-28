@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profile_recent_sync">最近同步</string>
+    <string name="profile_sync_time">同步时间: %1$s</string>
+    <string name="profile_no_score_changes">本次同步没有新的成绩变动</string>
+    <string name="profile_never_synced">还没有同步过数据\n点击右上角按钮开始</string>
+    <string name="profile_avatar">头像</string>
+    <string name="profile_set_avatar">设置头像</string>
+    <string name="profile_not_logged_in">未登录</string>
+    <string name="profile_data_label">Data: %1$s</string>
+    <string name="profile_game_update_label">GAME UPDATE</string>
+    <string name="profile_game_update_version">Phigros v%1$s</string>
+    <string name="profile_collapse">折叠</string>
+    <string name="profile_expand">展开</string>
+</resources>

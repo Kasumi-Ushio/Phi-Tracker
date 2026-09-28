@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="profile_recent_sync">Recent Sync</string>
+    <string name="profile_sync_time">Sync time: %1$s</string>
+    <string name="profile_no_score_changes">No new score changes in this sync</string>
+    <string name="profile_never_synced">No data synced yet\nTap the button in the top-right corner to start</string>
+    <string name="profile_avatar">Avatar</string>
+    <string name="profile_set_avatar">Set avatar</string>
+    <string name="profile_not_logged_in">Not logged in</string>
+    <string name="profile_data_label">Data: %1$s</string>
+    <string name="profile_game_update_label">GAME UPDATE</string>
+    <string name="profile_game_update_version">Phigros v%1$s</string>
+    <string name="profile_collapse">Collapse</string>
+    <string name="profile_expand">Expand</string>
+</resources>

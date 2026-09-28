@@ -37,8 +37,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.ui.b30.B30TagAnalysisContent
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.b30_action_collapse
+import phitracker.composeapp.generated.resources.b30_action_expand
+import phitracker.composeapp.generated.resources.b30_action_retry
+import phitracker.composeapp.generated.resources.b30_empty_message
+import phitracker.composeapp.generated.resources.b30_section_best27
+import phitracker.composeapp.generated.resources.b30_section_overflow
+import phitracker.composeapp.generated.resources.b30_section_phi_best
+import phitracker.composeapp.generated.resources.b30_tag_analysis_title
 
 @Composable
 fun B30Tab(
@@ -73,7 +83,7 @@ fun B30Tab(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "还没有成绩数据\n前往首页同步即可查看",
+                text = stringResource(Res.string.b30_empty_message),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -103,7 +113,7 @@ fun B30Tab(
             if (phi3.isNotEmpty()) {
                 item(contentType = "header") {
                     Text(
-                        text = "φ Best (AP)",
+                        text = stringResource(Res.string.b30_section_phi_best),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary,
@@ -126,7 +136,7 @@ fun B30Tab(
 
             item(contentType = "header") {
                 Text(
-                    text = "Best 27",
+                    text = stringResource(Res.string.b30_section_best27),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.secondary,
@@ -149,7 +159,7 @@ fun B30Tab(
             if (overflow.isNotEmpty()) {
                 item(contentType = "header") {
                     Text(
-                        text = "Overflow",
+                        text = stringResource(Res.string.b30_section_overflow),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.tertiary,
@@ -198,7 +208,7 @@ private fun CollapsibleTagAnalysis(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "谱面标签统计",
+                text = stringResource(Res.string.b30_tag_analysis_title),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
@@ -211,7 +221,10 @@ private fun CollapsibleTagAnalysis(
             Icon(
                 imageVector = if (expanded) Icons.Default.KeyboardArrowUp
                 else Icons.Default.KeyboardArrowDown,
-                contentDescription = if (expanded) "折叠" else "展开",
+                contentDescription = stringResource(
+                    if (expanded) Res.string.b30_action_collapse
+                    else Res.string.b30_action_expand
+                ),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -234,7 +247,7 @@ private fun CollapsibleTagAnalysis(
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(onClick = onRetry) { Text("重试") }
+                        TextButton(onClick = onRetry) { Text(stringResource(Res.string.b30_action_retry)) }
                     }
                     state.analysis != null -> B30TagAnalysisContent(analysis = state.analysis)
                 }

@@ -53,6 +53,7 @@ import coil3.compose.AsyncImagePainter
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.platform.rememberAvatarPicker
 import org.kasumi321.ushio.phitracker.domain.model.B30RksHistogram
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
@@ -65,6 +66,19 @@ import org.kasumi321.ushio.phitracker.ui.glass.rememberExpansionArrowRotation
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.profile_avatar
+import phitracker.composeapp.generated.resources.profile_collapse
+import phitracker.composeapp.generated.resources.profile_data_label
+import phitracker.composeapp.generated.resources.profile_expand
+import phitracker.composeapp.generated.resources.profile_game_update_label
+import phitracker.composeapp.generated.resources.profile_game_update_version
+import phitracker.composeapp.generated.resources.profile_never_synced
+import phitracker.composeapp.generated.resources.profile_no_score_changes
+import phitracker.composeapp.generated.resources.profile_not_logged_in
+import phitracker.composeapp.generated.resources.profile_recent_sync
+import phitracker.composeapp.generated.resources.profile_set_avatar
+import phitracker.composeapp.generated.resources.profile_sync_time
 
 private val ChallengeTierColors = listOf(
     Color(0xFFCCCCCC),
@@ -175,7 +189,7 @@ fun ProfileTab(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "最近同步",
+            text = stringResource(Res.string.profile_recent_sync),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -184,7 +198,7 @@ fun ProfileTab(
         if (lastSyncTime != null) {
             val formattedTime = epochMillisToDateTimeString(lastSyncTime)
             Text(
-                text = "同步时间: $formattedTime",
+                text = stringResource(Res.string.profile_sync_time, formattedTime),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 8.dp)
@@ -205,7 +219,7 @@ fun ProfileTab(
                 }
             } else {
                 Text(
-                    text = "本次同步没有新的成绩变动",
+                    text = stringResource(Res.string.profile_no_score_changes),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 8.dp)
@@ -219,7 +233,7 @@ fun ProfileTab(
                 )
             ) {
                 Text(
-                    text = "还没有同步过数据\n点击右上角按钮开始",
+                    text = stringResource(Res.string.profile_never_synced),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(24.dp)
@@ -294,7 +308,7 @@ fun ProfileHeaderCard(
                     }
                     AsyncImage(
                         model = imageRequest,
-                        contentDescription = "头像",
+                        contentDescription = stringResource(Res.string.profile_avatar),
                         modifier = Modifier
                             .size(avatarSize)
                             .clip(CircleShape),
@@ -312,7 +326,7 @@ fun ProfileHeaderCard(
                 } else {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "设置头像",
+                        contentDescription = stringResource(Res.string.profile_set_avatar),
                         modifier = Modifier.size(avatarSize * 0.4f),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -326,14 +340,14 @@ fun ProfileHeaderCard(
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = nickname.ifBlank { "未登录" },
+                    text = nickname.ifBlank { stringResource(Res.string.profile_not_logged_in) },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 if (moneyString.isNotBlank()) {
                     Text(
-                        text = "Data: $moneyString",
+                        text = stringResource(Res.string.profile_data_label, moneyString),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -520,7 +534,7 @@ private fun GameUpdateInfoCard(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "GAME UPDATE",
+                text = stringResource(Res.string.profile_game_update_label),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -531,7 +545,7 @@ private fun GameUpdateInfoCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Phigros v${info.version}",
+                    text = stringResource(Res.string.profile_game_update_version, info.version),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -545,7 +559,11 @@ private fun GameUpdateInfoCard(
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "折叠" else "展开",
+                    contentDescription = if (expanded) {
+                        stringResource(Res.string.profile_collapse)
+                    } else {
+                        stringResource(Res.string.profile_expand)
+                    },
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.rotate(arrowRotation)
                 )

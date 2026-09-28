@@ -29,9 +29,19 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.ui.glass.ExpandableGlassSection
 import org.kasumi321.ushio.phitracker.ui.glass.rememberCollapsingTitleStyle
 import org.kasumi321.ushio.phitracker.ui.glass.rememberExpansionArrowRotation
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.b30_header_best_phi
+import phitracker.composeapp.generated.resources.b30_header_b27_floor
+import phitracker.composeapp.generated.resources.b30_header_collapse_rks_info
+import phitracker.composeapp.generated.resources.b30_header_current_rks
+import phitracker.composeapp.generated.resources.b30_header_expand_rks_info
+import phitracker.composeapp.generated.resources.b30_header_generate_image
+import phitracker.composeapp.generated.resources.b30_header_rks_label
+import phitracker.composeapp.generated.resources.b30_header_title
 
 /**
  * Collapsible B30 glass header. Replaces the former top bar plus standalone RKS
@@ -62,7 +72,10 @@ fun B30Header(
             .fillMaxWidth()
             .statusBarsPadding()
             .clickable(
-                onClickLabel = if (expanded) "收起 RKS 信息" else "展开 RKS 信息",
+                onClickLabel = stringResource(
+                    if (expanded) Res.string.b30_header_collapse_rks_info
+                    else Res.string.b30_header_expand_rks_info
+                ),
                 role = Role.Button,
                 onClick = onToggle
             )
@@ -77,7 +90,7 @@ fun B30Header(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "Best 30",
+                        text = stringResource(Res.string.b30_header_title),
                         style = rememberCollapsingTitleStyle(compact = !expanded)
                     )
 
@@ -88,7 +101,10 @@ fun B30Header(
                         exit = fadeOut()
                     ) {
                         Text(
-                            text = "RKS ${state.displayRks.formatFour()}",
+                            text = stringResource(
+                                Res.string.b30_header_current_rks,
+                                state.displayRks.formatFour()
+                            ),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
@@ -111,7 +127,10 @@ fun B30Header(
 
             Icon(
                 imageVector = Icons.Filled.KeyboardArrowDown,
-                contentDescription = if (expanded) "收起 RKS 信息" else "展开 RKS 信息",
+                contentDescription = stringResource(
+                    if (expanded) Res.string.b30_header_collapse_rks_info
+                    else Res.string.b30_header_expand_rks_info
+                ),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.rotate(arrowRotation)
             )
@@ -128,7 +147,7 @@ fun B30Header(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Icon(Icons.Filled.Image, contentDescription = "生成图片")
+                    Icon(Icons.Filled.Image, contentDescription = stringResource(Res.string.b30_header_generate_image))
                 }
             }
         }
@@ -145,7 +164,7 @@ fun B30Header(
                 ) {
                     Column {
                         Text(
-                            text = "RKS",
+                            text = stringResource(Res.string.b30_header_rks_label),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -161,7 +180,7 @@ fun B30Header(
                         Column(horizontalAlignment = Alignment.End) {
                             if (phi3.isNotEmpty()) {
                                 Text(
-                                    text = "Best φ",
+                                    text = stringResource(Res.string.b30_header_best_phi),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -173,7 +192,10 @@ fun B30Header(
                             }
                             if (b27.size >= 27) {
                                 Text(
-                                    text = "B27 末位: ${b27.last().rks.formatFour()}",
+                                    text = stringResource(
+                                        Res.string.b30_header_b27_floor,
+                                        b27.last().rks.formatFour()
+                                    ),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )

@@ -67,6 +67,45 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.jetbrains.compose.resources.stringResource
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.tools_accuracy_label
+import phitracker.composeapp.generated.resources.tools_chart_constant_label
+import phitracker.composeapp.generated.resources.tools_close
+import phitracker.composeapp.generated.resources.tools_collapse
+import phitracker.composeapp.generated.resources.tools_copied_to_clipboard
+import phitracker.composeapp.generated.resources.tools_copy_and_close
+import phitracker.composeapp.generated.resources.tools_expand
+import phitracker.composeapp.generated.resources.tools_history_empty
+import phitracker.composeapp.generated.resources.tools_history_need_two
+import phitracker.composeapp.generated.resources.tools_history_range
+import phitracker.composeapp.generated.resources.tools_history_sync_count
+import phitracker.composeapp.generated.resources.tools_login_required
+import phitracker.composeapp.generated.resources.tools_my_rank_subtitle
+import phitracker.composeapp.generated.resources.tools_my_rank_title
+import phitracker.composeapp.generated.resources.tools_not_queried_yet
+import phitracker.composeapp.generated.resources.tools_query_button
+import phitracker.composeapp.generated.resources.tools_query_my_rank_button
+import phitracker.composeapp.generated.resources.tools_rank_label
+import phitracker.composeapp.generated.resources.tools_rank_lookup_subtitle
+import phitracker.composeapp.generated.resources.tools_rank_lookup_title
+import phitracker.composeapp.generated.resources.tools_rks_calculator_subtitle
+import phitracker.composeapp.generated.resources.tools_rks_calculator_title
+import phitracker.composeapp.generated.resources.tools_rks_distribution_subtitle
+import phitracker.composeapp.generated.resources.tools_rks_distribution_title
+import phitracker.composeapp.generated.resources.tools_rks_formula
+import phitracker.composeapp.generated.resources.tools_rks_history_subtitle
+import phitracker.composeapp.generated.resources.tools_rks_history_title
+import phitracker.composeapp.generated.resources.tools_rks_result_label
+import phitracker.composeapp.generated.resources.tools_security_notice_message
+import phitracker.composeapp.generated.resources.tools_security_notice_title
+import phitracker.composeapp.generated.resources.tools_session_token_subtitle
+import phitracker.composeapp.generated.resources.tools_session_token_title
+import phitracker.composeapp.generated.resources.tools_show_credentials
+import phitracker.composeapp.generated.resources.tools_suggest_subtitle
+import phitracker.composeapp.generated.resources.tools_suggest_title
+import phitracker.composeapp.generated.resources.tools_target_rks_label
+import phitracker.composeapp.generated.resources.tools_view_suggestions
 import org.kasumi321.ushio.phitracker.data.platform.copyToClipboard
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
@@ -107,33 +146,33 @@ fun ToolsTab(
         Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))
 
             CollapsibleToolCard(
-                    title = "RKS 计算器",
-                    subtitle = "输入定数和准确率，立即算出单曲 RKS",
+                    title = stringResource(Res.string.tools_rks_calculator_title),
+                    subtitle = stringResource(Res.string.tools_rks_calculator_subtitle),
                     icon = Icons.Default.Calculate
             ) { RksCalculatorContent() }
 
             CollapsibleToolCard(
-                    title = "推分建议",
-                    subtitle = "根据你的成绩数据，推荐值得挑战的曲目",
+                    title = stringResource(Res.string.tools_suggest_title),
+                    subtitle = stringResource(Res.string.tools_suggest_subtitle),
                     icon = Icons.AutoMirrored.Filled.ShowChart
             ) { SuggestEntryContent(onNavigateToSuggest) }
 
             CollapsibleToolCard(
-                    title = "RKS 成长轨迹",
-                    subtitle = "查看 RKS 随时间的变化趋势",
+                    title = stringResource(Res.string.tools_rks_history_title),
+                    subtitle = stringResource(Res.string.tools_rks_history_subtitle),
                     icon = Icons.AutoMirrored.Filled.ShowChart
             ) { RksHistoryChartContent(syncSnapshots) }
 
             if (apiEnabled && useApiData) {
                 CollapsibleToolCard(
-                        title = "我的排名",
-                        subtitle = "查看你的全服排名",
+                        title = stringResource(Res.string.tools_my_rank_title),
+                        subtitle = stringResource(Res.string.tools_my_rank_subtitle),
                         icon = Icons.Default.AccountCircle
                 ) { ApiRankByUserContent(state = apiRankByUser, onFetch = onFetchRankByUser) }
 
                 CollapsibleToolCard(
-                        title = "名次查询",
-                        subtitle = "输入排名，看看是谁在前面",
+                        title = stringResource(Res.string.tools_rank_lookup_title),
+                        subtitle = stringResource(Res.string.tools_rank_lookup_subtitle),
                         icon = Icons.Default.DataThresholding
                 ) {
                     ApiRankByPositionContent(
@@ -143,8 +182,8 @@ fun ToolsTab(
                 }
 
                 CollapsibleToolCard(
-                        title = "RKS 分布",
-                        subtitle = "看看有多少人的 RKS 比它高",
+                        title = stringResource(Res.string.tools_rks_distribution_title),
+                        subtitle = stringResource(Res.string.tools_rks_distribution_subtitle),
                         icon = Icons.Default.AreaChart
                 ) {
                     ApiRksRankContent(
@@ -156,8 +195,8 @@ fun ToolsTab(
             }
 
             CollapsibleToolCard(
-                    title = "sessionToken",
-                    subtitle = "查看并复制当前 sessionToken",
+                    title = stringResource(Res.string.tools_session_token_title),
+                    subtitle = stringResource(Res.string.tools_session_token_subtitle),
                     icon = Icons.Default.ContentCopy
             ) { SessionTokenContent(sessionToken) }
 
@@ -204,7 +243,9 @@ private fun CollapsibleToolCard(
                     imageVector =
                             if (expanded) Icons.Default.KeyboardArrowUp
                             else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "折叠" else "展开",
+                    contentDescription =
+                            if (expanded) stringResource(Res.string.tools_collapse)
+                            else stringResource(Res.string.tools_expand),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -243,7 +284,7 @@ private fun RksCalculatorContent() {
             } else null
 
     Text(
-            text = "计算公式：RKS = ((acc − 55) / 45)² × 定数",
+            text = stringResource(Res.string.tools_rks_formula),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
     )
@@ -252,7 +293,7 @@ private fun RksCalculatorContent() {
         OutlinedTextField(
                 value = chartConstantInput,
                 onValueChange = { chartConstantInput = it },
-                label = { Text("谱面定数") },
+                label = { Text(stringResource(Res.string.tools_chart_constant_label)) },
                 placeholder = { Text("15.3") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -262,7 +303,7 @@ private fun RksCalculatorContent() {
         OutlinedTextField(
                 value = accuracyInput,
                 onValueChange = { accuracyInput = it },
-                label = { Text("准确率") },
+                label = { Text(stringResource(Res.string.tools_accuracy_label)) },
                 placeholder = { Text("97.50") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -272,7 +313,7 @@ private fun RksCalculatorContent() {
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-                text = "计算结果",
+                text = stringResource(Res.string.tools_rks_result_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -297,8 +338,9 @@ private fun RksHistoryChartContent(snapshots: List<SyncSnapshot>) {
         ) {
             Text(
                     text =
-                            if (snapshots.isEmpty()) "还没有同步记录\n同步数据后这里会显示 RKS 变化趋势"
-                            else "至少需要 2 次同步记录才能展示趋势",
+                            if (snapshots.isEmpty())
+                                    stringResource(Res.string.tools_history_empty)
+                            else stringResource(Res.string.tools_history_need_two),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -314,12 +356,17 @@ private fun RksHistoryChartContent(snapshots: List<SyncSnapshot>) {
     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                    text = "范围: ${minRks.formatFour()} ~ ${maxRks.formatFour()}",
+                    text =
+                            stringResource(
+                                    Res.string.tools_history_range,
+                                    minRks.formatFour(),
+                                    maxRks.formatFour()
+                            ),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                    text = "共 ${snapshots.size} 次同步",
+                    text = stringResource(Res.string.tools_history_sync_count, snapshots.size),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -477,7 +524,7 @@ private fun ApiRankByUserContent(state: ApiToolResult, onFetch: () -> Unit) {
             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
             Spacer(modifier = Modifier.width(8.dp))
         }
-        Text("查询当前用户排名")
+        Text(stringResource(Res.string.tools_query_my_rank_button))
     }
     ApiToolResultPanel(state = state)
 }
@@ -493,7 +540,7 @@ private fun ApiRankByPositionContent(state: ApiToolResult, onFetch: (Int) -> Uni
         OutlinedTextField(
                 value = rankInput,
                 onValueChange = { rankInput = it },
-                label = { Text("名次") },
+                label = { Text(stringResource(Res.string.tools_rank_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier.weight(1f)
@@ -502,7 +549,7 @@ private fun ApiRankByPositionContent(state: ApiToolResult, onFetch: (Int) -> Uni
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
             } else {
-                Text("查询")
+                Text(stringResource(Res.string.tools_query_button))
             }
         }
     }
@@ -523,7 +570,7 @@ private fun ApiRksRankContent(state: ApiToolResult, defaultRks: Float, onFetch: 
         OutlinedTextField(
                 value = rksInput,
                 onValueChange = { rksInput = it },
-                label = { Text("目标 RKS") },
+                label = { Text(stringResource(Res.string.tools_target_rks_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
                 modifier = Modifier.weight(1f)
@@ -532,7 +579,7 @@ private fun ApiRksRankContent(state: ApiToolResult, defaultRks: Float, onFetch: 
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
             } else {
-                Text("查询")
+                Text(stringResource(Res.string.tools_query_button))
             }
         }
     }
@@ -552,7 +599,7 @@ private fun ApiToolResultPanel(state: ApiToolResult) {
     }
 
     Text(
-            text = state.message ?: "尚未查询",
+            text = state.message ?: stringResource(Res.string.tools_not_queried_yet),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
     )
@@ -580,10 +627,11 @@ private fun RankInfoRow(label: String, value: String) {
 @Composable
 private fun SessionTokenContent(sessionToken: String?) {
     var showTokenDialog by remember { mutableStateOf(false) }
+    val copiedToClipboardMessage = stringResource(Res.string.tools_copied_to_clipboard)
 
     if (sessionToken == null) {
         Text(
-                text = "请先登录后再使用此功能",
+                text = stringResource(Res.string.tools_login_required),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -591,7 +639,7 @@ private fun SessionTokenContent(sessionToken: String?) {
         OutlinedButton(onClick = { showTokenDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Key, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
-            Text("显示登录凭据")
+            Text(stringResource(Res.string.tools_show_credentials))
         }
     }
 
@@ -605,12 +653,11 @@ private fun SessionTokenContent(sessionToken: String?) {
                             tint = MaterialTheme.colorScheme.error
                     )
                 },
-                title = { Text("安全提示") },
+                title = { Text(stringResource(Res.string.tools_security_notice_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                                text =
-                                        "sessionToken 是您的账号凭证，拥有此 Token 的人可以读取您的游戏存档。\n\n请勿将此 Token 分享给任何不信任的人。",
+                                text = stringResource(Res.string.tools_security_notice_message),
                                 style = MaterialTheme.typography.bodyMedium
                         )
                         ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -630,7 +677,7 @@ private fun SessionTokenContent(sessionToken: String?) {
                     TextButton(
                             onClick = {
                                 copyToClipboard("sessionToken", sessionToken)
-                                showPlatformMessage("已复制到剪贴板")
+                                showPlatformMessage(copiedToClipboardMessage)
                                 showTokenDialog = false
                             }
                     ) {
@@ -640,10 +687,14 @@ private fun SessionTokenContent(sessionToken: String?) {
                                 modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("复制并关闭")
+                        Text(stringResource(Res.string.tools_copy_and_close))
                     }
                 },
-                dismissButton = { TextButton(onClick = { showTokenDialog = false }) { Text("关闭") } }
+                dismissButton = {
+                    TextButton(onClick = { showTokenDialog = false }) {
+                        Text(stringResource(Res.string.tools_close))
+                    }
+                }
         )
     }
 }
@@ -657,7 +708,7 @@ private fun SuggestEntryContent(onNavigateToSuggest: () -> Unit) {
     OutlinedButton(onClick = onNavigateToSuggest, modifier = Modifier.fillMaxWidth()) {
         Icon(Icons.AutoMirrored.Filled.ShowChart, contentDescription = null)
         Spacer(modifier = Modifier.width(8.dp))
-        Text("查看推分建议")
+        Text(stringResource(Res.string.tools_view_suggestions))
     }
 }
 

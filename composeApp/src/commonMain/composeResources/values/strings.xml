@@ -10,4 +10,8 @@
     <string name="preload_dialog_message">Illustration thumbnails need to be downloaded on first use to display song covers properly.\n\nAbout 60 MB; Wi-Fi recommended.</string>
     <string name="preload_dialog_start">Download</string>
     <string name="preload_dialog_skip">Skip</string>
+    <string name="nav_song_detail_title">Song Details</string>
+    <string name="nav_song_not_found">Song not found</string>
+    <string name="nav_song_id">Song ID: %1$s</string>
+    <string name="action_back">Back</string>
 </resources>

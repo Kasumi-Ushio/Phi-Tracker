@@ -67,6 +67,12 @@ import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import org.jetbrains.compose.resources.stringResource
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.action_back
+import phitracker.composeapp.generated.resources.nav_song_detail_title
+import phitracker.composeapp.generated.resources.nav_song_id
+import phitracker.composeapp.generated.resources.nav_song_not_found
 
 sealed class Screen(val route: String) {
     data object Login : Screen("login")
@@ -439,12 +445,12 @@ private fun SongDetailNotFound(songId: String, onBack: () -> Unit, modifier: Mod
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("曲目详情") },
+                title = { Text(stringResource(Res.string.nav_song_detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
+                            contentDescription = stringResource(Res.string.action_back)
                         )
                     }
                 }
@@ -460,12 +466,12 @@ private fun SongDetailNotFound(songId: String, onBack: () -> Unit, modifier: Mod
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "找不到这个曲目",
+                text = stringResource(Res.string.nav_song_not_found),
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "曲目 ID: $songId",
+                text = stringResource(Res.string.nav_song_id, songId),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -475,7 +481,7 @@ private fun SongDetailNotFound(songId: String, onBack: () -> Unit, modifier: Mod
                 onClick = onBack,
                 modifier = Modifier.padding(top = 24.dp)
             ) {
-                Text("返回")
+                Text(stringResource(Res.string.action_back))
             }
         }
     }

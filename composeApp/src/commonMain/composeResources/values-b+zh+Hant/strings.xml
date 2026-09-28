@@ -10,4 +10,8 @@
     <string name="preload_dialog_message">首次使用需要下載曲繪縮圖資源包以正常顯示曲目封面。\n\n預計約 60 MB，建議在 Wi-Fi 下完成。</string>
     <string name="preload_dialog_start">開始下載</string>
     <string name="preload_dialog_skip">略過</string>
+    <string name="nav_song_detail_title">曲目詳情</string>
+    <string name="nav_song_not_found">找不到這個曲目</string>
+    <string name="nav_song_id">曲目 ID: %1$s</string>
+    <string name="action_back">返回</string>
 </resources>

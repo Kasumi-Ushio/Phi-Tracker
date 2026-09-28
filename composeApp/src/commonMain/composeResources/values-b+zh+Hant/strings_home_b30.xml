@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="b30_empty_message">還沒有成績資料\n前往首頁同步即可檢視</string>
+    <string name="b30_section_phi_best">φ Best (AP)</string>
+    <string name="b30_section_best27">Best 27</string>
+    <string name="b30_section_overflow">Overflow</string>
+    <string name="b30_tag_analysis_title">譜面標籤統計</string>
+    <string name="b30_action_collapse">摺疊</string>
+    <string name="b30_action_expand">展開</string>
+    <string name="b30_action_retry">重試</string>
+    <string name="b30_header_title">Best 30</string>
+    <string name="b30_header_current_rks">RKS %1$s</string>
+    <string name="b30_header_collapse_rks_info">收起 RKS 資訊</string>
+    <string name="b30_header_expand_rks_info">展開 RKS 資訊</string>
+    <string name="b30_header_generate_image">產生圖片</string>
+    <string name="b30_header_rks_label">RKS</string>
+    <string name="b30_header_best_phi">Best φ</string>
+    <string name="b30_header_b27_floor">B27 末位: %1$s</string>
+</resources>

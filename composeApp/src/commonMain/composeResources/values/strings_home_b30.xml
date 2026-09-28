@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="b30_empty_message">No scores yet\nSync from the Home tab to view</string>
+    <string name="b30_section_phi_best">φ Best (AP)</string>
+    <string name="b30_section_best27">Best 27</string>
+    <string name="b30_section_overflow">Overflow</string>
+    <string name="b30_tag_analysis_title">Chart Profile Statistics</string>
+    <string name="b30_action_collapse">Collapse</string>
+    <string name="b30_action_expand">Expand</string>
+    <string name="b30_action_retry">Retry</string>
+    <string name="b30_header_title">Best 30</string>
+    <string name="b30_header_current_rks">RKS %1$s</string>
+    <string name="b30_header_collapse_rks_info">Collapse RKS info</string>
+    <string name="b30_header_expand_rks_info">Expand RKS info</string>
+    <string name="b30_header_generate_image">Generate image</string>
+    <string name="b30_header_rks_label">RKS</string>
+    <string name="b30_header_best_phi">Best φ</string>
+    <string name="b30_header_b27_floor">B27 floor: %1$s</string>
+</resources>

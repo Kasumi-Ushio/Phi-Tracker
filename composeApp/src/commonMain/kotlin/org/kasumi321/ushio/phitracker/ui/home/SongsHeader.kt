@@ -44,8 +44,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.ui.glass.ExpandableGlassSection
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.songs_all_songs_count
+import phitracker.composeapp.generated.resources.songs_cd_clear_search
+import phitracker.composeapp.generated.resources.songs_cd_expand_search
+import phitracker.composeapp.generated.resources.songs_cd_filter
+import phitracker.composeapp.generated.resources.songs_search_placeholder
 
 /**
  * Unified songs glass header built from a single layout tree: the title, marquee
@@ -115,7 +122,7 @@ fun SongsHeader(
             // title instead of sitting below the action row
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "全部曲目 ($songCount)",
+                    text = stringResource(Res.string.songs_all_songs_count, songCount),
                     style = titleStyle,
                     fontSize = titleFontSize.sp,
                     lineHeight = titleLineHeight.sp
@@ -155,7 +162,7 @@ fun SongsHeader(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onSearchExpandRequest) {
-                        Icon(Icons.Filled.Search, contentDescription = "展开搜索")
+                        Icon(Icons.Filled.Search, contentDescription = stringResource(Res.string.songs_cd_expand_search))
                     }
                     SongsFilterEntry(
                         activeFilterCount = activeFilterCount,
@@ -176,7 +183,7 @@ fun SongsHeader(
                         .focusRequester(focusRequester),
                     placeholder = {
                         Text(
-                            "搜索曲名、作曲或别名...",
+                            stringResource(Res.string.songs_search_placeholder),
                             style = MaterialTheme.typography.bodyMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -187,7 +194,7 @@ fun SongsHeader(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (searchQuery.isNotEmpty()) {
                                 IconButton(onClick = { onSearchChange("") }) {
-                                    Icon(Icons.Filled.Close, contentDescription = "清除搜索")
+                                    Icon(Icons.Filled.Close, contentDescription = stringResource(Res.string.songs_cd_clear_search))
                                 }
                             }
                             SongsFilterEntry(
@@ -224,7 +231,7 @@ private fun SongsFilterEntry(
         ) {
             Icon(
                 Icons.Filled.FilterList,
-                contentDescription = "Filter",
+                contentDescription = stringResource(Res.string.songs_cd_filter),
                 tint = if (activeFilterCount > 0)
                     MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant

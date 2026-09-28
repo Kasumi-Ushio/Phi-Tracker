@@ -59,11 +59,26 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import org.kasumi321.ushio.phitracker.ui.utils.chapterDisplayName
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.songs_action_done
+import phitracker.composeapp.generated.resources.songs_action_reset
+import phitracker.composeapp.generated.resources.songs_chapter_label
+import phitracker.composeapp.generated.resources.songs_chapters_select_hint
+import phitracker.composeapp.generated.resources.songs_chapters_selected_count
+import phitracker.composeapp.generated.resources.songs_clear_all_count
+import phitracker.composeapp.generated.resources.songs_data_update_available
+import phitracker.composeapp.generated.resources.songs_difficulty_all
+import phitracker.composeapp.generated.resources.songs_difficulty_label
+import phitracker.composeapp.generated.resources.songs_filter_title
+import phitracker.composeapp.generated.resources.songs_level_range_label
+import phitracker.composeapp.generated.resources.songs_select_chapters_title
+import phitracker.composeapp.generated.resources.songs_update_now
 import kotlin.math.roundToInt
 
 private fun Float.formatLevel(): String {
@@ -127,11 +142,11 @@ fun SongsTab(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "曲目数据有更新",
+                            text = stringResource(Res.string.songs_data_update_available),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         TextButton(onClick = onRefreshSongData) {
-                            Text("立即更新")
+                            Text(stringResource(Res.string.songs_update_now))
                         }
                     }
                 }
@@ -236,27 +251,27 @@ private fun FilterBottomSheetContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("筛选曲目", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(stringResource(Res.string.songs_filter_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TextButton(onClick = onResetFilters) {
-                    Text("重置")
+                    Text(stringResource(Res.string.songs_action_reset))
                 }
                 TextButton(onClick = onClose) {
-                    Text("完成")
+                    Text(stringResource(Res.string.songs_action_done))
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Text("难度", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.songs_difficulty_label), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(6.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
                 FilterChip(
                     selected = selectedDifficulty == null,
                     onClick = { onDifficultySelect(null) },
-                    label = { Text("全部") }
+                    label = { Text(stringResource(Res.string.songs_difficulty_all)) }
                 )
             }
             items(listOf(Difficulty.EZ, Difficulty.HD, Difficulty.IN, Difficulty.AT)) { diff ->
@@ -274,7 +289,7 @@ private fun FilterBottomSheetContent(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        Text("定数范围：$minLevel ~ $maxLevel", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.songs_level_range_label, minLevel, maxLevel), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(6.dp))
         var sliderPosition by remember(minLevel, maxLevel) { mutableStateOf(minLevel.toFloat()..maxLevel.toFloat()) }
         RangeSlider(
@@ -308,10 +323,11 @@ private fun FilterBottomSheetContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("章节", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.songs_chapter_label), style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = if (selectedChapters.isEmpty()) "点击选择" else "已选 ${selectedChapters.size} 个",
+                    text = if (selectedChapters.isEmpty()) stringResource(Res.string.songs_chapters_select_hint)
+                    else stringResource(Res.string.songs_chapters_selected_count, selectedChapters.size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -345,7 +361,7 @@ private fun ChapterFilterDialog(
 ) {
     AnimatedAlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("选择章节") },
+        title = { Text(stringResource(Res.string.songs_select_chapters_title)) },
         text = {
             // A capped inner scroll is safe here: unlike the bottom sheet, a
             // plain dialog has no drag-to-dismiss gesture competing for drags.
@@ -367,12 +383,12 @@ private fun ChapterFilterDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("完成") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.songs_action_done)) }
         },
         dismissButton = if (selectedChapters.isNotEmpty()) {
             {
                 TextButton(onClick = onClearChapters) {
-                    Text("全部清除 (${selectedChapters.size})")
+                    Text(stringResource(Res.string.songs_clear_all_count, selectedChapters.size))
                 }
             }
         } else null

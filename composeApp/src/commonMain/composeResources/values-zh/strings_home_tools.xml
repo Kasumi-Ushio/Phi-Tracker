@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tools_rks_calculator_title">RKS 计算器</string>
+    <string name="tools_rks_calculator_subtitle">输入定数和准确率，立即算出单曲 RKS</string>
+    <string name="tools_suggest_title">推分建议</string>
+    <string name="tools_suggest_subtitle">根据你的成绩数据，推荐值得挑战的曲目</string>
+    <string name="tools_rks_history_title">RKS 成长轨迹</string>
+    <string name="tools_rks_history_subtitle">查看 RKS 随时间的变化趋势</string>
+    <string name="tools_my_rank_title">我的排名</string>
+    <string name="tools_my_rank_subtitle">查看你的全服排名</string>
+    <string name="tools_rank_lookup_title">名次查询</string>
+    <string name="tools_rank_lookup_subtitle">输入排名，看看是谁在前面</string>
+    <string name="tools_rks_distribution_title">RKS 分布</string>
+    <string name="tools_rks_distribution_subtitle">看看有多少人的 RKS 比它高</string>
+    <string name="tools_session_token_title">sessionToken</string>
+    <string name="tools_session_token_subtitle">查看并复制当前 sessionToken</string>
+    <string name="tools_expand">展开</string>
+    <string name="tools_collapse">折叠</string>
+    <string name="tools_rks_formula">计算公式：RKS = ((acc − 55) / 45)² × 定数</string>
+    <string name="tools_chart_constant_label">谱面定数</string>
+    <string name="tools_accuracy_label">准确率</string>
+    <string name="tools_rks_result_label">计算结果</string>
+    <string name="tools_history_empty">还没有同步记录\n同步数据后这里会显示 RKS 变化趋势</string>
+    <string name="tools_history_need_two">至少需要 2 次同步记录才能展示趋势</string>
+    <string name="tools_history_range">范围: %1$s ~ %2$s</string>
+    <string name="tools_history_sync_count">共 %1$d 次同步</string>
+    <string name="tools_query_my_rank_button">查询当前用户排名</string>
+    <string name="tools_rank_label">名次</string>
+    <string name="tools_query_button">查询</string>
+    <string name="tools_target_rks_label">目标 RKS</string>
+    <string name="tools_not_queried_yet">尚未查询</string>
+    <string name="tools_login_required">请先登录后再使用此功能</string>
+    <string name="tools_show_credentials">显示登录凭据</string>
+    <string name="tools_security_notice_title">安全提示</string>
+    <string name="tools_security_notice_message">sessionToken 是您的账号凭证，拥有此 Token 的人可以读取您的游戏存档。\n\n请勿将此 Token 分享给任何不信任的人。</string>
+    <string name="tools_copied_to_clipboard">已复制到剪贴板</string>
+    <string name="tools_copy_and_close">复制并关闭</string>
+    <string name="tools_close">关闭</string>
+    <string name="tools_view_suggestions">查看推分建议</string>
+</resources>
