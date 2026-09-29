@@ -9,10 +9,10 @@ class TipsProvider(
     private val assetReader: TextAssetReader = createTextAssetReader(),
     private val languageTag: () -> String = { currentLanguageTag() }
 ) {
-    private val tips: List<String> by lazy {
+    private fun loadTips(): List<String> {
         val tag = languageTag().lowercase()
         val preferred = if (tag.startsWith("zh")) TIPS_ZH else TIPS_EN
-        readTips(preferred).ifEmpty {
+        return readTips(preferred).ifEmpty {
             if (preferred == TIPS_ZH) emptyList() else readTips(TIPS_ZH)
         }
     }
@@ -25,6 +25,10 @@ class TipsProvider(
     }.getOrDefault(emptyList())
 
     fun getRandomTip(): String {
+        // Read on every call instead of caching: the in-app language switcher
+        // recreates activities without restarting the process, and a cached
+        // list would keep showing tips in the previous language.
+        val tips = loadTips()
         if (tips.isEmpty()) return "Tip: Welcome to PhigrosTracker!"
         val rawTip = tips[Random.nextInt(tips.size)]
         return if (rawTip.startsWith("Tip:", ignoreCase = true)) rawTip else "Tip: $rawTip"

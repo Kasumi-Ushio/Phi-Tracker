@@ -1,6 +1,7 @@
 package org.kasumi321.ushio.phitracker.ui.settings
 
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
+import org.kasumi321.ushio.phitracker.data.platform.setAppLocale
 
 fun SettingsViewModel.setThemeMode(value: Int) = launchSetting { settingsRepository.setThemeMode(value) }
 
@@ -47,6 +48,13 @@ fun SettingsViewModel.setHazeBlurEnabled(value: Boolean) = launchSetting {
 fun SettingsViewModel.setHazeBlurStrength(value: Float) = launchSetting {
     AppLogger.event("settings", "haze_blur_strength_changed", mapOf("strength" to value.toString()))
     settingsRepository.setHazeBlurStrength(value)
+}
+
+fun SettingsViewModel.setAppLanguage(value: String) = launchSetting {
+    AppLogger.event("settings", "app_language_changed", mapOf("language" to value))
+    settingsRepository.setAppLanguage(value)
+    val restartRequired = setAppLocale(value.takeIf { it != SettingsConstants.LANGUAGE_SYSTEM })
+    if (restartRequired) eventChannel.send(SettingsEvent.RestartRequested)
 }
 
 fun SettingsViewModel.setApiEnabled(value: Boolean) = launchSetting {

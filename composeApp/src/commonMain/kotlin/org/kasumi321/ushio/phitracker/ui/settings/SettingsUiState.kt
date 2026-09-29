@@ -14,6 +14,7 @@ data class SettingsUiState(
     val overflowCount: Int = 9,
     val hazeBlurEnabled: Boolean = true,
     val hazeBlurStrength: Float = 0.75f,
+    val appLanguage: String = "system",
     val isCachingB30Artwork: Boolean = false,
     val b30ArtworkCacheCompleted: Int = 0,
     val b30ArtworkCacheTotal: Int = 0,

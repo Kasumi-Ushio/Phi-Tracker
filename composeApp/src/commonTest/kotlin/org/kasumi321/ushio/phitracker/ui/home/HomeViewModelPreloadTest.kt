@@ -787,6 +787,8 @@ class HomeViewModelPreloadTest {
             private set
 
         override suspend fun setThemeMode(mode: Int) = Unit
+        override val appLanguage: Flow<String> = flowOf("system")
+        override suspend fun setAppLanguage(language: String) = Unit
         override suspend fun setThemeColorSource(source: String) = Unit
         override suspend fun setSeedColorArgb(argb: Int) = Unit
         override suspend fun setThemeImageColor(uri: String?, seedColorArgb: Int) = Unit

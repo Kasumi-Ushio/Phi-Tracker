@@ -3,6 +3,8 @@
     <string name="settings_api_test_failed">Connection failed: %1$s</string>
     <string name="settings_api_test_ok">Connection OK</string>
     <string name="settings_api_test_partial">Connected, but account lookup failed: %1$s</string>
+    <string name="settings_restart_required_message">Please restart the app manually for the change to take effect.</string>
+    <string name="settings_restart_required_title">Restart required</string>
     <string name="settings_redownload_failed">Failed to re-download illustrations: %1$s</string>
     <string name="settings_b30_cache_no_songs">There are no B30 songs to cache</string>
     <string name="settings_b30_cache_partial_failed">Failed to cache HD illustrations for %1$d B30 songs</string>
@@ -80,6 +82,8 @@
     <string name="settings_hide_api_token">Hide API Token</string>
     <string name="settings_include_prerelease">Receive pre-release updates</string>
     <string name="settings_include_prerelease_desc">When enabled, you will receive beta update notifications</string>
+    <string name="settings_language_follow_system">Follow system</string>
+    <string name="settings_language_title">Language</string>
     <string name="settings_later">Later</string>
     <string name="settings_logout">Log out</string>
     <string name="settings_logout_confirm">Log out</string>

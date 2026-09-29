@@ -36,6 +36,17 @@ class SettingsRepositoryImpl(
     )
     override val overflowCount: Flow<Int> = overflowCountState.asStateFlow()
 
+    private val appLanguageState = MutableStateFlow(
+        storage.getString(KEY_APP_LANGUAGE)?.takeIf { it in SUPPORTED_APP_LANGUAGES } ?: APP_LANGUAGE_SYSTEM
+    )
+    override val appLanguage: Flow<String> = appLanguageState.asStateFlow()
+
+    override suspend fun setAppLanguage(language: String) {
+        val normalized = language.takeIf { it in SUPPORTED_APP_LANGUAGES } ?: APP_LANGUAGE_SYSTEM
+        storage.putString(KEY_APP_LANGUAGE, normalized)
+        appLanguageState.value = normalized
+    }
+
     override suspend fun setThemeMode(mode: Int) {
         storage.putString(KEY_THEME_MODE, mode.toString())
         themeModeState.value = mode
@@ -261,6 +272,9 @@ class SettingsRepositoryImpl(
         const val KEY_PALETTE_STYLE_NAME = "palette_style_name"
         const val KEY_SHOW_B30_OVERFLOW = "show_b30_overflow"
         const val KEY_OVERFLOW_COUNT = "overflow_count"
+        const val KEY_APP_LANGUAGE = "app_language"
+        const val APP_LANGUAGE_SYSTEM = "system"
+        val SUPPORTED_APP_LANGUAGES = setOf(APP_LANGUAGE_SYSTEM, "en", "zh-Hans", "zh-Hant")
         const val KEY_B30_CARD_STYLE = "b30_card_style"
         const val B30_CARD_STYLE_CLASSIC = "classic"
         const val B30_CARD_STYLE_SCORE_FOCUS = "score_focus"

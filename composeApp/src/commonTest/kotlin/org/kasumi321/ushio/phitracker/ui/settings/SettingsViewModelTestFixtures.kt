@@ -112,6 +112,8 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val showB30Overflow: Flow<Boolean> = overflowState
     private val countState = MutableStateFlow(9)
     override val overflowCount: Flow<Int> = countState
+    private val appLanguageState = MutableStateFlow("system")
+    override val appLanguage: Flow<String> = appLanguageState
     private val b30CardStyleState = MutableStateFlow("classic")
     override val b30CardStyle: Flow<String> = b30CardStyleState
     private val b30ThemeFollowGlobalState = MutableStateFlow(true)
@@ -152,6 +154,7 @@ internal class FakeSettingsRepository : SettingsRepository {
     override suspend fun setPaletteStyleName(name: String) { paletteState.value = name }
     override suspend fun setShowB30Overflow(show: Boolean) { overflowState.value = show }
     override suspend fun setOverflowCount(count: Int) { countState.value = count.coerceIn(1, 30) }
+    override suspend fun setAppLanguage(language: String) { appLanguageState.value = language }
     override suspend fun setB30CardStyle(style: String) { b30CardStyleState.value = style }
     override suspend fun setB30ThemeFollowGlobal(follow: Boolean) { b30ThemeFollowGlobalState.value = follow }
     override suspend fun setB30ExportThemeMode(mode: Int) { b30ExportThemeModeState.value = mode.coerceIn(1, 3) }

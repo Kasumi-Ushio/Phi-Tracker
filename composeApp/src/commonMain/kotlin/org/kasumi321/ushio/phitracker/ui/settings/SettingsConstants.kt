@@ -19,4 +19,11 @@ object SettingsConstants {
 
     /** Number of steps between min and max at 0.25 increments. */
     const val HAZE_SLIDER_STEPS: Int = ((HAZE_STRENGTH_MAX - HAZE_STRENGTH_MIN) / 0.25f).toInt() - 1
+
+    /** Follow the device language. */
+    const val LANGUAGE_SYSTEM: String = "system"
+
+    const val LANGUAGE_ENGLISH: String = "en"
+    const val LANGUAGE_ZH_HANS: String = "zh-Hans"
+    const val LANGUAGE_ZH_HANT: String = "zh-Hant"
 }

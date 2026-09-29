@@ -4,8 +4,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
 import org.kasumi321.ushio.phitracker.data.platform.triggerAppRestart
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.settings_restart_required_message
+import phitracker.composeapp.generated.resources.settings_restart_required_title
 
 @Composable
 fun SettingsScreen(
@@ -17,12 +21,15 @@ fun SettingsScreen(
     val state by viewModel.uiState.collectAsState()
     val metadata = getAppMetadata()
     val isDebugBuild = metadata.buildType == "Debug"
+    val restartRequiredTitle = stringResource(Res.string.settings_restart_required_title)
+    val restartRequiredMessage = stringResource(Res.string.settings_restart_required_message)
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
                 SettingsEvent.LoggedOut -> onLogout()
-                SettingsEvent.RestartRequested -> triggerAppRestart()
+                SettingsEvent.RestartRequested ->
+                    triggerAppRestart(restartRequiredTitle, restartRequiredMessage)
             }
         }
     }
@@ -38,6 +45,8 @@ fun SettingsScreen(
         overflowCount = state.overflowCount,
         hazeBlurEnabled = state.hazeBlurEnabled,
         hazeBlurStrength = state.hazeBlurStrength,
+        appLanguage = state.appLanguage,
+        onAppLanguageChange = { viewModel.setAppLanguage(it) },
         onThemeModeChange = { viewModel.setThemeMode(it) },
         onThemeColorSourceChange = { viewModel.setThemeColorSource(it) },
         onSeedColorArgbChange = { viewModel.setSeedColorArgb(it) },

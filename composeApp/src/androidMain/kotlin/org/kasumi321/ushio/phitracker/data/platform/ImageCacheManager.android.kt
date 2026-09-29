@@ -21,6 +21,6 @@ actual suspend fun clearAllImageCache() {
     imageLoader.memoryCache?.clear()
 }
 
-actual fun triggerAppRestart() {
+actual fun triggerAppRestart(title: String, message: String) {
     kotlin.system.exitProcess(0)
 }

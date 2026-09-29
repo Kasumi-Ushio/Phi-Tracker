@@ -445,4 +445,44 @@ class SettingsRepositoryImplTest {
         assertEquals(false, repo2.b30ThemeFollowGlobal.first())
         assertEquals(2, repo2.b30ExportThemeMode.first())
     }
+
+    @Test
+    fun defaultsAppLanguageSystem(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals("system", repo.appLanguage.first())
+    }
+
+    @Test
+    fun setAndReadAppLanguage(): Unit = runTest {
+        val repo = createRepo()
+        repo.setAppLanguage("zh-Hant")
+        assertEquals("zh-Hant", repo.appLanguage.first())
+        repo.setAppLanguage("system")
+        assertEquals("system", repo.appLanguage.first())
+    }
+
+    @Test
+    fun appLanguageUnknownValueFallsBackToSystem(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+        storage.putString("app_language", "fr")
+
+        val repo = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals("system", repo.appLanguage.first())
+
+        repo.setAppLanguage("fr")
+        assertEquals("system", repo.appLanguage.first())
+    }
+
+    @Test
+    fun appLanguagePersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setAppLanguage("en")
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals("en", repo2.appLanguage.first())
+    }
 }

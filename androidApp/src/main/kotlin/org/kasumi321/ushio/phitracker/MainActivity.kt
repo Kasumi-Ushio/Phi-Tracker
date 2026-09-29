@@ -1,5 +1,6 @@
 package org.kasumi321.ushio.phitracker
 
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -16,11 +17,18 @@ import org.kasumi321.ushio.phitracker.data.platform.AndroidPlatformContext
 import org.kasumi321.ushio.phitracker.data.platform.NotificationPermissionRequester
 import org.kasumi321.ushio.phitracker.data.platform.SafTreeManager
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
+import org.kasumi321.ushio.phitracker.data.platform.wrapWithAppLocale
 import org.kasumi321.ushio.phitracker.di.initKoin
 
 class MainActivity : ComponentActivity() {
 
     private var anrWatchDog: AnrWatchDog? = null
+
+    // Applies the stored in-app language on API 32 and below; API 33+ resolves
+    // per-app locales in the framework, so the wrapper is a no-op there.
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(wrapWithAppLocale(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

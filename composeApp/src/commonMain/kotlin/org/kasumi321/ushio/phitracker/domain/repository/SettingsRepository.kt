@@ -13,6 +13,14 @@ interface SettingsRepository {
     val overflowCount: Flow<Int>
 
     /**
+     * In-app display language override: "system" (default) follows the device
+     * language; other supported values are "en", "zh-Hans" and "zh-Hant".
+     * Applied through the platform per-app locale mechanism.
+     */
+    val appLanguage: Flow<String>
+    suspend fun setAppLanguage(language: String)
+
+    /**
      * B30 export card layout style: "classic" (default) or "score_focus".
      * Consumed as B30ExportCardStyle in ui.b30.
      */

@@ -3,6 +3,8 @@
     <string name="settings_api_test_failed">連線失敗：%1$s</string>
     <string name="settings_api_test_ok">連線正常</string>
     <string name="settings_api_test_partial">已連線，但帳號查詢失敗：%1$s</string>
+    <string name="settings_restart_required_message">請手動重新啟動應用程式以使更改生效。</string>
+    <string name="settings_restart_required_title">需要重新啟動</string>
     <string name="settings_redownload_failed">重新下載曲繪失敗: %1$s</string>
     <string name="settings_b30_cache_no_songs">目前沒有可快取的 B30 曲目</string>
     <string name="settings_b30_cache_partial_failed">%1$d 個 B30 高畫質曲繪快取失敗</string>
@@ -80,6 +82,8 @@
     <string name="settings_hide_api_token">隱藏 API Token</string>
     <string name="settings_include_prerelease">接收預先發行版本更新</string>
     <string name="settings_include_prerelease_desc">開啟後將收到測試版更新通知</string>
+    <string name="settings_language_follow_system">跟隨系統</string>
+    <string name="settings_language_title">語言</string>
     <string name="settings_later">稍後</string>
     <string name="settings_logout">登出</string>
     <string name="settings_logout_confirm">登出</string>

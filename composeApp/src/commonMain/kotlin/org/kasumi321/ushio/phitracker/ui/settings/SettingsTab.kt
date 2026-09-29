@@ -137,6 +137,8 @@ import phitracker.composeapp.generated.resources.settings_haze_blur_desc
 import phitracker.composeapp.generated.resources.settings_hide_api_token
 import phitracker.composeapp.generated.resources.settings_include_prerelease
 import phitracker.composeapp.generated.resources.settings_include_prerelease_desc
+import phitracker.composeapp.generated.resources.settings_language_follow_system
+import phitracker.composeapp.generated.resources.settings_language_title
 import phitracker.composeapp.generated.resources.settings_later
 import phitracker.composeapp.generated.resources.settings_logout
 import phitracker.composeapp.generated.resources.settings_logout_confirm
@@ -191,6 +193,8 @@ fun SettingsTab(
         overflowCount: Int,
         hazeBlurEnabled: Boolean = true,
         hazeBlurStrength: Float = 0.75f,
+        appLanguage: String = "system",
+        onAppLanguageChange: (String) -> Unit = {},
         onThemeModeChange: (Int) -> Unit,
         onThemeColorSourceChange: (String) -> Unit = {},
         onSeedColorArgbChange: (Int) -> Unit = {},
@@ -412,6 +416,51 @@ fun SettingsTab(
                                     onClick = {
                                         onThemeModeChange(index)
                                         expandedTheme = false
+                                    }
+                            )
+                        }
+                    }
+                }
+            }
+
+            val languageOptions =
+                    listOf(
+                            SettingsConstants.LANGUAGE_SYSTEM to stringResource(Res.string.settings_language_follow_system),
+                            SettingsConstants.LANGUAGE_ENGLISH to "English",
+                            SettingsConstants.LANGUAGE_ZH_HANS to "简体中文",
+                            SettingsConstants.LANGUAGE_ZH_HANT to "繁體中文"
+                    )
+            var expandedLanguage by remember { mutableStateOf(false) }
+
+            Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                        stringResource(Res.string.settings_language_title),
+                        style = MaterialTheme.typography.bodyLarge
+                )
+                Box {
+                    TextButton(onClick = { expandedLanguage = true }) {
+                        Text(
+                                languageOptions
+                                        .firstOrNull { it.first == appLanguage }
+                                        ?.second
+                                        ?: languageOptions[0].second
+                        )
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    }
+                    DropdownMenu(
+                            expanded = expandedLanguage,
+                            onDismissRequest = { expandedLanguage = false }
+                    ) {
+                        languageOptions.forEach { (tag, label) ->
+                            DropdownMenuItem(
+                                    text = { Text(label) },
+                                    onClick = {
+                                        onAppLanguageChange(tag)
+                                        expandedLanguage = false
                                     }
                             )
                         }

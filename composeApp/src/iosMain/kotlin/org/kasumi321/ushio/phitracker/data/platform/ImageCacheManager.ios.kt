@@ -20,9 +20,9 @@ actual suspend fun clearAllImageCache() {
     imageLoader.memoryCache?.clear()
 }
 
-actual fun triggerAppRestart() {
+actual fun triggerAppRestart(title: String, message: String) {
     showNativeAlert(
-        title = "需要手动重启",
-        message = "iOS 平台暂不支持自动关闭应用，请手动重启应用。",
+        title = title,
+        message = message,
     )
 }
