@@ -28,19 +28,41 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.ack_final_message
+import phitracker.composeapp.generated.resources.ack_final_title
+import phitracker.composeapp.generated.resources.ack_phigroslibrary_auth_link
+import phitracker.composeapp.generated.resources.ack_phigroslibrary_auth_prefix
+import phitracker.composeapp.generated.resources.ack_phigroslibrary_auth_suffix
+import phitracker.composeapp.generated.resources.ack_phigroslibrary_copyright
+import phitracker.composeapp.generated.resources.ack_phigroslibrary_description
+import phitracker.composeapp.generated.resources.ack_phiplugin_copyright
+import phitracker.composeapp.generated.resources.ack_phiplugin_description
+import phitracker.composeapp.generated.resources.ack_respect_statement
+import phitracker.composeapp.generated.resources.ack_section_referenced_copyright
+import phitracker.composeapp.generated.resources.ack_section_special_thanks
+import phitracker.composeapp.generated.resources.ack_thanks_pigeon_games
+import phitracker.composeapp.generated.resources.ack_thanks_taptap
+import phitracker.composeapp.generated.resources.ack_title
+import phitracker.composeapp.generated.resources.action_back
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AcknowledgmentsScreen(
     onNavigateBack: () -> Unit
 ) {
+    val authPrefix = stringResource(Res.string.ack_phigroslibrary_auth_prefix)
+    val authLink = stringResource(Res.string.ack_phigroslibrary_auth_link)
+    val authSuffix = stringResource(Res.string.ack_phigroslibrary_auth_suffix)
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("致谢与参考项目") },
+                title = { Text(stringResource(Res.string.ack_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.action_back))
                     }
                 }
             )
@@ -54,19 +76,19 @@ fun AcknowledgmentsScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             Text(
-                text = "特别致谢",
+                text = stringResource(Res.string.ack_section_special_thanks),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(16.dp))
-            SectionText("感谢 Pigeon Games (鸽游网络) 持续为玩家带来 Phigros 这样一款优秀的音乐游戏。")
-            SectionText("感谢 TapTap 提供的云服务和开发者工具，让这个工具的实现成为可能。")
+            SectionText(stringResource(Res.string.ack_thanks_pigeon_games))
+            SectionText(stringResource(Res.string.ack_thanks_taptap))
 
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "参考项目版权与许可",
+                text = stringResource(Res.string.ack_section_referenced_copyright),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
@@ -74,29 +96,29 @@ fun AcknowledgmentsScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             SectionTitle("Catrong/phi-plugin")
-            SectionText("提供 Phigros 谱面定数等关键元数据的开源数据仓库，存档解析、分类等功能的灵感与参考来源。")
-            SectionText("版权所有 (c) 2026 Catrong 及 phi-plugin 贡献者。\nSPDX-License-Identifier: GPL-3.0-only。")
+            SectionText(stringResource(Res.string.ack_phiplugin_description))
+            SectionText(stringResource(Res.string.ack_phiplugin_copyright))
 
             Spacer(modifier = Modifier.height(16.dp))
 
             SectionTitle("7aGiven/PhigrosLibrary")
-            SectionText("用于解析 Phigros 本地与云端存档数据的核心解析器来源，本项目 SaveParser 基于其 C 语言版本移植开发。")
-            SectionText("版权所有 (c) 2026 7aGiven 及 PhigrosLibrary 贡献者。\nSPDX-License-Identifier: GPL-3.0-only。")
+            SectionText(stringResource(Res.string.ack_phigroslibrary_description))
+            SectionText(stringResource(Res.string.ack_phigroslibrary_copyright))
             SectionText(
                 buildAnnotatedString {
-                    append("我们已获得原作者")
+                    append(authPrefix)
                     withLink(LinkAnnotation.Url("https://github.com/7aGiven/PhigrosLibrary/issues/11")) {
                         withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) {
-                            append("授权")
+                            append(authLink)
                         }
                     }
-                    append("，对于本项目：SPDX-License-Identifier: GPL-3.0-or-later。")
+                    append(authSuffix)
                 }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "谨在此向以上参考项目的作者和所有自由开源社区的贡献者们表达最诚挚的敬意。",
+                text = stringResource(Res.string.ack_respect_statement),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold
@@ -104,14 +126,14 @@ fun AcknowledgmentsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "最后的最后",
+                text = stringResource(Res.string.ack_final_title),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = "最后，我们诚挚和衷心的感谢所有 Phigros 玩家和所有为 Phigros 社区做出贡献的人们。\n是你们对这款游戏的热爱，才有了今天这个充满活力的社区，也才有了 Phi Tracker 的诞生。",
+                text = stringResource(Res.string.ack_final_message),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Bold

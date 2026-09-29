@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ack_title">致謝與參考專案</string>
+    <string name="ack_section_special_thanks">特別致謝</string>
+    <string name="ack_thanks_pigeon_games">感謝 Pigeon Games (鴿遊網路) 持續為玩家帶來 Phigros 這樣一款優秀的音樂遊戲。</string>
+    <string name="ack_thanks_taptap">感謝 TapTap 提供的雲端服務和開發者工具，讓這個工具的實現成為可能。</string>
+    <string name="ack_section_referenced_copyright">參考專案著作權與授權</string>
+    <string name="ack_phiplugin_description">提供 Phigros 譜面定數等關鍵元資料的開源資料庫，存檔解析、分類等功能的靈感與參考來源。</string>
+    <string name="ack_phiplugin_copyright">著作權所有 (c) 2026 Catrong 及 phi-plugin 貢獻者。\nSPDX-License-Identifier: GPL-3.0-only。</string>
+    <string name="ack_phigroslibrary_description">用於解析 Phigros 本地與雲端存檔資料的核心解析器來源，本專案 SaveParser 基於其 C 語言版本移植開發。</string>
+    <string name="ack_phigroslibrary_copyright">著作權所有 (c) 2026 7aGiven 及 PhigrosLibrary 貢獻者。\nSPDX-License-Identifier: GPL-3.0-only。</string>
+    <string name="ack_phigroslibrary_auth_prefix">我們已獲得原作者</string>
+    <string name="ack_phigroslibrary_auth_link">授權</string>
+    <string name="ack_phigroslibrary_auth_suffix">，對於本專案：SPDX-License-Identifier: GPL-3.0-or-later。</string>
+    <string name="ack_respect_statement">謹在此向以上參考專案的作者和所有自由開源社群的貢獻者們表達最誠摯的敬意。</string>
+    <string name="ack_final_title">最後的最後</string>
+    <string name="ack_final_message">最後，我們誠摯和衷心的感謝所有 Phigros 玩家和所有為 Phigros 社群做出貢獻的人們。\n是你們對這款遊戲的熱愛，才有了今天這個充滿活力的社群，也才有了 Phi Tracker 的誕生。</string>
+</resources>

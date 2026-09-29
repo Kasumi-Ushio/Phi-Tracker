@@ -1,0 +1,19 @@
+{
+    "uniqueId": "top.phib19.phi-plugin",
+    "artifactVersion": "1.0.3-58a6077",
+    "name": "Phi-Plugin",
+    "description": "Phi-Plugin is an excellent Phigros score query tool which used by QQBot.",
+    "website": "https://github.com/Catrong/phi-plugin",
+    "developers": [
+        {
+            "name": "Catrong",
+            "organisationUrl": "https://github.com/Catrong"
+        }
+    ],
+    "licenses": [
+        "GPL-3.0-or-later"
+    ],
+    "scm": {
+        "url": "https://github.com/Catrong/phi-plugin"
+    }
+}

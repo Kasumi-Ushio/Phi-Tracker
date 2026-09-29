@@ -1,0 +1,19 @@
+{
+    "uniqueId": "top.phib19.phi-plugin:resources",
+    "artifactVersion": "1.0.3-58a6077",
+    "name": "Phi-Plugin Resources",
+    "description": "The resources files used by Phi-Plugin.",
+    "website": "https://github.com/Catrong/phi-plugin/tree/main/resources",
+    "developers": [
+        {
+            "name": "Catrong",
+            "organisationUrl": "https://github.com/Catrong"
+        }
+    ],
+    "licenses": [
+        "Apache-2.0"
+    ],
+    "scm": {
+        "url": "https://github.com/Catrong/phi-plugin/tree/main/resources"
+    }
+}

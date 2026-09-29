@@ -10,8 +10,10 @@
       "organisationUrl": "https://github.com/googlefonts"
     }
   ],
-  "licenses": ["Apache-2.0"],
+  "licenses": [
+    "Apache-2.0"
+  ],
   "scm": {
-    "url": "https://github.com/googlefonts/roboto"
+    "url": "https://github.com/googlefonts/roboto/"
   }
 }

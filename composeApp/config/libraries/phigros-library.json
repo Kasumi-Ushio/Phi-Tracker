@@ -1,0 +1,19 @@
+{
+    "uniqueId": "io.github.7agiven.phigroslibrary",
+    "artifactVersion": "3.1-d0feb80",
+    "name": "PhigrosLibrary",
+    "description": "PhigrosLibrary is an excellent library which used to fetch the Phigros cloudsaves.",
+    "website": "https://github.com/7aGiven/PhigrosLibrary",
+    "developers": [
+        {
+            "name": "7aGiven",
+            "organisationUrl": "https://github.com/7aGiven"
+        }
+    ],
+    "licenses": [
+        "GPL-3.0-or-later"
+    ],
+    "scm": {
+        "url": "https://github.com/7aGiven/PhigrosLibrary"
+    }
+}

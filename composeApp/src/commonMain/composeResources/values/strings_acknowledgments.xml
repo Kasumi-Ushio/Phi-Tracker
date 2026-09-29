@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ack_title">Acknowledgments and Referenced Projects</string>
+    <string name="ack_section_special_thanks">Special Thanks</string>
+    <string name="ack_thanks_pigeon_games">Thanks to Pigeon Games (鸽游网络) for continuously bringing players an excellent music game like Phigros.</string>
+    <string name="ack_thanks_taptap">Thanks to TapTap for the cloud services and developer tools that made this tool possible.</string>
+    <string name="ack_section_referenced_copyright">Copyright and Licensing of Referenced Projects</string>
+    <string name="ack_phiplugin_description">An open data repository providing key metadata such as Phigros chart constants; the source of inspiration and reference for features such as save parsing and classification.</string>
+    <string name="ack_phiplugin_copyright">Copyright (c) 2026 Catrong and contributors of phi-plugin.\nSPDX-License-Identifier: GPL-3.0-only.</string>
+    <string name="ack_phigroslibrary_description">The source of the core parser used to parse Phigros local and cloud save data; this project\'s SaveParser is ported and developed based on its C language version.</string>
+    <string name="ack_phigroslibrary_copyright">Copyright (c) 2026 7aGiven and contributors of PhigrosLibrary.\nSPDX-License-Identifier: GPL-3.0-only.</string>
+    <string name="ack_phigroslibrary_auth_prefix">We have obtained the original author\'s&#160;</string>
+    <string name="ack_phigroslibrary_auth_link">authorization</string>
+    <string name="ack_phigroslibrary_auth_suffix">&#160;for this project: SPDX-License-Identifier: GPL-3.0-or-later.</string>
+    <string name="ack_respect_statement">We hereby express our most sincere respect to the authors of the referenced projects above and to all contributors of the free and open source community.</string>
+    <string name="ack_final_title">One Last Thing</string>
+    <string name="ack_final_message">Finally, we sincerely and wholeheartedly thank all Phigros players and everyone who has contributed to the Phigros community.\nIt is your love for this game that gave rise to the vibrant community we have today, and to the birth of Phi Tracker.</string>
+</resources>

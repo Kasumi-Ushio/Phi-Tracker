@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="disclaimer_title">Copyright, Licenses and Disclaimer</string>
+    <string name="disclaimer_section_license_header">Copyright and Licenses</string>
+    <string name="disclaimer_section_copyright_title">Copyright</string>
+    <string name="disclaimer_section_copyright_body">Copyright (c) 2026 Kasumi\'s IT Infrastructure.\n\nCopyright (c) 2026 RinLin-NYA a.k.a. Asahina Hotaru and Phi Tracker Contributors.</string>
+    <string name="disclaimer_section_project_license_title">Project License</string>
+    <string name="disclaimer_section_project_license_body">This project, include all of its source code, assets not belonging to the Pigeon Games and TapTap, and documentation, is Free-as-in-Freedom software.\n\nYou can use, copy, distribute, modify and redistribute this project under the terms of the GNU General Public License, either version 3, or (at your option) any later version, which is published by the Free Software Foundation.\n\nFor more information, please refer to the GNU General Public License or the COPYING file in this project.</string>
+    <string name="disclaimer_disclaimer_header">Disclaimer</string>
+    <string name="disclaimer_body_unofficial">This project is a fan-made project and is neither endorsed nor affiliated with the Pigeon Games and TapTap. We do not claim any ownership of the assets of user imported from the game. All of such assets are the property of their respective owners.</string>
+    <string name="disclaimer_body_commercial">Although this project is free software and licensed under the GNU General Public License, which allows commercial uses, it does not mean that we encourage or support any of commercial uses of this project. We take no responsibility for any of the kinds of feedback, issues and conflicts when we discovered that which happens in a commercial use case.</string>
+    <string name="disclaimer_body_illegal">We DO NOT endorse or provide the support of the cyperattacking to TapTap and/or Pigeon Games, or any other illegal uses of this project. All risks arising from the use of this project, especially the use of this project for any illegal activities under the criminal law of your country and region, are borne by the user.</string>
+    <string name="disclaimer_body_no_warranty">This project provides WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE PROJECT OR THE USE OR OTHER DEALINGS IN THE PROJECT.</string>
+</resources>
