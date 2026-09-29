@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_new_version_title">發現新版本</string>
+    <string name="update_latest_version">最新版本: %1$s</string>
+    <string name="update_go_download">前往下載</string>
+    <string name="update_later">稍後再說</string>
+</resources>

@@ -30,10 +30,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.ui.home.ProfileHeaderCard
 import org.kasumi321.ushio.phitracker.ui.home.ScoreCardContent
 import org.kasumi321.ushio.phitracker.ui.home.StatsTableCard
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.b30ex_data_analysis
+import phitracker.composeapp.generated.resources.b30ex_tag_stats_unavailable
 
 /**
  * Thumbnail down-scale applied to every export score card. Shared with the B30
@@ -196,7 +200,7 @@ internal fun B30ExportLayout(
             // 能力" header) beside the RKS histogram panel.
             if (data.tagAnalysis != null || data.histogram != null) {
                 Spacer(modifier = Modifier.height(8.dp))
-                SectionTitle("B30 数据分析")
+                SectionTitle(stringResource(Res.string.b30ex_data_analysis))
                 Spacer(modifier = Modifier.height(B30ExportSpec.tagSectionGapDp.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -245,7 +249,7 @@ internal fun B30ExportLayout(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "谱面标签统计暂不可用",
+                                    text = stringResource(Res.string.b30ex_tag_stats_unavailable),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center

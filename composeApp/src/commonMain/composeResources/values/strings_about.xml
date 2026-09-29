@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_title">About Phi Tracker</string>
+    <string name="about_tagline">A lightweight tool for reading Phigros saves and looking up scores</string>
+    <string name="about_version_label">Current version: %1$s</string>
+    <string name="about_build_date_label">Build date: %1$s</string>
+    <string name="about_build_type_label">Build type: %1$s</string>
+    <string name="about_build_type_debug">Debug build</string>
+    <string name="about_build_type_release">Release build</string>
+    <string name="about_project_home">Project homepage</string>
+    <string name="about_project_home_desc">View the source code of this project on GitHub</string>
+    <string name="about_feedback">Feedback and suggestions</string>
+    <string name="about_feedback_desc">Ran into a problem or have a suggestion? Tell us on GitHub</string>
+    <string name="about_legal">Copyright, licenses and disclaimer</string>
+    <string name="about_legal_desc">Read the copyright information and software disclaimer of this project</string>
+    <string name="about_acknowledgments">Acknowledgments and references</string>
+    <string name="about_acknowledgments_desc">View special thanks and the external projects referenced by this project, along with their copyright notices</string>
+    <string name="about_privacy_policy">Privacy Policy</string>
+    <string name="about_privacy_policy_desc">Learn how this app collects, uses and protects your data</string>
+    <string name="about_third_party">Third-party components</string>
+    <string name="about_third_party_desc">View the third-party components used and referenced, along with their license information\nAll third-party components we use or reference are free software; thanks to their developers</string>
+    <string name="about_licenses_title">Third-party licenses</string>
+    <string name="about_licenses_load_failed">Failed to load third-party component info</string>
+    <string name="about_licenses_load_failed_with_reason">Failed to load third-party component info: %1$s</string>
+</resources>

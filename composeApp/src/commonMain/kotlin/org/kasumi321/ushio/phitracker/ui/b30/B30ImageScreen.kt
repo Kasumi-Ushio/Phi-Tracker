@@ -89,6 +89,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
 import org.kasumi321.ushio.phitracker.data.platform.preloadIllustrationThumbnail
 import org.kasumi321.ushio.phitracker.ui.home.scoreCardThumbnailSizePx
@@ -107,6 +108,29 @@ import org.kasumi321.ushio.phitracker.ui.theme.PhiTrackerThemeSettings
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.koin.compose.koinInject
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.action_back
+import phitracker.composeapp.generated.resources.b30ex_action_save
+import phitracker.composeapp.generated.resources.b30ex_action_share
+import phitracker.composeapp.generated.resources.b30ex_album_image
+import phitracker.composeapp.generated.resources.b30ex_background
+import phitracker.composeapp.generated.resources.b30ex_background_blur
+import phitracker.composeapp.generated.resources.b30ex_card_style
+import phitracker.composeapp.generated.resources.b30ex_card_style_classic
+import phitracker.composeapp.generated.resources.b30ex_card_style_poster
+import phitracker.composeapp.generated.resources.b30ex_cd_preview
+import phitracker.composeapp.generated.resources.b30ex_export_settings
+import phitracker.composeapp.generated.resources.b30ex_generate_failed
+import phitracker.composeapp.generated.resources.b30ex_generating
+import phitracker.composeapp.generated.resources.b30ex_image_title
+import phitracker.composeapp.generated.resources.b30ex_random_background
+import phitracker.composeapp.generated.resources.b30ex_save_failed
+import phitracker.composeapp.generated.resources.b30ex_saved_to_pictures
+import phitracker.composeapp.generated.resources.b30ex_share_failed
+import phitracker.composeapp.generated.resources.b30ex_theme_dark
+import phitracker.composeapp.generated.resources.b30ex_theme_follow_global
+import phitracker.composeapp.generated.resources.b30ex_theme_light
+import phitracker.composeapp.generated.resources.tools_close
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
 @Composable
@@ -139,6 +163,9 @@ fun B30ImageScreen(
     var backgroundBlurRadius by remember { mutableFloatStateOf(50f) }
     var showBackgroundDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val saveSuccessMessage = stringResource(Res.string.b30ex_saved_to_pictures)
+    val saveFailedMessage = stringResource(Res.string.b30ex_save_failed)
+    val shareFailedMessage = stringResource(Res.string.b30ex_share_failed)
     val settingsRepository = koinInject<SettingsRepository>()
     // Null until the persisted style arrives: building exportData with the
     // wrong style first would waste a full generation pass whose cancellation
@@ -307,15 +334,15 @@ fun B30ImageScreen(
         topBar = {
             GlassTopBar(hazeState = hazeState, style = glassStyle) {
                 TopAppBar(
-                    title = { Text("B30 图片") },
+                    title = { Text(stringResource(Res.string.b30ex_image_title)) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.action_back))
                         }
                     },
                     actions = {
                         IconButton(onClick = { showBackgroundDialog = true }) {
-                            Icon(Icons.Filled.Image, contentDescription = "导出设置")
+                            Icon(Icons.Filled.Image, contentDescription = stringResource(Res.string.b30ex_export_settings))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -344,14 +371,14 @@ fun B30ImageScreen(
                                         mapOf("fileName" to fileName)
                                     )
                                     showPlatformMessage(
-                                        if (result.isSuccess) "已保存到 Pictures/PhiTracker" else "保存失败"
+                                        if (result.isSuccess) saveSuccessMessage else saveFailedMessage
                                     )
                                 }
                             },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Filled.Save, contentDescription = null)
-                            Text("  保存", style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(Res.string.b30ex_action_save), style = MaterialTheme.typography.labelLarge)
                         }
 
                         OutlinedButton(
@@ -366,14 +393,14 @@ fun B30ImageScreen(
                                         mapOf("fileName" to fileName)
                                     )
                                     if (result.isFailure) {
-                                        showPlatformMessage("分享失败")
+                                        showPlatformMessage(shareFailedMessage)
                                     }
                                 }
                             },
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Filled.Share, contentDescription = null)
-                            Text("  分享", style = MaterialTheme.typography.labelLarge)
+                            Text(stringResource(Res.string.b30ex_action_share), style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
@@ -398,7 +425,7 @@ fun B30ImageScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator()
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("正在生成 B30 图片...")
+                        Text(stringResource(Res.string.b30ex_generating))
                     }
                 }
             } else if (generationFailed) {
@@ -406,7 +433,7 @@ fun B30ImageScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("B30 图片生成失败")
+                    Text(stringResource(Res.string.b30ex_generate_failed))
                 }
             } else {
                 export?.let { exp ->
@@ -457,7 +484,7 @@ fun B30ImageScreen(
                     ) {
                         androidx.compose.foundation.Image(
                             bitmap = preview,
-                            contentDescription = "B30 预览",
+                            contentDescription = stringResource(Res.string.b30ex_cd_preview),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer(
@@ -637,7 +664,7 @@ private fun BackgroundPickerDialog(
     AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Filled.Image, contentDescription = null) },
-        title = { Text("导出设置") },
+        title = { Text(stringResource(Res.string.b30ex_export_settings)) },
         text = {
             // Compact spacing and a two-row background grid keep every control
             // inside one screen on small devices; the scroll stays as a
@@ -649,7 +676,7 @@ private fun BackgroundPickerDialog(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "卡片样式",
+                    text = stringResource(Res.string.b30ex_card_style),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -659,14 +686,14 @@ private fun BackgroundPickerDialog(
                         onClick = { onCardStyleChange(B30ExportCardStyle.Classic) },
                         shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
                     ) {
-                        Text("方糖")
+                        Text(stringResource(Res.string.b30ex_card_style_classic))
                     }
                     SegmentedButton(
                         selected = cardStyle == B30ExportCardStyle.Poster,
                         onClick = { onCardStyleChange(B30ExportCardStyle.Poster) },
                         shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
                     ) {
-                        Text("彩灯")
+                        Text(stringResource(Res.string.b30ex_card_style_poster))
                     }
                 }
 
@@ -676,7 +703,7 @@ private fun BackgroundPickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "主题跟随全局",
+                        text = stringResource(Res.string.b30ex_theme_follow_global),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -687,7 +714,11 @@ private fun BackgroundPickerDialog(
                 }
                 AnimatedVisibility(visible = !themeFollowGlobal) {
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        val themeLabels = listOf("浅色", "深色", "AMOLED")
+                        val themeLabels = listOf(
+                            stringResource(Res.string.b30ex_theme_light),
+                            stringResource(Res.string.b30ex_theme_dark),
+                            "AMOLED"
+                        )
                         themeLabels.forEachIndexed { index, label ->
                             SegmentedButton(
                                 selected = exportThemeMode == index + 1,
@@ -701,7 +732,7 @@ private fun BackgroundPickerDialog(
                 }
 
                 Text(
-                    text = "背景模糊强度",
+                    text = stringResource(Res.string.b30ex_background_blur),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -724,7 +755,7 @@ private fun BackgroundPickerDialog(
                 }
 
                 Text(
-                    text = "背景",
+                    text = stringResource(Res.string.b30ex_background),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -741,14 +772,14 @@ private fun BackgroundPickerDialog(
                     item(key = "random_background") {
                         BackgroundActionGridItem(
                             icon = Icons.Filled.Shuffle,
-                            label = "随机背景",
+                            label = stringResource(Res.string.b30ex_random_background),
                             onClick = onSelectDefault
                         )
                     }
                     item(key = "album_background") {
                         BackgroundActionGridItem(
                             icon = Icons.Filled.PhotoLibrary,
-                            label = "相册图片",
+                            label = stringResource(Res.string.b30ex_album_image),
                             onClick = onSelectAlbum
                         )
                     }
@@ -767,7 +798,7 @@ private fun BackgroundPickerDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("关闭") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.tools_close)) }
         }
     )
 }

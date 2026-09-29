@@ -95,6 +95,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.coroutines.launch
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagCategoryDisplay
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagVoteCount
@@ -106,9 +107,40 @@ import org.kasumi321.ushio.phitracker.ui.components.ScoreRatingTag
 import org.kasumi321.ushio.phitracker.ui.glass.GlassTopBar
 import org.kasumi321.ushio.phitracker.ui.glass.rememberGlassHazeStyle
 import org.kasumi321.ushio.phitracker.ui.utils.asString
-import org.kasumi321.ushio.phitracker.ui.utils.chapterDisplayName
+import org.kasumi321.ushio.phitracker.ui.utils.chapterDisplayNameLocalized
 import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.song_detail_aliases_label
+import phitracker.composeapp.generated.resources.song_detail_avg_acc
+import phitracker.composeapp.generated.resources.song_detail_cd_back
+import phitracker.composeapp.generated.resources.song_detail_chapter
+import phitracker.composeapp.generated.resources.song_detail_charter
+import phitracker.composeapp.generated.resources.song_detail_chart_info
+import phitracker.composeapp.generated.resources.song_detail_chart_ranking
+import phitracker.composeapp.generated.resources.song_detail_chart_tags
+import phitracker.composeapp.generated.resources.song_detail_collapse
+import phitracker.composeapp.generated.resources.song_detail_community_stats
+import phitracker.composeapp.generated.resources.song_detail_composer
+import phitracker.composeapp.generated.resources.song_detail_duration
+import phitracker.composeapp.generated.resources.song_detail_expand_all
+import phitracker.composeapp.generated.resources.song_detail_illustrator
+import phitracker.composeapp.generated.resources.song_detail_no_notes_data
+import phitracker.composeapp.generated.resources.song_detail_no_sync_history
+import phitracker.composeapp.generated.resources.song_detail_no_tags_yet
+import phitracker.composeapp.generated.resources.song_detail_notes_distribution
+import phitracker.composeapp.generated.resources.song_detail_record_title
+import phitracker.composeapp.generated.resources.song_detail_rks_value
+import phitracker.composeapp.generated.resources.song_detail_sync_history
+import phitracker.composeapp.generated.resources.song_detail_title
+import phitracker.composeapp.generated.resources.song_detail_unknown
+import phitracker.composeapp.generated.resources.song_detail_vote_button
+import phitracker.composeapp.generated.resources.song_detail_vote_instructions
+import phitracker.composeapp.generated.resources.song_detail_vote_primary
+import phitracker.composeapp.generated.resources.song_detail_vote_secondary
+import phitracker.composeapp.generated.resources.song_detail_vote_submit
+import phitracker.composeapp.generated.resources.song_detail_vote_submitting
+import phitracker.composeapp.generated.resources.song_detail_vote_success
 import kotlin.math.roundToInt
 import kotlin.time.Instant
 
@@ -228,10 +260,10 @@ fun SongDetailScreen(
         topBar = {
             GlassTopBar(hazeState = detailHazeState, style = detailGlassStyle) {
                 TopAppBar(
-                    title = { Text("曲目详情") },
+                    title = { Text(stringResource(Res.string.song_detail_title)) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.song_detail_cd_back))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -374,12 +406,12 @@ private fun SongInfoHeader(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "作曲: ${songInfo.composer}",
+                text = stringResource(Res.string.song_detail_composer, songInfo.composer),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "曲绘: ${songInfo.illustrator}",
+                text = stringResource(Res.string.song_detail_illustrator, songInfo.illustrator),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -394,11 +426,11 @@ private fun SongInfoHeader(
                 horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 InfoChip(label = "BPM", value = songInfo.bpm)
-                InfoChip(label = "时长", value = songInfo.length)
+                InfoChip(label = stringResource(Res.string.song_detail_duration), value = songInfo.length)
             }
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "章节: ${chapterDisplayName(songInfo.chapter)}",
+                text = stringResource(Res.string.song_detail_chapter, chapterDisplayNameLocalized(songInfo.chapter)),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -437,7 +469,7 @@ private fun AliasChips(nicknames: List<String>) {
         if (index < nicknames.size) {
             AliasChip(nicknames[index])
         } else {
-            AliasToggleChip(text = "收起", onClick = { expanded = false })
+            AliasToggleChip(text = stringResource(Res.string.song_detail_collapse), onClick = { expanded = false })
         }
     }
     Column {
@@ -447,13 +479,13 @@ private fun AliasChips(nicknames: List<String>) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "别名",
+                text = stringResource(Res.string.song_detail_aliases_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             if (!expanded && canExpand) {
                 Text(
-                    text = "展开全部 (${nicknames.size})",
+                    text = stringResource(Res.string.song_detail_expand_all, nicknames.size),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.clickable { expanded = true }
@@ -553,7 +585,7 @@ private fun DifficultyContent(
             .fillMaxSize()
             .verticalScroll(scrollState)
     ) {
-        val charter = songInfo.charters[difficulty] ?: "未知"
+        val charter = songInfo.charters[difficulty] ?: stringResource(Res.string.song_detail_unknown)
         val notes = songInfo.noteCounts[difficulty]
         val record = userRecords.find { it.difficulty == difficulty }
 
@@ -575,7 +607,7 @@ private fun DifficultyContent(
                 ) {
                     Column {
                         Text(
-                            text = "单曲成绩",
+                            text = stringResource(Res.string.song_detail_record_title),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -602,7 +634,7 @@ private fun DifficultyContent(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "RKS: ${record.rks.formatFourDecimals()}",
+                            text = stringResource(Res.string.song_detail_rks_value, record.rks.formatFourDecimals()),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -628,7 +660,7 @@ private fun DifficultyContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "社区统计数据",
+                        text = stringResource(Res.string.song_detail_community_stats),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -642,11 +674,19 @@ private fun DifficultyContent(
                             color = MaterialTheme.colorScheme.error
                         )
                     } else {
-                        Text("单曲排名: ${songApiDetail.userRank ?: "—"} / ${songApiDetail.totalUsers ?: "—"}")
                         Text(
-                            text = "平均 ACC: ${
-                                songApiDetail.avgAcc?.let { "${it.formatFourDecimals()}%" } ?: "—"
-                            }（由 ${songApiDetail.avgAccCount ?: 0} 个样本取得）"
+                            stringResource(
+                                Res.string.song_detail_chart_ranking,
+                                songApiDetail.userRank ?: "—",
+                                songApiDetail.totalUsers ?: "—"
+                            )
+                        )
+                        Text(
+                            text = stringResource(
+                                Res.string.song_detail_avg_acc,
+                                songApiDetail.avgAcc?.let { "${it.formatFourDecimals()}%" } ?: "—",
+                                songApiDetail.avgAccCount ?: 0
+                            )
                         )
                     }
                 }
@@ -668,7 +708,7 @@ private fun DifficultyContent(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = "谱面信息",
+                    text = stringResource(Res.string.song_detail_chart_info),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -676,7 +716,7 @@ private fun DifficultyContent(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "制谱: $charter",
+                    text = stringResource(Res.string.song_detail_charter, charter),
                     style = MaterialTheme.typography.bodyLarge
                 )
 
@@ -684,7 +724,7 @@ private fun DifficultyContent(
 
                 if (notes != null && notes.total > 0) {
                     Text(
-                        text = "Notes 分布 (Total: ${notes.total})",
+                        text = stringResource(Res.string.song_detail_notes_distribution, notes.total),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -700,7 +740,7 @@ private fun DifficultyContent(
                     }
                 } else {
                     Text(
-                        text = "暂无 Notes 数据",
+                        text = stringResource(Res.string.song_detail_no_notes_data),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -727,7 +767,7 @@ private fun DifficultyContent(
 
         if (filteredHistory.isNotEmpty()) {
             Text(
-                text = "同步历史",
+                text = stringResource(Res.string.song_detail_sync_history),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
@@ -748,7 +788,7 @@ private fun DifficultyContent(
                 )
             ) {
                 Text(
-                    text = "还没有同步记录\n成绩变动后会显示在这里",
+                    text = stringResource(Res.string.song_detail_no_sync_history),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(16.dp)
@@ -874,7 +914,7 @@ private fun ChartTagSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "谱面标签",
+                    text = stringResource(Res.string.song_detail_chart_tags),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -893,7 +933,7 @@ private fun ChartTagSection(
                 )
                 state.isLoading -> Unit
                 state.categories.all { it.tags.isEmpty() } -> Text(
-                    text = "该谱面还没有标签数据，欢迎成为第一个投票的人",
+                    text = stringResource(Res.string.song_detail_no_tags_yet),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -914,7 +954,7 @@ private fun ChartTagSection(
 
             if (state.voteSucceeded) {
                 Text(
-                    text = "投票成功，感谢参与！",
+                    text = stringResource(Res.string.song_detail_vote_success),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -928,7 +968,7 @@ private fun ChartTagSection(
                     enabled = !state.isLoading && state.error == null,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("为这张谱面投票")
+                    Text(stringResource(Res.string.song_detail_vote_button))
                 }
             }
         }
@@ -1010,7 +1050,7 @@ private fun ChartTagVoteSheet(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "为这张谱面投票",
+                text = stringResource(Res.string.song_detail_vote_button),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -1018,16 +1058,16 @@ private fun ChartTagVoteSheet(
                 FilterChip(
                     selected = primaryMode,
                     onClick = { primaryMode = true },
-                    label = { Text("主要印象") }
+                    label = { Text(stringResource(Res.string.song_detail_vote_primary)) }
                 )
                 FilterChip(
                     selected = !primaryMode,
                     onClick = { primaryMode = false },
-                    label = { Text("次要印象") }
+                    label = { Text(stringResource(Res.string.song_detail_vote_secondary)) }
                 )
             }
             Text(
-                text = "主要：最能代表这张谱面的特征；次要：次要特征。点击标签加入当前分组，再次点击已选标签可移除。主题色高亮为主要印象，对比色高亮为次要印象，两组将分别提交。",
+                text = stringResource(Res.string.song_detail_vote_instructions),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1110,7 +1150,13 @@ private fun ChartTagVoteSheet(
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text(if (state.voteSubmitting) "提交中..." else "提交投票")
+                Text(
+                    if (state.voteSubmitting) {
+                        stringResource(Res.string.song_detail_vote_submitting)
+                    } else {
+                        stringResource(Res.string.song_detail_vote_submit)
+                    }
+                )
             }
         }
     }

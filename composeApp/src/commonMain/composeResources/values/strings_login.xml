@@ -9,4 +9,27 @@
     <string name="login_qr_auth_failed">QR code authorization failed. Please try again.</string>
     <string name="login_qr_sync_failed">Failed to sync your save. Check your network and try again.</string>
     <string name="login_failed_fallback">Login failed</string>
+    <string name="login_app_credit">A Phigros Score Tracker\nDeveloped by 铃萤-RinLin a.k.a. 朝比奈ほたる\nCopyright © 2026 Kasumi\'s IT Infrastructure</string>
+    <string name="login_cancel">Cancel</string>
+    <string name="login_generate_qr">Generate QR code</string>
+    <string name="login_generating_qr">Generating QR code…</string>
+    <string name="login_login_and_sync">Log in and sync</string>
+    <string name="login_qr_code_cd">QR code for scan-to-log-in</string>
+    <string name="login_qr_expired">QR code expired</string>
+    <string name="login_qr_hint_idle">Scan the QR code with the TapTap app to log in automatically</string>
+    <string name="login_qr_remaining_time">Time remaining: %1$ds</string>
+    <string name="login_qr_scanned">Scanned. Please confirm the login on TapTap</string>
+    <string name="login_qr_tap_hint">Tap the QR code to open it in a browser or TapTap</string>
+    <string name="login_qr_waiting_scan">Please scan the QR code with the TapTap app</string>
+    <string name="login_regenerate_qr">Regenerate</string>
+    <string name="login_retry">Retry</string>
+    <string name="login_security_tip">Tip: make sure you log in in a trusted environment to protect your account</string>
+    <string name="login_select_server">Select server</string>
+    <string name="login_success">Login successful!</string>
+    <string name="login_syncing_game_data">Syncing your game data, please wait…</string>
+    <string name="login_tab_qr">Scan to log in</string>
+    <string name="login_tab_token">Token login</string>
+    <string name="login_token_hint">Enter your TapTap sessionToken\n</string>
+    <string name="login_token_hint_question">Don\'t know how to get your sessionToken?</string>
+    <string name="login_token_tutorial_link">View the tutorial</string>
 </resources>

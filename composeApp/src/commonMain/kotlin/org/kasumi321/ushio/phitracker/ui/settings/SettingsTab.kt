@@ -35,6 +35,8 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.platform.ThemeImageColorPickResult
 import org.kasumi321.ushio.phitracker.data.platform.hasCrashNotificationPermission
 import org.kasumi321.ushio.phitracker.data.platform.rememberThemeImageColorPicker
@@ -56,6 +58,125 @@ import org.kasumi321.ushio.phitracker.ui.update.UpdateCheckState
 import org.kasumi321.ushio.phitracker.ui.update.UpdateResultDialog
 import org.kasumi321.ushio.phitracker.ui.utils.UiText
 import org.kasumi321.ushio.phitracker.ui.utils.asString
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.action_back
+import phitracker.composeapp.generated.resources.action_settings
+import phitracker.composeapp.generated.resources.common_confirm
+import phitracker.composeapp.generated.resources.common_unknown_error
+import phitracker.composeapp.generated.resources.settings_about_app
+import phitracker.composeapp.generated.resources.settings_about_app_desc
+import phitracker.composeapp.generated.resources.settings_already_latest
+import phitracker.composeapp.generated.resources.settings_api_credentials
+import phitracker.composeapp.generated.resources.settings_api_credentials_configured
+import phitracker.composeapp.generated.resources.settings_api_credentials_dialog_title
+import phitracker.composeapp.generated.resources.settings_api_credentials_help
+import phitracker.composeapp.generated.resources.settings_api_credentials_not_configured
+import phitracker.composeapp.generated.resources.settings_api_data_disclaimer
+import phitracker.composeapp.generated.resources.settings_api_platform_id
+import phitracker.composeapp.generated.resources.settings_api_platform_name
+import phitracker.composeapp.generated.resources.settings_api_risk_accept
+import phitracker.composeapp.generated.resources.settings_api_risk_dialog_text
+import phitracker.composeapp.generated.resources.settings_api_testing
+import phitracker.composeapp.generated.resources.settings_api_test_connection
+import phitracker.composeapp.generated.resources.settings_api_user_id
+import phitracker.composeapp.generated.resources.settings_artwork_preload_done
+import phitracker.composeapp.generated.resources.settings_artwork_preload_failed
+import phitracker.composeapp.generated.resources.settings_auto_check_update
+import phitracker.composeapp.generated.resources.settings_auto_check_update_desc
+import phitracker.composeapp.generated.resources.settings_blur_strength
+import phitracker.composeapp.generated.resources.settings_cache_b30_artwork
+import phitracker.composeapp.generated.resources.settings_cache_b30_artwork_desc
+import phitracker.composeapp.generated.resources.settings_caching_progress
+import phitracker.composeapp.generated.resources.settings_cancel
+import phitracker.composeapp.generated.resources.settings_category_about
+import phitracker.composeapp.generated.resources.settings_category_b30
+import phitracker.composeapp.generated.resources.settings_category_data_cache
+import phitracker.composeapp.generated.resources.settings_category_debug
+import phitracker.composeapp.generated.resources.settings_category_interface_theme
+import phitracker.composeapp.generated.resources.settings_category_score_api
+import phitracker.composeapp.generated.resources.settings_category_updates
+import phitracker.composeapp.generated.resources.settings_checking_update
+import phitracker.composeapp.generated.resources.settings_check_update
+import phitracker.composeapp.generated.resources.settings_check_update_desc
+import phitracker.composeapp.generated.resources.settings_check_update_failed
+import phitracker.composeapp.generated.resources.settings_clear_artwork_cache
+import phitracker.composeapp.generated.resources.settings_clear_artwork_cache_desc
+import phitracker.composeapp.generated.resources.settings_color_source_default
+import phitracker.composeapp.generated.resources.settings_color_source_image
+import phitracker.composeapp.generated.resources.settings_clear_cache_dialog_text
+import phitracker.composeapp.generated.resources.settings_clear_cache_dialog_title
+import phitracker.composeapp.generated.resources.settings_clear_cache_done
+import phitracker.composeapp.generated.resources.settings_clear_cache_failed
+import phitracker.composeapp.generated.resources.settings_clear_logs
+import phitracker.composeapp.generated.resources.settings_clear_logs_desc
+import phitracker.composeapp.generated.resources.settings_clear_logs_done_message
+import phitracker.composeapp.generated.resources.settings_clear_logs_done_title
+import phitracker.composeapp.generated.resources.settings_clear_logs_failed_message
+import phitracker.composeapp.generated.resources.settings_clear_logs_failed_title
+import phitracker.composeapp.generated.resources.settings_crash_notification_denied
+import phitracker.composeapp.generated.resources.settings_crash_notification_granted
+import phitracker.composeapp.generated.resources.settings_crash_notification_guide_text
+import phitracker.composeapp.generated.resources.settings_crash_notification_guide_title
+import phitracker.composeapp.generated.resources.settings_crash_notification_permission
+import phitracker.composeapp.generated.resources.settings_dark_mode
+import phitracker.composeapp.generated.resources.settings_done
+import phitracker.composeapp.generated.resources.settings_downloading_file
+import phitracker.composeapp.generated.resources.settings_enable_now
+import phitracker.composeapp.generated.resources.settings_enable_score_api
+import phitracker.composeapp.generated.resources.settings_enable_score_api_desc
+import phitracker.composeapp.generated.resources.settings_export_crash_failed_message
+import phitracker.composeapp.generated.resources.settings_export_crash_log
+import phitracker.composeapp.generated.resources.settings_export_crash_log_desc
+import phitracker.composeapp.generated.resources.settings_export_crash_log_failed
+import phitracker.composeapp.generated.resources.settings_export_runtime_failed_message
+import phitracker.composeapp.generated.resources.settings_export_runtime_log
+import phitracker.composeapp.generated.resources.settings_export_runtime_log_desc
+import phitracker.composeapp.generated.resources.settings_export_runtime_log_failed
+import phitracker.composeapp.generated.resources.settings_haze_blur
+import phitracker.composeapp.generated.resources.settings_haze_blur_desc
+import phitracker.composeapp.generated.resources.settings_hide_api_token
+import phitracker.composeapp.generated.resources.settings_include_prerelease
+import phitracker.composeapp.generated.resources.settings_include_prerelease_desc
+import phitracker.composeapp.generated.resources.settings_later
+import phitracker.composeapp.generated.resources.settings_logout
+import phitracker.composeapp.generated.resources.settings_logout_confirm
+import phitracker.composeapp.generated.resources.settings_logout_dialog_text
+import phitracker.composeapp.generated.resources.settings_no_crash_log
+import phitracker.composeapp.generated.resources.settings_no_crash_log_title
+import phitracker.composeapp.generated.resources.settings_no_runtime_log
+import phitracker.composeapp.generated.resources.settings_no_runtime_log_title
+import phitracker.composeapp.generated.resources.settings_notification_permission_denied_toast
+import phitracker.composeapp.generated.resources.settings_overflow_count
+import phitracker.composeapp.generated.resources.settings_palette_style
+import phitracker.composeapp.generated.resources.settings_palette_style_desc
+import phitracker.composeapp.generated.resources.settings_prerelease_notice
+import phitracker.composeapp.generated.resources.settings_redownload_artwork
+import phitracker.composeapp.generated.resources.settings_redownload_artwork_desc
+import phitracker.composeapp.generated.resources.settings_redownload_dialog_text
+import phitracker.composeapp.generated.resources.settings_redownload_dialog_title
+import phitracker.composeapp.generated.resources.settings_show_api_token
+import phitracker.composeapp.generated.resources.settings_show_overflow
+import phitracker.composeapp.generated.resources.settings_show_overflow_desc
+import phitracker.composeapp.generated.resources.settings_song_name_separator
+import phitracker.composeapp.generated.resources.settings_syncing_new_artwork
+import phitracker.composeapp.generated.resources.settings_theme_amoled
+import phitracker.composeapp.generated.resources.settings_theme_color_extracted_subtitle
+import phitracker.composeapp.generated.resources.settings_theme_color_extracted_toast
+import phitracker.composeapp.generated.resources.settings_theme_color_source
+import phitracker.composeapp.generated.resources.settings_theme_color_source_desc
+import phitracker.composeapp.generated.resources.settings_theme_dark
+import phitracker.composeapp.generated.resources.settings_theme_follow_system
+import phitracker.composeapp.generated.resources.settings_theme_light
+import phitracker.composeapp.generated.resources.settings_update_complete
+import phitracker.composeapp.generated.resources.settings_update_data_dialog_text
+import phitracker.composeapp.generated.resources.settings_update_error_message
+import phitracker.composeapp.generated.resources.settings_update_failed
+import phitracker.composeapp.generated.resources.settings_update_new_songs
+import phitracker.composeapp.generated.resources.settings_update_no_new_songs
+import phitracker.composeapp.generated.resources.settings_update_song_data
+import phitracker.composeapp.generated.resources.settings_update_song_data_desc
+import phitracker.composeapp.generated.resources.settings_use_api_data
+import phitracker.composeapp.generated.resources.settings_use_api_data_desc
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,8 +252,24 @@ fun SettingsTab(
         onCrashNotificationGuideShown: () -> Unit = {},
         modifier: Modifier = Modifier
 ) {
-    val noRuntimeLogMessage = "Phi Tracker 目前尚未形成运行日志，请使用一段时间后重试。"
-    val noCrashLogMessage = "Phi Tracker 还未发生过崩溃，请在发生一次崩溃后重试。"
+    val noRuntimeLogMessage = stringResource(Res.string.settings_no_runtime_log)
+    val noCrashLogMessage = stringResource(Res.string.settings_no_crash_log)
+    val themeColorExtractedMessage = stringResource(Res.string.settings_theme_color_extracted_toast)
+    val artworkPreloadDoneMessage = stringResource(Res.string.settings_artwork_preload_done)
+    val artworkPreloadFailedMessage = stringResource(Res.string.settings_artwork_preload_failed)
+    val clearCacheDoneMessage = stringResource(Res.string.settings_clear_cache_done)
+    val noRuntimeLogTitle = stringResource(Res.string.settings_no_runtime_log_title)
+    val noCrashLogTitle = stringResource(Res.string.settings_no_crash_log_title)
+    val exportRuntimeLogFailedTitle = stringResource(Res.string.settings_export_runtime_log_failed)
+    val exportCrashLogFailedTitle = stringResource(Res.string.settings_export_crash_log_failed)
+    val exportFailedUnknownError = stringResource(Res.string.common_unknown_error)
+    val clearLogsDoneTitle = stringResource(Res.string.settings_clear_logs_done_title)
+    val clearLogsDoneMessage = stringResource(Res.string.settings_clear_logs_done_message)
+    val clearLogsFailedTitle = stringResource(Res.string.settings_clear_logs_failed_title)
+    val clearLogsFailedMessage =
+            stringResource(Res.string.settings_clear_logs_failed_message, exportFailedUnknownError)
+    val notificationPermissionDeniedMessage =
+            stringResource(Res.string.settings_notification_permission_denied_toast)
 
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
@@ -161,7 +298,7 @@ fun SettingsTab(
         onThemeImageColorSelected(result.uri, colorToArgb(themeColor))
         onThemeColorSourceChange(THEME_COLOR_SOURCE_IMAGE)
         pendingThemeImageColor = null
-        showPlatformMessage("已从图片提取主题色")
+        showPlatformMessage(themeColorExtractedMessage)
     }
 
     LaunchedEffect(isDebugBuild, notificationPermissionGranted, crashNotificationGuideShown) {
@@ -193,7 +330,7 @@ fun SettingsTab(
                             title = {
                                 Column {
                                     Text(
-                                            "设置",
+                                            stringResource(Res.string.action_settings),
                                             style = rememberCollapsingTitleStyle(
                                                     compact = !settingsAtTop
                                             )
@@ -216,7 +353,7 @@ fun SettingsTab(
                                     IconButton(onClick = onNavigateBack) {
                                         Icon(
                                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                                contentDescription = "返回"
+                                                contentDescription = stringResource(Res.string.action_back)
                                         )
                                     }
                                 }
@@ -240,9 +377,15 @@ fun SettingsTab(
                                 )
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            CategoryTitle("界面与主题")
+            CategoryTitle(stringResource(Res.string.settings_category_interface_theme))
 
-            val themeOptions = listOf("跟随系统", "始终浅色", "始终深色", "AMOLED 纯黑")
+            val themeOptions =
+                    listOf(
+                            stringResource(Res.string.settings_theme_follow_system),
+                            stringResource(Res.string.settings_theme_light),
+                            stringResource(Res.string.settings_theme_dark),
+                            stringResource(Res.string.settings_theme_amoled)
+                    )
             var expandedTheme by remember { mutableStateOf(false) }
 
             Row(
@@ -250,7 +393,10 @@ fun SettingsTab(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("深色模式", style = MaterialTheme.typography.bodyLarge)
+                Text(
+                        stringResource(Res.string.settings_dark_mode),
+                        style = MaterialTheme.typography.bodyLarge
+                )
                 Box {
                     TextButton(onClick = { expandedTheme = true }) {
                         Text(themeOptions.getOrElse(themeMode) { themeOptions[0] })
@@ -276,8 +422,10 @@ fun SettingsTab(
             if (shouldShowThemeColorSourceSetting) {
                 val colorSourceOptions =
                         listOf(
-                                THEME_COLOR_SOURCE_SYSTEM to "默认颜色",
-                                THEME_COLOR_SOURCE_IMAGE to "从图片取色"
+                                THEME_COLOR_SOURCE_SYSTEM to
+                                        stringResource(Res.string.settings_color_source_default),
+                                THEME_COLOR_SOURCE_IMAGE to
+                                        stringResource(Res.string.settings_color_source_image)
                         )
 
                 Row(
@@ -286,15 +434,22 @@ fun SettingsTab(
                         verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("主题取色来源", style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                                stringResource(Res.string.settings_theme_color_source),
+                                style = MaterialTheme.typography.bodyLarge
+                        )
                         Text(
                                 text =
                                         if (themeColorSource == THEME_COLOR_SOURCE_IMAGE &&
                                                         themeImageSeedColorArgb != null
                                         ) {
-                                            "已从所选图片提取主题色"
+                                            stringResource(
+                                                    Res.string.settings_theme_color_extracted_subtitle
+                                            )
                                         } else {
-                                            "选择 Phi Tracker 如何决定主题颜色"
+                                            stringResource(
+                                                    Res.string.settings_theme_color_source_desc
+                                            )
                                         },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -306,7 +461,9 @@ fun SettingsTab(
                                     colorSourceOptions
                                             .firstOrNull { it.first == themeColorSource }
                                             ?.second
-                                            ?: "默认颜色"
+                                            ?: stringResource(
+                                                    Res.string.settings_color_source_default
+                                            )
                             )
                             Icon(Icons.Default.ArrowDropDown, contentDescription = null)
                         }
@@ -315,7 +472,9 @@ fun SettingsTab(
                                 onDismissRequest = { expandedColorSource = false }
                         ) {
                             DropdownMenuItem(
-                                    text = { Text("默认颜色") },
+                                    text = {
+                                        Text(stringResource(Res.string.settings_color_source_default))
+                                    },
                                     onClick = {
                                         onThemeImageColorClear()
                                         onThemeColorSourceChange(THEME_COLOR_SOURCE_SYSTEM)
@@ -323,7 +482,9 @@ fun SettingsTab(
                                     }
                             )
                             DropdownMenuItem(
-                                    text = { Text("从图片取色") },
+                                    text = {
+                                        Text(stringResource(Res.string.settings_color_source_image))
+                                    },
                                     onClick = {
                                         expandedColorSource = false
                                         pickThemeImageColor()
@@ -340,9 +501,12 @@ fun SettingsTab(
                     verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("调色板风格", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                            text = "可以通过不同的调色板风格改变主题风格",
+                            stringResource(Res.string.settings_palette_style),
+                            style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                            text = stringResource(Res.string.settings_palette_style_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -375,9 +539,12 @@ fun SettingsTab(
                     verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("毛玻璃效果", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                            text = "为导航栏与悬浮按钮启用背景模糊，关闭后使用实色遮罩",
+                            stringResource(Res.string.settings_haze_blur),
+                            style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                            text = stringResource(Res.string.settings_haze_blur_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -391,7 +558,7 @@ fun SettingsTab(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("模糊强度")
+                        Text(stringResource(Res.string.settings_blur_strength))
                         Text(
                                 text = "${(hazeBlurStrength * 100).roundToInt()}%",
                                 fontWeight = FontWeight.Bold,
@@ -412,16 +579,19 @@ fun SettingsTab(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-            CategoryTitle("B30 设置")
+            CategoryTitle(stringResource(Res.string.settings_category_b30))
             Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("显示 Overflow", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                            text = "在 B30 页面展示 B27 之后的曲目",
+                            stringResource(Res.string.settings_show_overflow),
+                            style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                            text = stringResource(Res.string.settings_show_overflow_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -435,7 +605,7 @@ fun SettingsTab(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Overflow 显示数量")
+                        Text(stringResource(Res.string.settings_overflow_count))
                         Text(
                                 text = overflowCount.toString(),
                                 fontWeight = FontWeight.Bold,
@@ -448,7 +618,7 @@ fun SettingsTab(
                             valueRange =
                                     SettingsConstants.OVERFLOW_COUNT_MIN
                                             .toFloat()..SettingsConstants.OVERFLOW_COUNT_MAX
-                                                    .toFloat(),
+                                            .toFloat(),
                             steps = SettingsConstants.OVERFLOW_SLIDER_STEPS,
                             modifier = Modifier.fillMaxWidth()
                     )
@@ -457,7 +627,7 @@ fun SettingsTab(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-            CategoryTitle("查分 API")
+            CategoryTitle(stringResource(Res.string.settings_category_score_api))
 
             Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -465,9 +635,12 @@ fun SettingsTab(
                     verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("启用查分 API", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                            text = "获取社区统计数据（如排名、RKS 分布等）",
+                            stringResource(Res.string.settings_enable_score_api),
+                            style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                            text = stringResource(Res.string.settings_enable_score_api_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -489,12 +662,20 @@ fun SettingsTab(
                         apiPlatformId.isNotBlank() && apiUserId.isNotBlank() && apiToken.isNotBlank()
 
                 CenteredListItem(
-                        headlineContent = { Text("API 凭据") },
+                        headlineContent = {
+                            Text(stringResource(Res.string.settings_api_credentials))
+                        },
                         supportingContent = {
                             Text(
                                     text =
-                                            if (credentialsConfigured) "已配置，点击查看或修改"
-                                            else "未配置，点击查看引导并填写",
+                                            if (credentialsConfigured)
+                                                    stringResource(
+                                                            Res.string.settings_api_credentials_configured
+                                                    )
+                                            else
+                                                    stringResource(
+                                                            Res.string.settings_api_credentials_not_configured
+                                                    ),
                                     style = MaterialTheme.typography.bodySmall
                             )
                         },
@@ -509,9 +690,12 @@ fun SettingsTab(
                         verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("使用查分 API 数据", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                                text = "开启后优先展示社区统计数据",
+                                stringResource(Res.string.settings_use_api_data),
+                                style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                                text = stringResource(Res.string.settings_use_api_data_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -520,7 +704,7 @@ fun SettingsTab(
                 }
 
                 Text(
-                        text = "社区数据与本地数据可能有差异，切换数据源不会影响您的本地记录。",
+                        text = stringResource(Res.string.settings_api_data_disclaimer),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -528,7 +712,7 @@ fun SettingsTab(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-            CategoryTitle("程序更新")
+            CategoryTitle(stringResource(Res.string.settings_category_updates))
 
             Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
@@ -536,9 +720,12 @@ fun SettingsTab(
                     verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("启动时自动检查更新", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                            text = "应用启动时自动检查是否有新版本",
+                            stringResource(Res.string.settings_auto_check_update),
+                            style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                            text = stringResource(Res.string.settings_auto_check_update_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -552,9 +739,12 @@ fun SettingsTab(
                     verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("接收预发布版本更新", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                            text = "开启后将收到测试版更新通知",
+                            stringResource(Res.string.settings_include_prerelease),
+                            style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                            text = stringResource(Res.string.settings_include_prerelease_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -566,22 +756,32 @@ fun SettingsTab(
             }
 
             Text(
-                    text = "预发布版本可能包含错误或不稳定功能，在绝大多数情况下，请优先考虑正式版。如果您希望参与我们的功能测试，则可以选择启用此选项。",
+                    text = stringResource(Res.string.settings_prerelease_notice),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-            CategoryTitle("数据与缓存")
+            CategoryTitle(stringResource(Res.string.settings_category_data_cache))
 
             CenteredListItem(
-                    headlineContent = { Text("缓存 B30 高清曲绘") },
+                    headlineContent = {
+                        Text(stringResource(Res.string.settings_cache_b30_artwork))
+                    },
                     supportingContent = {
                         if (isCachingB30Artwork) {
-                            Text("正在缓存 $b30ArtworkCacheCompleted/$b30ArtworkCacheTotal")
+                            Text(
+                                    stringResource(
+                                            Res.string.settings_caching_progress,
+                                            b30ArtworkCacheCompleted,
+                                            b30ArtworkCacheTotal
+                                    )
+                            )
                         } else {
-                            Text("提前下载当前 B30 中曲目的高清封面，离线也能生成图片")
+                            Text(
+                                    stringResource(Res.string.settings_cache_b30_artwork_desc)
+                            )
                         }
                     },
                     leadingContent = {
@@ -598,24 +798,32 @@ fun SettingsTab(
                             Modifier.clickable(enabled = !isCachingB30Artwork) {
                                 onCacheB30Artwork { result ->
                                     if (result.isSuccess) {
-                                        showPlatformMessage("曲绘预加载完成")
+                                        showPlatformMessage(artworkPreloadDoneMessage)
                                     } else {
-                                        showPlatformMessage("预加载失败，请重试")
+                                        showPlatformMessage(artworkPreloadFailedMessage)
                                     }
                                 }
                             }
             )
 
             CenteredListItem(
-                    headlineContent = { Text("清理高清曲绘缓存") },
-                    supportingContent = { Text("释放存储空间，将保留缩略图") },
+                    headlineContent = {
+                        Text(stringResource(Res.string.settings_clear_artwork_cache))
+                    },
+                    supportingContent = {
+                        Text(stringResource(Res.string.settings_clear_artwork_cache_desc))
+                    },
                     leadingContent = { Icon(Icons.Default.DeleteSweep, contentDescription = null) },
                     modifier = Modifier.clickable { showClearCacheDialog = true }
             )
 
             CenteredListItem(
-                    headlineContent = { Text("重新下载所有曲绘") },
-                    supportingContent = { Text("清空所有图片并强制重启应用") },
+                    headlineContent = {
+                        Text(stringResource(Res.string.settings_redownload_artwork))
+                    },
+                    supportingContent = {
+                        Text(stringResource(Res.string.settings_redownload_artwork_desc))
+                    },
                     leadingContent = {
                         Icon(
                                 Icons.Default.Warning,
@@ -627,8 +835,10 @@ fun SettingsTab(
             )
 
             CenteredListItem(
-                    headlineContent = { Text("更新曲目数据") },
-                    supportingContent = { Text("下载最新的 Phigros 全曲目信息") },
+                    headlineContent = { Text(stringResource(Res.string.settings_update_song_data)) },
+                    supportingContent = {
+                        Text(stringResource(Res.string.settings_update_song_data_desc))
+                    },
                     leadingContent = {
                         Icon(Icons.Default.CloudDownload, contentDescription = null)
                     },
@@ -638,15 +848,25 @@ fun SettingsTab(
             if (isDebugBuild) {
                 HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-                CategoryTitle("调试选项")
+                CategoryTitle(stringResource(Res.string.settings_category_debug))
 
                 CenteredListItem(
-                        headlineContent = { Text("崩溃通知权限") },
+                        headlineContent = {
+                            Text(stringResource(Res.string.settings_crash_notification_permission))
+                        },
                         supportingContent = {
                             if (notificationPermissionGranted) {
-                                Text("已开启，可在应用崩溃后显示提醒通知")
+                                Text(
+                                        stringResource(
+                                                Res.string.settings_crash_notification_granted
+                                        )
+                                )
                             } else {
-                                Text("未开启，建议开启以便在崩溃后及时收到提示")
+                                Text(
+                                        stringResource(
+                                                Res.string.settings_crash_notification_denied
+                                        )
+                                )
                             }
                         },
                         leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
@@ -655,27 +875,33 @@ fun SettingsTab(
                                     requestCrashNotificationPermission { granted ->
                                         notificationPermissionGranted = granted
                                         if (!granted) {
-                                            showPlatformMessage("通知权限未开启，崩溃提示可能无法显示")
+                                            showPlatformMessage(
+                                                    notificationPermissionDeniedMessage
+                                            )
                                         }
                                     }
                                 }
                 )
 
                 CenteredListItem(
-                        headlineContent = { Text("导出运行日志") },
-                        supportingContent = { Text("导出 Phi Tracker 的运行日志，可以用于向开发者报告错误") },
+                        headlineContent = {
+                            Text(stringResource(Res.string.settings_export_runtime_log))
+                        },
+                        supportingContent = {
+                            Text(stringResource(Res.string.settings_export_runtime_log_desc))
+                        },
                         leadingContent = {
                             Icon(Icons.Default.BugReport, contentDescription = null)
                         },
                         modifier =
                                 Modifier.clickable {
                                     if (!hasRuntimeLogs) {
-                                        showPlatformAlert("暂无可导出的运行日志", noRuntimeLogMessage)
+                                        showPlatformAlert(noRuntimeLogTitle, noRuntimeLogMessage)
                                         return@clickable
                                     }
                                     val text = onExportRuntimeLog()
                                     if (text.isBlank()) {
-                                        showPlatformAlert("暂无可导出的运行日志", noRuntimeLogMessage)
+                                        showPlatformAlert(noRuntimeLogTitle, noRuntimeLogMessage)
                                         return@clickable
                                     }
                                     coroutineScope.launch {
@@ -683,8 +909,13 @@ fun SettingsTab(
                                                 shareTextLog(text, "phitracker_runtime_logs.txt")
                                         if (result.isFailure) {
                                             showPlatformAlert(
-                                                    "导出运行日志失败",
-                                                    "Phi Tracker 未能导出运行日志，请稍后重试。\n\n错误信息：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                                    exportRuntimeLogFailedTitle,
+                                                    getString(
+                                                            Res.string
+                                                                    .settings_export_runtime_failed_message,
+                                                            result.exceptionOrNull()?.message
+                                                                    ?: exportFailedUnknownError
+                                                    )
                                             )
                                         }
                                     }
@@ -692,20 +923,24 @@ fun SettingsTab(
                 )
 
                 CenteredListItem(
-                        headlineContent = { Text("导出崩溃日志") },
-                        supportingContent = { Text("导出运行时的崩溃报告，当 App 崩溃时可用于 issue 反馈") },
+                        headlineContent = {
+                            Text(stringResource(Res.string.settings_export_crash_log))
+                        },
+                        supportingContent = {
+                            Text(stringResource(Res.string.settings_export_crash_log_desc))
+                        },
                         leadingContent = {
                             Icon(Icons.Default.BugReport, contentDescription = null)
                         },
                         modifier =
                                 Modifier.clickable {
                                     if (!hasCrashLogs) {
-                                        showPlatformAlert("暂无可导出的崩溃日志", noCrashLogMessage)
+                                        showPlatformAlert(noCrashLogTitle, noCrashLogMessage)
                                         return@clickable
                                     }
                                     val text = onExportCrashLog()
                                     if (text.isBlank()) {
-                                        showPlatformAlert("暂无可导出的崩溃日志", noCrashLogMessage)
+                                        showPlatformAlert(noCrashLogTitle, noCrashLogMessage)
                                         return@clickable
                                     }
                                     coroutineScope.launch {
@@ -713,8 +948,13 @@ fun SettingsTab(
                                                 shareTextLog(text, "phitracker_crash_reports.txt")
                                         if (result.isFailure) {
                                             showPlatformAlert(
-                                                    "导出崩溃日志失败",
-                                                    "Phi Tracker 未能导出崩溃日志，请稍后重试。\n\n错误信息：${result.exceptionOrNull()?.message ?: "未知错误"}"
+                                                    exportCrashLogFailedTitle,
+                                                    getString(
+                                                            Res.string
+                                                                    .settings_export_crash_failed_message,
+                                                            result.exceptionOrNull()?.message
+                                                                    ?: exportFailedUnknownError
+                                                    )
                                             )
                                         }
                                     }
@@ -722,8 +962,10 @@ fun SettingsTab(
                 )
 
                 CenteredListItem(
-                        headlineContent = { Text("清理运行日志") },
-                        supportingContent = { Text("清空目前为止所有的运行日志与崩溃日志") },
+                        headlineContent = { Text(stringResource(Res.string.settings_clear_logs)) },
+                        supportingContent = {
+                            Text(stringResource(Res.string.settings_clear_logs_desc))
+                        },
                         leadingContent = {
                             Icon(Icons.Default.DeleteSweep, contentDescription = null)
                         },
@@ -732,13 +974,13 @@ fun SettingsTab(
                                     val ok = onClearAllLogs()
                                     if (ok) {
                                         showPlatformAlert(
-                                                "运行日志已清理",
-                                                "已清理 Phi Tracker 运行时及崩溃产生的日志，建议您定期清理不需要的日志。"
+                                                clearLogsDoneTitle,
+                                                clearLogsDoneMessage
                                         )
                                     } else {
                                         showPlatformAlert(
-                                                "清理运行日志失败",
-                                                "Phi Tracker 未能清理运行日志，请稍后重试。\n\n错误信息：未知错误"
+                                                clearLogsFailedTitle,
+                                                clearLogsFailedMessage
                                         )
                                     }
                                 }
@@ -747,16 +989,25 @@ fun SettingsTab(
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
-            CategoryTitle("关于")
+            CategoryTitle(stringResource(Res.string.settings_category_about))
 
             CenteredListItem(
-                    headlineContent = { Text("检查更新") },
+                    headlineContent = { Text(stringResource(Res.string.settings_check_update)) },
                     supportingContent = {
                         when (val state = updateCheckState) {
-                            is UpdateCheckState.Checking -> Text("正在检查...")
-                            is UpdateCheckState.NoUpdate -> Text("已是最新版本")
-                            is UpdateCheckState.Error -> Text("检查失败: ${state.message}")
-                            else -> Text("从 GitHub Releases 检查是否有新版本")
+                            is UpdateCheckState.Checking ->
+                                Text(stringResource(Res.string.settings_checking_update))
+                            is UpdateCheckState.NoUpdate ->
+                                Text(stringResource(Res.string.settings_already_latest))
+                            is UpdateCheckState.Error ->
+                                Text(
+                                        stringResource(
+                                                Res.string.settings_check_update_failed,
+                                                state.message
+                                        )
+                                )
+                            else ->
+                                Text(stringResource(Res.string.settings_check_update_desc))
                         }
                     },
                     leadingContent = {
@@ -778,8 +1029,10 @@ fun SettingsTab(
             Spacer(modifier = Modifier.height(4.dp))
 
             CenteredListItem(
-                    headlineContent = { Text("关于 Phi Tracker") },
-                    supportingContent = { Text("了解有关本应用的更多信息，包括作者、版权和第三方组件") },
+                    headlineContent = { Text(stringResource(Res.string.settings_about_app)) },
+                    supportingContent = {
+                        Text(stringResource(Res.string.settings_about_app_desc))
+                    },
                     leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
                     trailingContent = {
                         Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
@@ -796,7 +1049,7 @@ fun SettingsTab(
                             ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.error
                             )
-            ) { Text("退出登录") }
+            ) { Text(stringResource(Res.string.settings_logout)) }
 
             Spacer(modifier = Modifier.height(32.dp))
         }
@@ -805,8 +1058,10 @@ fun SettingsTab(
     if (showLogoutDialog) {
         AnimatedAlertDialog(
                 onDismissRequest = { showLogoutDialog = false },
-                title = { Text("退出登录") },
-                text = { Text("确定要退出当前账号吗？所有同步进度将会重置。") },
+                title = { Text(stringResource(Res.string.settings_logout)) },
+                text = {
+                    Text(stringResource(Res.string.settings_logout_dialog_text))
+                },
                 confirmButton = {
                     TextButton(
                             onClick = {
@@ -817,10 +1072,12 @@ fun SettingsTab(
                                     ButtonDefaults.textButtonColors(
                                             contentColor = MaterialTheme.colorScheme.error
                                     )
-                    ) { Text("退出") }
+                    ) { Text(stringResource(Res.string.settings_logout_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showLogoutDialog = false }) { Text("取消") }
+                    TextButton(onClick = { showLogoutDialog = false }) {
+                        Text(stringResource(Res.string.settings_cancel))
+                    }
                 }
         )
     }
@@ -829,11 +1086,9 @@ fun SettingsTab(
         AnimatedAlertDialog(
                 onDismissRequest = { showApiRiskDialog = false },
                 icon = { Icon(Icons.Default.Warning, contentDescription = null) },
-                title = { Text("启用查分 API") },
+                title = { Text(stringResource(Res.string.settings_enable_score_api)) },
                 text = {
-                    Text(
-                            "启用查分 API 将通过第三方接口获取额外统计数据。您的平台名称、平台 ID 和 API 用户 ID 会通过加密通道发送至 API 服务器。请确认您了解并接受该风险。"
-                    )
+                    Text(stringResource(Res.string.settings_api_risk_dialog_text))
                 },
                 confirmButton = {
                     TextButton(
@@ -841,10 +1096,12 @@ fun SettingsTab(
                                 showApiRiskDialog = false
                                 onApiEnabledChange(true)
                             }
-                    ) { Text("我已了解并同意") }
+                    ) { Text(stringResource(Res.string.settings_api_risk_accept)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showApiRiskDialog = false }) { Text("取消") }
+                    TextButton(onClick = { showApiRiskDialog = false }) {
+                        Text(stringResource(Res.string.settings_cancel))
+                    }
                 }
         )
     }
@@ -853,15 +1110,16 @@ fun SettingsTab(
         AnimatedAlertDialog(
                 onDismissRequest = { showApiCredentialDialog = false },
                 icon = { Icon(Icons.Default.VpnKey, contentDescription = null) },
-                title = { Text("查分 API 凭据") },
+                title = {
+                    Text(stringResource(Res.string.settings_api_credentials_dialog_title))
+                },
                 text = {
                     Column(
                             modifier = Modifier.verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                                text =
-                                        "要确定您的平台名称、平台 ID 与 API 用户 ID，请向任何一个正在使用 Phi-Plugin 的机器人发送 /tkls 命令 和 /sessiontoken 命令以确定。\n\n参与谱面标签投票还需要 API Token，请向任意 Phi-Plugin 机器人发送 /setApiToken <自定义Token> 以设置，然后将 Token 填入下方。Token 仅用于查分 API 鉴权，我们不会上传您的 sessionToken。",
+                                text = stringResource(Res.string.settings_api_credentials_help),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -869,7 +1127,7 @@ fun SettingsTab(
                         OutlinedTextField(
                                 value = apiPlatform,
                                 onValueChange = onApiPlatformChange,
-                                label = { Text("平台名称") },
+                                label = { Text(stringResource(Res.string.settings_api_platform_name)) },
                                 placeholder = { Text("platform") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
@@ -877,7 +1135,7 @@ fun SettingsTab(
                         OutlinedTextField(
                                 value = apiPlatformId,
                                 onValueChange = onApiPlatformIdChange,
-                                label = { Text("平台 ID") },
+                                label = { Text(stringResource(Res.string.settings_api_platform_id)) },
                                 placeholder = { Text("platform_id") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
@@ -885,7 +1143,7 @@ fun SettingsTab(
                         OutlinedTextField(
                                 value = apiUserId,
                                 onValueChange = onApiUserIdChange,
-                                label = { Text("API 用户 ID") },
+                                label = { Text(stringResource(Res.string.settings_api_user_id)) },
                                 placeholder = { Text("api_user_id") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
@@ -906,8 +1164,14 @@ fun SettingsTab(
                                                         if (apiTokenVisible) Icons.Default.VisibilityOff
                                                         else Icons.Default.Visibility,
                                                 contentDescription =
-                                                        if (apiTokenVisible) "隐藏 API Token"
-                                                        else "显示 API Token"
+                                                        if (apiTokenVisible)
+                                                                stringResource(
+                                                                        Res.string.settings_hide_api_token
+                                                                )
+                                                        else
+                                                                stringResource(
+                                                                        Res.string.settings_show_api_token
+                                                                )
                                         )
                                     }
                                 },
@@ -926,7 +1190,11 @@ fun SettingsTab(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                             }
-                            Text(if (isApiTesting) "测试中..." else "测试连接")
+                            Text(
+                                    if (isApiTesting)
+                                            stringResource(Res.string.settings_api_testing)
+                                    else stringResource(Res.string.settings_api_test_connection)
+                            )
                         }
 
                         if (apiTestMessage != null) {
@@ -939,7 +1207,9 @@ fun SettingsTab(
                     }
                 },
                 confirmButton = {
-                    TextButton(onClick = { showApiCredentialDialog = false }) { Text("完成") }
+                    TextButton(onClick = { showApiCredentialDialog = false }) {
+                        Text(stringResource(Res.string.settings_done))
+                    }
                 }
         )
     }
@@ -947,26 +1217,36 @@ fun SettingsTab(
     if (showClearCacheDialog) {
         AnimatedAlertDialog(
                 onDismissRequest = { showClearCacheDialog = false },
-                title = { Text("清理缓存") },
-                text = { Text("确定要清理所有高清曲绘缓存吗？已下载的曲绘缩略图将不会被清理。") },
+                title = { Text(stringResource(Res.string.settings_clear_cache_dialog_title)) },
+                text = {
+                    Text(stringResource(Res.string.settings_clear_cache_dialog_text))
+                },
                 confirmButton = {
                     TextButton(
                             onClick = {
                                 showClearCacheDialog = false
                                 onClearHighResCache { result ->
-                                    if (result.isSuccess) {
-                                        showPlatformMessage("清理完成")
-                                    } else {
-                                        showPlatformMessage(
-                                                "清理失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
-                                        )
+                                    coroutineScope.launch {
+                                        if (result.isSuccess) {
+                                            showPlatformMessage(clearCacheDoneMessage)
+                                        } else {
+                                            showPlatformMessage(
+                                                    getString(
+                                                            Res.string.settings_clear_cache_failed,
+                                                            result.exceptionOrNull()?.message
+                                                                    ?: exportFailedUnknownError
+                                                    )
+                                            )
+                                        }
                                     }
                                 }
                             }
-                    ) { Text("确定") }
+                    ) { Text(stringResource(Res.string.common_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showClearCacheDialog = false }) { Text("取消") }
+                    TextButton(onClick = { showClearCacheDialog = false }) {
+                        Text(stringResource(Res.string.settings_cancel))
+                    }
                 }
         )
     }
@@ -974,8 +1254,10 @@ fun SettingsTab(
     if (showRedownloadDialog) {
         AnimatedAlertDialog(
                 onDismissRequest = { showRedownloadDialog = false },
-                title = { Text("重新下载") },
-                text = { Text("确定要删除本地所有曲绘信息吗？如点击确定，本应用将自动退出，下次进入应用时将自动重新唤起预加载窗口。") },
+                title = { Text(stringResource(Res.string.settings_redownload_dialog_title)) },
+                text = {
+                    Text(stringResource(Res.string.settings_redownload_dialog_text))
+                },
                 confirmButton = {
                     TextButton(
                             onClick = {
@@ -986,10 +1268,12 @@ fun SettingsTab(
                                     ButtonDefaults.textButtonColors(
                                             contentColor = MaterialTheme.colorScheme.error
                                     )
-                    ) { Text("确定") }
+                    ) { Text(stringResource(Res.string.common_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showRedownloadDialog = false }) { Text("取消") }
+                    TextButton(onClick = { showRedownloadDialog = false }) {
+                        Text(stringResource(Res.string.settings_cancel))
+                    }
                 }
         )
     }
@@ -997,18 +1281,22 @@ fun SettingsTab(
     if (showUpdateDataDialog) {
         AnimatedAlertDialog(
                 onDismissRequest = { showUpdateDataDialog = false },
-                title = { Text("更新曲目数据") },
-                text = { Text("将从远程仓库下载最新的曲目数据，之后将自动刷新本地曲目数据。\n下载完毕后，推荐重新下载所有曲绘。") },
+                title = { Text(stringResource(Res.string.settings_update_song_data)) },
+                text = {
+                    Text(stringResource(Res.string.settings_update_data_dialog_text))
+                },
                 confirmButton = {
                     TextButton(
                             onClick = {
                                 showUpdateDataDialog = false
                                 onUpdateSongData()
                             }
-                    ) { Text("确定") }
+                    ) { Text(stringResource(Res.string.common_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showUpdateDataDialog = false }) { Text("取消") }
+                    TextButton(onClick = { showUpdateDataDialog = false }) {
+                        Text(stringResource(Res.string.settings_cancel))
+                    }
                 }
         )
     }
@@ -1018,7 +1306,7 @@ fun SettingsTab(
                 onDismissRequest = {},
                 properties =
                         DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
-                title = { Text("更新曲目数据") },
+                title = { Text(stringResource(Res.string.settings_update_song_data)) },
                 text = {
                     Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -1027,9 +1315,19 @@ fun SettingsTab(
                         Text(
                                 text =
                                         if (updateDataPhase == UpdateDataPhase.Illustrations)
-                                                "正在同步新曲绘: $updateDataFileName ($updateDataProgress/$updateDataTotal)"
+                                                stringResource(
+                                                        Res.string.settings_syncing_new_artwork,
+                                                        updateDataFileName,
+                                                        updateDataProgress,
+                                                        updateDataTotal
+                                                )
                                         else
-                                                "正在下载: $updateDataFileName ($updateDataProgress/$updateDataTotal)",
+                                                stringResource(
+                                                        Res.string.settings_downloading_file,
+                                                        updateDataFileName,
+                                                        updateDataProgress,
+                                                        updateDataTotal
+                                                ),
                                 style = MaterialTheme.typography.bodyMedium
                         )
                         Spacer(modifier = Modifier.height(16.dp))
@@ -1056,27 +1354,49 @@ fun SettingsTab(
     if (updateDataError != null) {
         AnimatedAlertDialog(
                 onDismissRequest = onDismissUpdateError,
-                title = { Text("更新失败") },
-                text = { Text("发生了错误：\n${updateDataError.asString()}") },
-                confirmButton = { TextButton(onClick = onDismissUpdateError) { Text("确定") } }
+                title = { Text(stringResource(Res.string.settings_update_failed)) },
+                text = {
+                    Text(
+                            stringResource(
+                                    Res.string.settings_update_error_message,
+                                    updateDataError.asString()
+                            )
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = onDismissUpdateError) {
+                        Text(stringResource(Res.string.common_confirm))
+                    }
+                }
         )
     }
 
     if (updateResultSongNames != null) {
         AnimatedAlertDialog(
                 onDismissRequest = onDismissUpdateResult,
-                title = { Text("更新完成") },
+                title = { Text(stringResource(Res.string.settings_update_complete)) },
                 text = {
                     if (updateResultSongNames.isEmpty()) {
-                        Text("本次更新无新增曲目。")
+                        Text(stringResource(Res.string.settings_update_no_new_songs))
                     } else {
                         Text(
-                                "本次更新新增 ${updateResultSongNames.size} 首曲目：\n" +
-                                        updateResultSongNames.joinToString("、")
+                                stringResource(
+                                        Res.string.settings_update_new_songs,
+                                        updateResultSongNames.size
+                                ) +
+                                        updateResultSongNames.joinToString(
+                                                stringResource(
+                                                        Res.string.settings_song_name_separator
+                                                )
+                                        )
                         )
                     }
                 },
-                confirmButton = { TextButton(onClick = onDismissUpdateResult) { Text("确定") } }
+                confirmButton = {
+                    TextButton(onClick = onDismissUpdateResult) {
+                        Text(stringResource(Res.string.common_confirm))
+                    }
+                }
         )
     }
 
@@ -1086,8 +1406,12 @@ fun SettingsTab(
                     showNotificationGuideDialog = false
                     onCrashNotificationGuideShown()
                 },
-                title = { Text("开启崩溃通知") },
-                text = { Text("为确保应用崩溃后能及时提醒并引导反馈，建议开启通知权限。") },
+                title = {
+                    Text(stringResource(Res.string.settings_crash_notification_guide_title))
+                },
+                text = {
+                    Text(stringResource(Res.string.settings_crash_notification_guide_text))
+                },
                 confirmButton = {
                     TextButton(
                             onClick = {
@@ -1096,11 +1420,13 @@ fun SettingsTab(
                                 requestCrashNotificationPermission { granted ->
                                     notificationPermissionGranted = granted
                                     if (!granted) {
-                                        showPlatformMessage("通知权限未开启，崩溃提示可能无法显示")
+                                        showPlatformMessage(
+                                                notificationPermissionDeniedMessage
+                                        )
                                     }
                                 }
                             }
-                    ) { Text("立即开启") }
+                    ) { Text(stringResource(Res.string.settings_enable_now)) }
                 },
                 dismissButton = {
                     TextButton(
@@ -1108,7 +1434,7 @@ fun SettingsTab(
                                 showNotificationGuideDialog = false
                                 onCrashNotificationGuideShown()
                             }
-                    ) { Text("稍后") }
+                    ) { Text(stringResource(Res.string.settings_later)) }
                 }
         )
     }

@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
@@ -69,6 +70,28 @@ import dev.chrisbanes.haze.rememberHazeState
 import org.kasumi321.ushio.phitracker.ui.home.formatFour
 import org.kasumi321.ushio.phitracker.ui.home.formatTwo
 import org.kasumi321.ushio.phitracker.ui.utils.asString
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.action_back
+import phitracker.composeapp.generated.resources.suggest_chart_rks_label
+import phitracker.composeapp.generated.resources.suggest_collapse
+import phitracker.composeapp.generated.resources.suggest_empty
+import phitracker.composeapp.generated.resources.suggest_expand
+import phitracker.composeapp.generated.resources.suggest_hint_cards
+import phitracker.composeapp.generated.resources.suggest_hint_input
+import phitracker.composeapp.generated.resources.suggest_hint_mode
+import phitracker.composeapp.generated.resources.suggest_mode_player_rks
+import phitracker.composeapp.generated.resources.suggest_mode_single_chart_rks
+import phitracker.composeapp.generated.resources.suggest_need_save_sync
+import phitracker.composeapp.generated.resources.suggest_no_b30_impact
+import phitracker.composeapp.generated.resources.suggest_no_data
+import phitracker.composeapp.generated.resources.suggest_rks_delta_format
+import phitracker.composeapp.generated.resources.suggest_target_accuracy
+import phitracker.composeapp.generated.resources.suggest_target_label
+import phitracker.composeapp.generated.resources.suggest_target_placeholder
+import phitracker.composeapp.generated.resources.suggest_target_range_hint
+import phitracker.composeapp.generated.resources.suggest_title
+import phitracker.composeapp.generated.resources.suggest_total_rks_change
+import phitracker.composeapp.generated.resources.suggest_view_chart_detail
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -102,12 +125,12 @@ fun SuggestScreen(
                 GlassTopBar(hazeState = hazeState, style = glassStyle, progressiveEndIntensity = 1f) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         TopAppBar(
-                                title = { Text("推分建议") },
+                                title = { Text(stringResource(Res.string.suggest_title)) },
                                 navigationIcon = {
                                     IconButton(onClick = onNavigateBack) {
                                         Icon(
                                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                                contentDescription = "返回"
+                                                contentDescription = stringResource(Res.string.action_back)
                                         )
                                     }
                                 },
@@ -126,7 +149,7 @@ fun SuggestScreen(
                             ) {
                                 Column {
                                     Text(
-                                            text = "不填则根据当前成绩自动推荐；填写目标 RKS 后按所选模式分析。",
+                                            text = stringResource(Res.string.suggest_hint_input),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -134,7 +157,7 @@ fun SuggestScreen(
                                     Spacer(modifier = Modifier.height(4.dp))
 
                                     Text(
-                                            text = "玩家最终 RKS 选项将推荐所有有助于将最终 RKS 提升至目标的曲目，单铺面 RKS 选项则仅推荐可达成指定 RKS 的特定单曲。",
+                                            text = stringResource(Res.string.suggest_hint_mode),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -142,7 +165,7 @@ fun SuggestScreen(
                                     Spacer(modifier = Modifier.height(4.dp))
 
                                     Text(
-                                            text = "点击下方的卡片可以查看推分详情。",
+                                            text = stringResource(Res.string.suggest_hint_cards),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -155,21 +178,21 @@ fun SuggestScreen(
                                 FilterChip(
                                         selected = state.targetMode == SuggestTargetMode.PlayerDisplayRks,
                                         onClick = { viewModel.setTargetMode(SuggestTargetMode.PlayerDisplayRks) },
-                                        label = { Text("玩家最终 RKS") }
+                                        label = { Text(stringResource(Res.string.suggest_mode_player_rks)) }
                                 )
                                 FilterChip(
                                         selected = state.targetMode == SuggestTargetMode.SingleChartRks,
                                         onClick = { viewModel.setTargetMode(SuggestTargetMode.SingleChartRks) },
-                                        label = { Text("单谱面 RKS") }
+                                        label = { Text(stringResource(Res.string.suggest_mode_single_chart_rks)) }
                                 )
                             }
 
                             OutlinedTextField(
                                     value = state.targetInput,
                                     onValueChange = { viewModel.setTargetInput(it) },
-                                    label = { Text("目标 RKS") },
-                                    placeholder = { Text("例如 16.50") },
-                                    supportingText = { Text(state.targetError?.asString() ?: "范围 0.00 到 17.00，最多两位小数") },
+                                    label = { Text(stringResource(Res.string.suggest_target_label)) },
+                                    placeholder = { Text(stringResource(Res.string.suggest_target_placeholder)) },
+                                    supportingText = { Text(state.targetError?.asString() ?: stringResource(Res.string.suggest_target_range_hint)) },
                                     isError = state.targetError != null,
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -191,12 +214,12 @@ fun SuggestScreen(
             }
             !state.hasSaveData -> {
                 Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                    SuggestEmptyHint("请先回到首页同步存档后再使用此功能")
+                    SuggestEmptyHint(stringResource(Res.string.suggest_need_save_sync))
                 }
             }
             state.items.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                    SuggestEmptyHint(state.targetError?.asString() ?: "暂无推荐曲目。试试同步数据或调整目标 RKS？")
+                    SuggestEmptyHint(state.targetError?.asString() ?: stringResource(Res.string.suggest_empty))
                 }
             }
             else -> {
@@ -267,7 +290,8 @@ private fun SuggestScoreCard(
                         rks = item.currentRks
                 )
             }
-    val currentAccText = remember(item.currentAcc) { item.currentAcc?.let { "${it.formatTwo()}%" } ?: "暂无" }
+    val noDataText = stringResource(Res.string.suggest_no_data)
+    val currentAccText = remember(item.currentAcc, noDataText) { item.currentAcc?.let { "${it.formatTwo()}%" } ?: noDataText }
     val targetAccText = remember(item.targetAcc) { "${item.targetAcc.formatTwo()}%" }
     val currentRksText = remember(item.currentRks) { item.currentRks.formatFour() }
     val potentialRksText = remember(item.potentialRks) { item.potentialRks.formatFour() }
@@ -294,7 +318,7 @@ private fun SuggestScoreCard(
                 ) {
                     Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = if (expanded) "收起" else "展开",
+                            contentDescription = if (expanded) stringResource(Res.string.suggest_collapse) else stringResource(Res.string.suggest_expand),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp).rotate(arrowRotation)
                     )
@@ -309,8 +333,8 @@ private fun SuggestScoreCard(
                                     Modifier.fillMaxWidth()
                                             .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                     ) {
-                        SuggestDetailRow(label = "目标准确率", value = "$currentAccText → $targetAccText")
-                        SuggestDetailRow(label = "单曲 RKS", value = "$currentRksText → $potentialRksText")
+                        SuggestDetailRow(label = stringResource(Res.string.suggest_target_accuracy), value = "$currentAccText → $targetAccText")
+                        SuggestDetailRow(label = stringResource(Res.string.suggest_chart_rks_label), value = "$currentRksText → $potentialRksText")
 
                         Row(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -318,7 +342,7 @@ private fun SuggestScoreCard(
                                 verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                    text = "总 RKS 变化",
+                                    text = stringResource(Res.string.suggest_total_rks_change),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -342,7 +366,11 @@ private fun SuggestScoreCard(
                                     Spacer(modifier = Modifier.width(3.dp))
                                     Text(
                                             text =
-                                                    "${item.newDisplayRks.formatFour()}（+${item.deltaRks.formatFour()}）",
+                                                    stringResource(
+                                                            Res.string.suggest_rks_delta_format,
+                                                            item.newDisplayRks.formatFour(),
+                                                            item.deltaRks.formatFour()
+                                                    ),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                                             fontWeight = FontWeight.Bold
@@ -350,7 +378,7 @@ private fun SuggestScoreCard(
                                 }
                             } else {
                                 Text(
-                                        text = "达成后仍无法进入 B30",
+                                        text = stringResource(Res.string.suggest_no_b30_impact),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -365,7 +393,7 @@ private fun SuggestScoreCard(
                                     onClick = {
                                         onNavigateToSongDetail(item.songId, item.difficulty)
                                     }
-                            ) { Text("查看谱面详情") }
+                            ) { Text(stringResource(Res.string.suggest_view_chart_detail)) }
                         }
                     }
                 }

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="b30ex_action_save">  保存</string>
+    <string name="b30ex_action_share">  分享</string>
+    <string name="b30ex_album_image">相册图片</string>
+    <string name="b30ex_average_rks">平均 RKS %1$s</string>
+    <string name="b30ex_background">背景</string>
+    <string name="b30ex_background_blur">背景模糊强度</string>
+    <string name="b30ex_card_style">卡片样式</string>
+    <string name="b30ex_card_style_classic">方糖</string>
+    <string name="b30ex_card_style_poster">彩灯</string>
+    <string name="b30ex_cd_preview">B30 预览</string>
+    <string name="b30ex_chart_profile_title">谱面标签能力</string>
+    <string name="b30ex_data_analysis">B30 数据分析</string>
+    <string name="b30ex_effective_votes">有效票 %1$d</string>
+    <string name="b30ex_export_settings">导出设置</string>
+    <string name="b30ex_generate_failed">B30 图片生成失败</string>
+    <string name="b30ex_generating">正在生成 B30 图片…</string>
+    <string name="b30ex_image_title">B30 图片</string>
+    <string name="b30ex_random_background">随机背景</string>
+    <string name="b30ex_rks_histogram_title">等效 RKS 直方图</string>
+    <string name="b30ex_save_failed">保存失败</string>
+    <string name="b30ex_saved_to_pictures">已保存到 Pictures/PhiTracker</string>
+    <string name="b30ex_share_failed">分享失败</string>
+    <string name="b30ex_tag_data_insufficient_hint">标签数据不足，统计结果仅供参考。欢迎到曲目详情为谱面投票，帮助完善社区标签。</string>
+    <string name="b30ex_tag_insufficient_hint">可用谱面标签统计量不足，结果仅供参考。欢迎到曲目详情为谱面投票，帮助完善社区标签。</string>
+    <string name="b30ex_tag_stats_unavailable">谱面标签统计暂不可用</string>
+    <string name="b30ex_tag_strong">擅长</string>
+    <string name="b30ex_tag_weak">薄弱</string>
+    <string name="b30ex_theme_dark">深色</string>
+    <string name="b30ex_theme_follow_global">主题跟随全局</string>
+    <string name="b30ex_theme_light">浅色</string>
+</resources>

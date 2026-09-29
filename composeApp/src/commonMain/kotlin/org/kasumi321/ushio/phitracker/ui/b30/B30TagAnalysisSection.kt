@@ -33,10 +33,18 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.PI
 import kotlin.math.sin
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.domain.model.B30TagAnalysis
 import org.kasumi321.ushio.phitracker.domain.model.CategoryScore
 import org.kasumi321.ushio.phitracker.domain.model.TagScore
 import org.kasumi321.ushio.phitracker.ui.home.formatTwo
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.b30ex_chart_profile_title
+import phitracker.composeapp.generated.resources.b30ex_effective_votes
+import phitracker.composeapp.generated.resources.b30ex_tag_data_insufficient_hint
+import phitracker.composeapp.generated.resources.b30ex_tag_insufficient_hint
+import phitracker.composeapp.generated.resources.b30ex_tag_strong
+import phitracker.composeapp.generated.resources.b30ex_tag_weak
 
 /**
  * Radar chart of the weighted equivalent RKS per tag category, shared by
@@ -155,13 +163,13 @@ fun B30TagStrongWeakColumns(
 ) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(14.4.dp)) {
         TagScoreColumn(
-            title = "擅长",
+            title = stringResource(Res.string.b30ex_tag_strong),
             titleColor = MaterialTheme.colorScheme.primary,
             scores = analysis.strong,
             modifier = Modifier.weight(1f)
         )
         TagScoreColumn(
-            title = "薄弱",
+            title = stringResource(Res.string.b30ex_tag_weak),
             titleColor = MaterialTheme.colorScheme.tertiary,
             scores = analysis.weak,
             modifier = Modifier.weight(1f)
@@ -238,13 +246,13 @@ fun B30TagAnalysisPanelHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "谱面标签能力",
+                text = stringResource(Res.string.b30ex_chart_profile_title),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "有效票 $totalVotes",
+                text = stringResource(Res.string.b30ex_effective_votes, totalVotes),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -270,7 +278,7 @@ fun ChartTagInsufficientScrim(
         if (insufficient) {
             Box(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    text = "可用谱面标签统计量不足，结果仅供参考。欢迎到曲目详情为谱面投票，帮助完善社区标签。",
+                    text = stringResource(Res.string.b30ex_tag_insufficient_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -294,7 +302,7 @@ fun B30TagAnalysisContent(
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (analysis.insufficient) {
             Text(
-                text = "标签数据不足，统计结果仅供参考。欢迎到曲目详情为谱面投票，帮助完善社区标签。",
+                text = stringResource(Res.string.b30ex_tag_data_insufficient_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="about_title">關於 Phi Tracker</string>
+    <string name="about_tagline">一款可用於讀取 Phigros 存檔並查分的小工具</string>
+    <string name="about_version_label">目前軟體版本: %1$s</string>
+    <string name="about_build_date_label">建置日期: %1$s</string>
+    <string name="about_build_type_label">建置類型: %1$s</string>
+    <string name="about_build_type_debug">Debug 建置</string>
+    <string name="about_build_type_release">Release 建置</string>
+    <string name="about_project_home">專案首頁</string>
+    <string name="about_project_home_desc">在 GitHub 上檢視本專案的原始碼</string>
+    <string name="about_feedback">建議與回饋</string>
+    <string name="about_feedback_desc">遇到問題或有建議？在 GitHub 上告訴我們</string>
+    <string name="about_legal">著作權、授權條款與免責聲明</string>
+    <string name="about_legal_desc">閱讀本專案的著作權資訊及本軟體的免責聲明</string>
+    <string name="about_acknowledgments">致謝與參考</string>
+    <string name="about_acknowledgments_desc">檢視特別致謝以及本專案參考引用的外部專案及著作權說明</string>
+    <string name="about_privacy_policy">隱私權政策</string>
+    <string name="about_privacy_policy_desc">了解本應用程式如何收集、使用及保護您的資料</string>
+    <string name="about_third_party">第三方元件</string>
+    <string name="about_third_party_desc">檢視使用和參考的第三方元件及其授權條款資訊\n我們使用和參考的所有第三方元件都是自由軟體，在此感謝這些元件的開發者們</string>
+    <string name="about_licenses_title">第三方元件授權</string>
+    <string name="about_licenses_load_failed">第三方元件資訊載入失敗</string>
+    <string name="about_licenses_load_failed_with_reason">第三方元件資訊載入失敗：%1$s</string>
+</resources>

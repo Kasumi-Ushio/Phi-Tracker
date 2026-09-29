@@ -9,4 +9,27 @@
     <string name="login_qr_auth_failed">二维码授权失败，请重试</string>
     <string name="login_qr_sync_failed">存档同步失败，请检查网络后重试</string>
     <string name="login_failed_fallback">登录失败</string>
+    <string name="login_app_credit">A Phigros Score Tracker\nDeveloped by 铃萤-RinLin a.k.a. 朝比奈ほたる\nCopyright © 2026 Kasumi\'s IT Infrastructure</string>
+    <string name="login_cancel">取消</string>
+    <string name="login_generate_qr">生成二维码</string>
+    <string name="login_generating_qr">正在生成二维码…</string>
+    <string name="login_login_and_sync">登录并同步</string>
+    <string name="login_qr_code_cd">扫码登录二维码</string>
+    <string name="login_qr_expired">二维码已过期</string>
+    <string name="login_qr_hint_idle">使用 TapTap App 扫描二维码，即可自动完成登录</string>
+    <string name="login_qr_remaining_time">剩余时间: %1$ds</string>
+    <string name="login_qr_scanned">已扫描，请在 TapTap 上确认登录</string>
+    <string name="login_qr_tap_hint">点击二维码可在浏览器或 TapTap 中打开</string>
+    <string name="login_qr_waiting_scan">请使用 TapTap App 扫描二维码</string>
+    <string name="login_regenerate_qr">重新生成</string>
+    <string name="login_retry">重试</string>
+    <string name="login_security_tip">温馨提示：请确认你在信任的环境下登录，以保护账号安全</string>
+    <string name="login_select_server">选择服务器</string>
+    <string name="login_success">登录成功!</string>
+    <string name="login_syncing_game_data">正在同步你的游戏数据，请稍候…</string>
+    <string name="login_tab_qr">扫码登录</string>
+    <string name="login_tab_token">Token 登录</string>
+    <string name="login_token_hint">请输入 TapTap 的 sessionToken\n</string>
+    <string name="login_token_hint_question">不知道如何获取 sessionToken？</string>
+    <string name="login_token_tutorial_link">查看获取教程</string>
 </resources>

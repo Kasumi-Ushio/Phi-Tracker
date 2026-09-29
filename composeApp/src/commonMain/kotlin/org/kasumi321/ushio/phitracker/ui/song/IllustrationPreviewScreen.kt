@@ -46,8 +46,16 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.platform.saveArtworkToPictures
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.ill_preview_cd_rotate
+import phitracker.composeapp.generated.resources.ill_preview_save_failed
+import phitracker.composeapp.generated.resources.ill_preview_save_failed_with_reason
+import phitracker.composeapp.generated.resources.ill_preview_saved_to_album
+import phitracker.composeapp.generated.resources.ill_preview_unknown_error
 import kotlin.math.roundToInt
 
 /**
@@ -85,6 +93,10 @@ fun IllustrationPreviewScreen(
         var containerSize by remember { mutableStateOf(IntSize.Zero) }
         val coroutineScope = rememberCoroutineScope()
         var isDownloading by remember { mutableStateOf(false) }
+
+        val saveFailedMessage = stringResource(Res.string.ill_preview_save_failed)
+        val savedToAlbumMessage = stringResource(Res.string.ill_preview_saved_to_album)
+        val unknownErrorMessage = stringResource(Res.string.ill_preview_unknown_error)
 
         val platformContext = LocalPlatformContext.current
         val previewRequest = remember(platformContext, illustrationUrl) {
@@ -169,7 +181,7 @@ fun IllustrationPreviewScreen(
                 onClick = {
                     val standardArtworkUrl = illustrationUrl.orEmpty()
                     if (standardArtworkUrl.isBlank()) {
-                        showPlatformMessage("保存失败")
+                        showPlatformMessage(saveFailedMessage)
                         return@IconButton
                     }
                     isDownloading = true
@@ -177,7 +189,14 @@ fun IllustrationPreviewScreen(
                         val fileName = "${songId.replace(".", "_")}_hq.png"
                         val result = saveArtworkToPictures(standardArtworkUrl, fileName)
                         showPlatformMessage(
-                            if (result.isSuccess) "已保存到相册" else "保存失败: ${result.exceptionOrNull()?.message ?: "未知错误"}"
+                            if (result.isSuccess) {
+                                savedToAlbumMessage
+                            } else {
+                                getString(
+                                    Res.string.ill_preview_save_failed_with_reason,
+                                    result.exceptionOrNull()?.message ?: unknownErrorMessage
+                                )
+                            }
                         )
                         isDownloading = false
                     }
@@ -222,7 +241,7 @@ fun IllustrationPreviewScreen(
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.RotateRight,
-                    contentDescription = "旋转",
+                    contentDescription = stringResource(Res.string.ill_preview_cd_rotate),
                     tint = Color.White
                 )
             }

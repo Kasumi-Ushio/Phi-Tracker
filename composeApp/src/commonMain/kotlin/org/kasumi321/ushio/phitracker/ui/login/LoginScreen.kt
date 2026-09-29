@@ -70,7 +70,30 @@ import org.kasumi321.ushio.phitracker.domain.model.Server
 import org.kasumi321.ushio.phitracker.ui.utils.asString
 import org.kasumi321.ushio.phitracker.ui.utils.resolve
 import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.login_app_credit
+import phitracker.composeapp.generated.resources.login_cancel
 import phitracker.composeapp.generated.resources.login_failed_fallback
+import phitracker.composeapp.generated.resources.login_generate_qr
+import phitracker.composeapp.generated.resources.login_generating_qr
+import phitracker.composeapp.generated.resources.login_login_and_sync
+import phitracker.composeapp.generated.resources.login_qr_code_cd
+import phitracker.composeapp.generated.resources.login_qr_expired
+import phitracker.composeapp.generated.resources.login_qr_hint_idle
+import phitracker.composeapp.generated.resources.login_qr_remaining_time
+import phitracker.composeapp.generated.resources.login_qr_scanned
+import phitracker.composeapp.generated.resources.login_qr_tap_hint
+import phitracker.composeapp.generated.resources.login_qr_waiting_scan
+import phitracker.composeapp.generated.resources.login_regenerate_qr
+import phitracker.composeapp.generated.resources.login_retry
+import phitracker.composeapp.generated.resources.login_security_tip
+import phitracker.composeapp.generated.resources.login_select_server
+import phitracker.composeapp.generated.resources.login_success
+import phitracker.composeapp.generated.resources.login_syncing_game_data
+import phitracker.composeapp.generated.resources.login_tab_qr
+import phitracker.composeapp.generated.resources.login_tab_token
+import phitracker.composeapp.generated.resources.login_token_hint
+import phitracker.composeapp.generated.resources.login_token_hint_question
+import phitracker.composeapp.generated.resources.login_token_tutorial_link
 
 private val QrCodeMaxSize = 280.dp
 
@@ -131,7 +154,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "A Phigros Score Tracker\nDeveloped by 铃萤-RinLin a.k.a. 朝比奈ほたる\nCopyright © 2026 Kasumi's IT Infrastructure",
+                text = stringResource(Res.string.login_app_credit),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
@@ -140,7 +163,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "选择服务器",
+                text = stringResource(Res.string.login_select_server),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -211,7 +234,7 @@ internal fun QrLoginContent(
         when (state.qrStatus) {
             QrStatus.Idle -> {
                 Text(
-                    text = "使用 TapTap App 扫描二维码，即可自动完成登录",
+                    text = stringResource(Res.string.login_qr_hint_idle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -225,7 +248,7 @@ internal fun QrLoginContent(
                 ) {
                     Icon(Icons.Default.QrCode2, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("生成二维码")
+                    Text(stringResource(Res.string.login_generate_qr))
                 }
             }
 
@@ -234,7 +257,7 @@ internal fun QrLoginContent(
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "正在生成二维码...",
+                    text = stringResource(Res.string.login_generating_qr),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -252,7 +275,7 @@ internal fun QrLoginContent(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "点击二维码可在浏览器或 TapTap 中打开",
+                    text = stringResource(Res.string.login_qr_tap_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -261,9 +284,9 @@ internal fun QrLoginContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 val statusText = if (state.qrStatus == QrStatus.Scanned) {
-                    "已扫描，请在 TapTap 上确认登录"
+                    stringResource(Res.string.login_qr_scanned)
                 } else {
-                    "请使用 TapTap App 扫描二维码"
+                    stringResource(Res.string.login_qr_waiting_scan)
                 }
 
                 Text(
@@ -278,7 +301,7 @@ internal fun QrLoginContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "剩余时间: ${state.qrRemainingSeconds}s",
+                    text = stringResource(Res.string.login_qr_remaining_time, state.qrRemainingSeconds),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (state.qrRemainingSeconds <= 30)
                         MaterialTheme.colorScheme.error
@@ -288,13 +311,13 @@ internal fun QrLoginContent(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedButton(onClick = onCancel) {
-                    Text("取消")
+                    Text(stringResource(Res.string.login_cancel))
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "温馨提示：请确认你在信任的环境下登录，以保护账号安全",
+                    text = stringResource(Res.string.login_security_tip),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -306,7 +329,7 @@ internal fun QrLoginContent(
                 CircularProgressIndicator()
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "正在同步你的游戏数据，请稍候...",
+                    text = stringResource(Res.string.login_syncing_game_data),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -322,7 +345,7 @@ internal fun QrLoginContent(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "登录成功!",
+                    text = stringResource(Res.string.login_success),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -347,14 +370,14 @@ internal fun QrLoginContent(
                 Button(onClick = onStartQrLogin) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("重试")
+                    Text(stringResource(Res.string.login_retry))
                 }
             }
 
             QrStatus.Expired -> {
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
-                    text = "二维码已过期",
+                    text = stringResource(Res.string.login_qr_expired),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -362,7 +385,7 @@ internal fun QrLoginContent(
                 Button(onClick = onStartQrLogin) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("重新生成")
+                    Text(stringResource(Res.string.login_regenerate_qr))
                 }
             }
         }
@@ -405,15 +428,18 @@ private fun TokenLoginContent(
                 )
             }
             AnimatedVisibility(visible = !state.isLoading) {
-                Text("登录并同步")
+                Text(stringResource(Res.string.login_login_and_sync))
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        val tokenHint = stringResource(Res.string.login_token_hint)
+        val tokenHintQuestion = stringResource(Res.string.login_token_hint_question)
+        val tutorialLinkText = stringResource(Res.string.login_token_tutorial_link)
         val annotatedString = androidx.compose.ui.text.buildAnnotatedString {
-            append("请输入 TapTap 的 sessionToken\n")
-            append("不知道如何获取 sessionToken？")
+            append(tokenHint)
+            append(tokenHintQuestion)
             val link = androidx.compose.ui.text.LinkAnnotation.Url(
                 url = "https://www.kdocs.cn/l/cvMDjWPTNaz4",
                 styles = androidx.compose.ui.text.TextLinkStyles(
@@ -423,7 +449,7 @@ private fun TokenLoginContent(
                 )
             )
             pushLink(link)
-            append("查看获取教程")
+            append(tutorialLinkText)
             pop()
         }
 
@@ -465,7 +491,7 @@ private fun QrCodeImage(url: String, onClick: (() -> Unit)? = null) {
                     darkPixelShape = QrPixelShape.roundCorners(.25f),
                     frameShape = QrFrameShape.roundCorners(.25f),
                 ),
-                contentDescription = "扫码登录二维码",
+                contentDescription = stringResource(Res.string.login_qr_code_cd),
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(8.dp)),
@@ -486,13 +512,13 @@ private fun LoginTabRow(
         Tab(
             selected = selectedTab == 0,
             onClick = { onTabSelected(0) },
-            text = { Text("扫码登录") },
+            text = { Text(stringResource(Res.string.login_tab_qr)) },
             icon = { Icon(Icons.Default.QrCode2, contentDescription = null) }
         )
         Tab(
             selected = selectedTab == 1,
             onClick = { onTabSelected(1) },
-            text = { Text("Token 登录") },
+            text = { Text(stringResource(Res.string.login_tab_token)) },
             icon = { Icon(Icons.Default.VpnKey, contentDescription = null) }
         )
     }

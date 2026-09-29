@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="update_new_version_title">New version found</string>
+    <string name="update_latest_version">Latest version: %1$s</string>
+    <string name="update_go_download">Go to download</string>
+    <string name="update_later">Later</string>
+</resources>

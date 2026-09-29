@@ -30,8 +30,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.domain.model.B30RksHistogram
 import org.kasumi321.ushio.phitracker.ui.home.formatFour
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.b30ex_average_rks
+import phitracker.composeapp.generated.resources.b30ex_rks_histogram_title
 
 /**
  * Equivalent single-chart RKS distribution of the effective B30 slots,
@@ -66,7 +70,7 @@ fun B30RksHistogramChart(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "等效 RKS 直方图",
+                text = stringResource(Res.string.b30ex_rks_histogram_title),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -74,7 +78,7 @@ fun B30RksHistogramChart(
             // formatFour instead of String.format: this is commonMain code and
             // must also compile for the iOS targets.
             Text(
-                text = "平均 RKS ${histogram.average.formatFour()}",
+                text = stringResource(Res.string.b30ex_average_rks, histogram.average.formatFour()),
                 style = labelStyle,
                 color = labelColor
             )

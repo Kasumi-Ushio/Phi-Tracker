@@ -64,7 +64,7 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongInfo
 import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
-import org.kasumi321.ushio.phitracker.ui.utils.chapterDisplayName
+import org.kasumi321.ushio.phitracker.ui.utils.chapterDisplayNameLocalized
 import phitracker.composeapp.generated.resources.Res
 import phitracker.composeapp.generated.resources.songs_action_done
 import phitracker.composeapp.generated.resources.songs_action_reset
@@ -377,7 +377,7 @@ private fun ChapterFilterDialog(
                     FilterChip(
                         selected = chapter in selectedChapters,
                         onClick = { onToggleChapter(chapter) },
-                        label = { Text(chapterDisplayName(chapter)) }
+                        label = { Text(chapterDisplayNameLocalized(chapter)) }
                     )
                 }
             }

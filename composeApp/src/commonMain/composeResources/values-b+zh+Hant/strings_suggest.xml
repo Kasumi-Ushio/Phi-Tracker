@@ -2,4 +2,24 @@
 <resources>
     <string name="suggest_target_invalid">目標 RKS 需為 0.00 到 17.00 之間的數字，最多兩位小數</string>
     <string name="suggest_target_reached">目前資料下已達成目標，或沒有可提升的譜面能幫助達成該目標</string>
+    <string name="suggest_title">推分建議</string>
+    <string name="suggest_hint_input">不填則根據目前成績自動推薦；填寫目標 RKS 後依所選模式分析。</string>
+    <string name="suggest_hint_mode">玩家最終 RKS 選項將推薦所有有助於將最終 RKS 提升至目標的曲目，單譜面 RKS 選項則僅推薦可達成指定 RKS 的特定單曲。</string>
+    <string name="suggest_hint_cards">點擊下方的卡片可以檢視推分詳情。</string>
+    <string name="suggest_mode_player_rks">玩家最終 RKS</string>
+    <string name="suggest_mode_single_chart_rks">單譜面 RKS</string>
+    <string name="suggest_target_label">目標 RKS</string>
+    <string name="suggest_target_placeholder">例如 16.50</string>
+    <string name="suggest_target_range_hint">範圍 0.00 到 17.00，最多兩位小數</string>
+    <string name="suggest_need_save_sync">請先回到首頁同步存檔後再使用此功能</string>
+    <string name="suggest_empty">暫無推薦曲目。試試同步資料或調整目標 RKS？</string>
+    <string name="suggest_no_data">暫無</string>
+    <string name="suggest_collapse">收起</string>
+    <string name="suggest_expand">展開</string>
+    <string name="suggest_target_accuracy">目標準確率</string>
+    <string name="suggest_chart_rks_label">單曲 RKS</string>
+    <string name="suggest_total_rks_change">總 RKS 變化</string>
+    <string name="suggest_rks_delta_format">%1$s（+%2$s）</string>
+    <string name="suggest_no_b30_impact">達成後仍無法進入 B30</string>
+    <string name="suggest_view_chart_detail">檢視譜面詳情</string>
 </resources>

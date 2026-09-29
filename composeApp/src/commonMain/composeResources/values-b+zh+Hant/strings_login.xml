@@ -9,4 +9,27 @@
     <string name="login_qr_auth_failed">QR 碼授權失敗，請重試</string>
     <string name="login_qr_sync_failed">存檔同步失敗，請檢查網路後重試</string>
     <string name="login_failed_fallback">登入失敗</string>
+    <string name="login_app_credit">A Phigros Score Tracker\nDeveloped by 铃萤-RinLin a.k.a. 朝比奈ほたる\nCopyright © 2026 Kasumi\'s IT Infrastructure</string>
+    <string name="login_cancel">取消</string>
+    <string name="login_generate_qr">產生 QR 碼</string>
+    <string name="login_generating_qr">正在產生 QR 碼…</string>
+    <string name="login_login_and_sync">登入並同步</string>
+    <string name="login_qr_code_cd">掃碼登入 QR 碼</string>
+    <string name="login_qr_expired">QR 碼已過期</string>
+    <string name="login_qr_hint_idle">使用 TapTap App 掃描 QR 碼，即可自動完成登入</string>
+    <string name="login_qr_remaining_time">剩餘時間: %1$ds</string>
+    <string name="login_qr_scanned">已掃描，請在 TapTap 上確認登入</string>
+    <string name="login_qr_tap_hint">點擊 QR 碼可在瀏覽器或 TapTap 中開啟</string>
+    <string name="login_qr_waiting_scan">請使用 TapTap App 掃描 QR 碼</string>
+    <string name="login_regenerate_qr">重新產生</string>
+    <string name="login_retry">重試</string>
+    <string name="login_security_tip">溫馨提示：請確認你在信任的環境下登入，以保護帳號安全</string>
+    <string name="login_select_server">選擇伺服器</string>
+    <string name="login_success">登入成功!</string>
+    <string name="login_syncing_game_data">正在同步你的遊戲資料，請稍候…</string>
+    <string name="login_tab_qr">掃碼登入</string>
+    <string name="login_tab_token">Token 登入</string>
+    <string name="login_token_hint">請輸入 TapTap 的 sessionToken\n</string>
+    <string name="login_token_hint_question">不知道如何取得 sessionToken？</string>
+    <string name="login_token_tutorial_link">查看取得教學</string>
 </resources>

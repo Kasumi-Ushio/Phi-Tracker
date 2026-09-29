@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="b30ex_action_save">  Save</string>
+    <string name="b30ex_action_share">  Share</string>
+    <string name="b30ex_album_image">Album image</string>
+    <string name="b30ex_average_rks">Average RKS %1$s</string>
+    <string name="b30ex_background">Background</string>
+    <string name="b30ex_background_blur">Background blur intensity</string>
+    <string name="b30ex_card_style">Card style</string>
+    <string name="b30ex_card_style_classic">Sugar Cube</string>
+    <string name="b30ex_card_style_poster">Lantern</string>
+    <string name="b30ex_cd_preview">B30 preview</string>
+    <string name="b30ex_chart_profile_title">Chart Profile</string>
+    <string name="b30ex_data_analysis">B30 Data Analysis</string>
+    <string name="b30ex_effective_votes">Effective votes: %1$d</string>
+    <string name="b30ex_export_settings">Export settings</string>
+    <string name="b30ex_generate_failed">Failed to generate B30 image</string>
+    <string name="b30ex_generating">Generating B30 image…</string>
+    <string name="b30ex_image_title">B30 Image</string>
+    <string name="b30ex_random_background">Random background</string>
+    <string name="b30ex_rks_histogram_title">Equivalent RKS Histogram</string>
+    <string name="b30ex_save_failed">Save failed</string>
+    <string name="b30ex_saved_to_pictures">Saved to Pictures/PhiTracker</string>
+    <string name="b30ex_share_failed">Share failed</string>
+    <string name="b30ex_tag_data_insufficient_hint">Not enough tag data; statistics are for reference only. Vote for charts on the song detail page to help improve community tags.</string>
+    <string name="b30ex_tag_insufficient_hint">Not enough chart tag statistics available; results are for reference only. Vote for charts on the song detail page to help improve community tags.</string>
+    <string name="b30ex_tag_stats_unavailable">Chart profile statistics temporarily unavailable</string>
+    <string name="b30ex_tag_strong">Strong</string>
+    <string name="b30ex_tag_weak">Weak</string>
+    <string name="b30ex_theme_dark">Dark</string>
+    <string name="b30ex_theme_follow_global">Follow global theme</string>
+    <string name="b30ex_theme_light">Light</string>
+</resources>

@@ -20,7 +20,12 @@ import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.jetbrains.compose.resources.stringResource
 import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.about_licenses_load_failed
+import phitracker.composeapp.generated.resources.about_licenses_load_failed_with_reason
+import phitracker.composeapp.generated.resources.about_licenses_title
+import phitracker.composeapp.generated.resources.action_back
 
 private sealed interface LicenseLoadState {
     data object Loading : LicenseLoadState
@@ -48,10 +53,10 @@ fun LicensesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("第三方组件许可") },
+                title = { Text(stringResource(Res.string.about_licenses_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.action_back))
                     }
                 }
             )
@@ -80,11 +85,13 @@ fun LicensesScreen(
                     .padding(padding),
                 contentAlignment = Alignment.Center
             ) {
+                val failureDetail = state.message?.takeIf { it.isNotBlank() }
                 Text(
-                    text = state.message
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let { "第三方组件信息加载失败：$it" }
-                        ?: "第三方组件信息加载失败"
+                    text = if (failureDetail != null) {
+                        stringResource(Res.string.about_licenses_load_failed_with_reason, failureDetail)
+                    } else {
+                        stringResource(Res.string.about_licenses_load_failed)
+                    }
                 )
             }
         }

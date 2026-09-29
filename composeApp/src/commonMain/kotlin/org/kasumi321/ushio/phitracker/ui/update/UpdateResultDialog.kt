@@ -20,7 +20,13 @@ import androidx.compose.ui.unit.dp
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.update_go_download
+import phitracker.composeapp.generated.resources.update_later
+import phitracker.composeapp.generated.resources.update_latest_version
+import phitracker.composeapp.generated.resources.update_new_version_title
 
 @Composable
 fun UpdateResultDialog(
@@ -34,10 +40,10 @@ fun UpdateResultDialog(
     AnimatedAlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.widthIn(max = 560.dp),
-        title = { Text("发现新版本") },
+        title = { Text(stringResource(Res.string.update_new_version_title)) },
         text = {
             Column {
-                Text("最新版本: $version")
+                Text(stringResource(Res.string.update_latest_version, version))
                 if (body.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     // The release body is GitHub-flavored Markdown and can be
@@ -76,10 +82,10 @@ fun UpdateResultDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onDownload(uriHandler) }) { Text("前往下载") }
+            TextButton(onClick = { onDownload(uriHandler) }) { Text(stringResource(Res.string.update_go_download)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("稍后再说") }
+            TextButton(onClick = onDismiss) { Text(stringResource(Res.string.update_later)) }
         }
     )
 }

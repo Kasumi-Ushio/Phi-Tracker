@@ -19,8 +19,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
+import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.about_acknowledgments
+import phitracker.composeapp.generated.resources.about_acknowledgments_desc
+import phitracker.composeapp.generated.resources.about_build_date_label
+import phitracker.composeapp.generated.resources.about_build_type_debug
+import phitracker.composeapp.generated.resources.about_build_type_label
+import phitracker.composeapp.generated.resources.about_build_type_release
+import phitracker.composeapp.generated.resources.about_feedback
+import phitracker.composeapp.generated.resources.about_feedback_desc
+import phitracker.composeapp.generated.resources.about_legal
+import phitracker.composeapp.generated.resources.about_legal_desc
+import phitracker.composeapp.generated.resources.about_privacy_policy
+import phitracker.composeapp.generated.resources.about_privacy_policy_desc
+import phitracker.composeapp.generated.resources.about_project_home
+import phitracker.composeapp.generated.resources.about_project_home_desc
+import phitracker.composeapp.generated.resources.about_tagline
+import phitracker.composeapp.generated.resources.about_third_party
+import phitracker.composeapp.generated.resources.about_third_party_desc
+import phitracker.composeapp.generated.resources.about_title
+import phitracker.composeapp.generated.resources.about_version_label
+import phitracker.composeapp.generated.resources.action_back
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,16 +54,20 @@ fun AboutScreen(
     onNavigateToPrivacyPolicy: () -> Unit
 ) {
     val metadata = remember { getAppMetadata() }
-    val buildType = if (metadata.buildType == "Debug") "Debug 构建" else "Release 构建"
+    val buildType = if (metadata.buildType == "Debug") {
+        stringResource(Res.string.about_build_type_debug)
+    } else {
+        stringResource(Res.string.about_build_type_release)
+    }
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("关于 Phi Tracker") },
+                title = { Text(stringResource(Res.string.about_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(Res.string.action_back))
                     }
                 }
             )
@@ -60,18 +86,18 @@ fun AboutScreen(
             ) {
                 Text("Phi Tracker", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("一款可以用于读取 Phigros 存档并查分的小工具", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(Res.string.about_tagline), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("当前软件版本: ${metadata.versionName}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
-                Text("构建日期: ${metadata.buildTime}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("构建类型: $buildType", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(Res.string.about_version_label, metadata.versionName), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(stringResource(Res.string.about_build_date_label, metadata.buildTime), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(Res.string.about_build_type_label, buildType), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
 
             HorizontalDivider()
 
             CenteredListItem(
-                headlineContent = { Text("项目主页") },
-                supportingContent = { Text("在 GitHub 上查看本项目的源代码") },
+                headlineContent = { Text(stringResource(Res.string.about_project_home)) },
+                supportingContent = { Text(stringResource(Res.string.about_project_home_desc)) },
                 leadingContent = { Icon(Icons.Default.Code, contentDescription = null) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable {
@@ -80,8 +106,8 @@ fun AboutScreen(
             )
 
             CenteredListItem(
-                headlineContent = { Text("建议和反馈") },
-                supportingContent = { Text("遇到问题或有建议？在 GitHub 上告诉我们") },
+                headlineContent = { Text(stringResource(Res.string.about_feedback)) },
+                supportingContent = { Text(stringResource(Res.string.about_feedback_desc)) },
                 leadingContent = { Icon(Icons.Default.BugReport, contentDescription = null) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable {
@@ -90,32 +116,32 @@ fun AboutScreen(
             )
 
             CenteredListItem(
-                headlineContent = { Text("版权、许可协议与免责声明") },
-                supportingContent = { Text("阅读本项目的版权信息及本软件的免责声明") },
+                headlineContent = { Text(stringResource(Res.string.about_legal)) },
+                supportingContent = { Text(stringResource(Res.string.about_legal_desc)) },
                 leadingContent = { Icon(Icons.Default.Gavel, contentDescription = null) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable { onNavigateToDisclaimer() }
             )
 
             CenteredListItem(
-                headlineContent = { Text("致谢与参考") },
-                supportingContent = { Text("查看特别致谢以及本项目参考引用的外部项目及版权说明") },
+                headlineContent = { Text(stringResource(Res.string.about_acknowledgments)) },
+                supportingContent = { Text(stringResource(Res.string.about_acknowledgments_desc)) },
                 leadingContent = { Icon(Icons.Default.Favorite, contentDescription = null) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable { onNavigateToAcknowledgments() }
             )
 
             CenteredListItem(
-                headlineContent = { Text("隐私政策") },
-                supportingContent = { Text("了解本应用如何收集、使用和保护您的数据") },
+                headlineContent = { Text(stringResource(Res.string.about_privacy_policy)) },
+                supportingContent = { Text(stringResource(Res.string.about_privacy_policy_desc)) },
                 leadingContent = { Icon(Icons.Default.Shield, contentDescription = null) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable { onNavigateToPrivacyPolicy() }
             )
 
             CenteredListItem(
-                headlineContent = { Text("第三方组件") },
-                supportingContent = { Text("查看使用和参考的第三方组件及其许可证信息\n我们使用和参考的所有第三方组件都是自由软件，在此感谢这些组件的开发者们") },
+                headlineContent = { Text(stringResource(Res.string.about_third_party)) },
+                supportingContent = { Text(stringResource(Res.string.about_third_party_desc)) },
                 leadingContent = { Icon(Icons.Default.Info, contentDescription = null) },
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable { onNavigateToLicenses() }
