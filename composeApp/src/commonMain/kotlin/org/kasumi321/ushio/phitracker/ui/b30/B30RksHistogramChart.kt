@@ -28,6 +28,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
@@ -73,14 +74,18 @@ fun B30RksHistogramChart(
                 text = stringResource(Res.string.b30ex_rks_histogram_title),
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             // formatFour instead of String.format: this is commonMain code and
             // must also compile for the iOS targets.
             Text(
                 text = stringResource(Res.string.b30ex_average_rks, histogram.average.formatFour()),
                 style = labelStyle,
-                color = labelColor
+                color = labelColor,
+                maxLines = 1
             )
         }
         // Legend: the solid swatch matches the phi bars, the faded one the

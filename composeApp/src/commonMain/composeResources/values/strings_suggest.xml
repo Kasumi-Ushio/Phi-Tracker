@@ -20,6 +20,6 @@
     <string name="suggest_chart_rks_label">Chart RKS</string>
     <string name="suggest_total_rks_change">Total RKS Change</string>
     <string name="suggest_rks_delta_format">%1$s (+%2$s)</string>
-    <string name="suggest_no_b30_impact">Still won\'t reach B30 even after achieving it</string>
+    <string name="suggest_no_b30_impact">Still won't reach B30 even after achieving it</string>
     <string name="suggest_view_chart_detail">View Chart Details</string>
 </resources>

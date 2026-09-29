@@ -9,7 +9,7 @@
     <string name="login_qr_auth_failed">QR code authorization failed. Please try again.</string>
     <string name="login_qr_sync_failed">Failed to sync your save. Check your network and try again.</string>
     <string name="login_failed_fallback">Login failed</string>
-    <string name="login_app_credit">A Phigros Score Tracker\nDeveloped by 铃萤-RinLin a.k.a. 朝比奈ほたる\nCopyright © 2026 Kasumi\'s IT Infrastructure</string>
+    <string name="login_app_credit">A Phigros Score Tracker\nDeveloped by 铃萤-RinLin a.k.a. 朝比奈ほたる\nCopyright © 2026 Kasumi's IT Infrastructure</string>
     <string name="login_cancel">Cancel</string>
     <string name="login_generate_qr">Generate QR code</string>
     <string name="login_generating_qr">Generating QR code…</string>
@@ -30,6 +30,6 @@
     <string name="login_tab_qr">Scan to log in</string>
     <string name="login_tab_token">Token login</string>
     <string name="login_token_hint">Enter your TapTap sessionToken\n</string>
-    <string name="login_token_hint_question">Don\'t know how to get your sessionToken?</string>
+    <string name="login_token_hint_question">Don't know how to get your sessionToken?</string>
     <string name="login_token_tutorial_link">View the tutorial</string>
 </resources>

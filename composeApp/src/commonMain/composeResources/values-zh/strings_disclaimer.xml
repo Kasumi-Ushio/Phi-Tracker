@@ -3,7 +3,7 @@
     <string name="disclaimer_title">版权、许可协议与免责声明</string>
     <string name="disclaimer_section_license_header">版权与许可协议</string>
     <string name="disclaimer_section_copyright_title">版权</string>
-    <string name="disclaimer_section_copyright_body">版权所有 (c) 2026 Kasumi\'s IT Infrastructure。\n\n版权所有 (c) 2026 铃萤-RinLin a.k.a. 朝比奈ほたる 及所有 Phi Tracker 贡献者。</string>
+    <string name="disclaimer_section_copyright_body">版权所有 (c) 2026 Kasumi's IT Infrastructure。\n\n版权所有 (c) 2026 铃萤-RinLin a.k.a. 朝比奈ほたる 及所有 Phi Tracker 贡献者。</string>
     <string name="disclaimer_section_project_license_title">本项目许可协议</string>
     <string name="disclaimer_section_project_license_body">本项目的全部源代码、不属于 Pigeon Games 和 TapTap 的资产以及文档，均为自由软件。\n\n您可以根据 GNU General Public License 版本 3 的条款，使用、复制、分发、修改和重新分发本项目。</string>
     <string name="disclaimer_disclaimer_header">免责声明</string>

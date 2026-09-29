@@ -3,7 +3,7 @@
     <string name="b30ex_action_save">  Save</string>
     <string name="b30ex_action_share">  Share</string>
     <string name="b30ex_album_image">Album image</string>
-    <string name="b30ex_average_rks">Average RKS %1$s</string>
+    <string name="b30ex_average_rks">Avg RKS %1$s</string>
     <string name="b30ex_background">Background</string>
     <string name="b30ex_background_blur">Background blur intensity</string>
     <string name="b30ex_card_style">Card style</string>
@@ -18,7 +18,7 @@
     <string name="b30ex_generating">Generating B30 image…</string>
     <string name="b30ex_image_title">B30 Image</string>
     <string name="b30ex_random_background">Random background</string>
-    <string name="b30ex_rks_histogram_title">Equivalent RKS Histogram</string>
+    <string name="b30ex_rks_histogram_title">Equiv. RKS Histogram</string>
     <string name="b30ex_save_failed">Save failed</string>
     <string name="b30ex_saved_to_pictures">Saved to Pictures/PhiTracker</string>
     <string name="b30ex_share_failed">Share failed</string>
