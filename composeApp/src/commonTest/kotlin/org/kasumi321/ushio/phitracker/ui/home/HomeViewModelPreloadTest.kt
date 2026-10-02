@@ -29,6 +29,7 @@ import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
 import org.kasumi321.ushio.phitracker.data.platform.PlatformPaths
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
+import org.kasumi321.ushio.phitracker.data.song.IllustrationPreloadCoordinator
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdateCoordinator
@@ -138,6 +139,61 @@ class HomeViewModelPreloadTest {
 
         assertTrue(viewModel.uiState.value.songs.showPreloadDialog)
         assertTrue(viewModel.uiState.value.songs.illustrationReady)
+    }
+
+    @Test
+    fun preloadRequestedByOnboardingAutoStartsWithoutManualConfirmation(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = false, illustrationPreloadRequested = true)
+        val preloader = RecordingPreloader()
+        val viewModel = createViewModel(settings, preloader)
+        advanceUntilIdle()
+
+        // No manual startPreloadIllustrations() call: the init-time check
+        // consumed the onboarding flag and ran the download by itself.
+        assertEquals(2, preloader.urls.size)
+        assertTrue(settings.preloadDone)
+        assertFalse(settings.illustrationPreloadRequested.first())
+        assertFalse(viewModel.uiState.value.songs.showPreloadDialog)
+    }
+
+    @Test
+    fun preloadDeclinedByOnboardingSuppressesDialogPermanently(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = false, illustrationPreloadDeclined = true)
+        val preloader = RecordingPreloader()
+        val viewModel = createViewModel(settings, preloader)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.songs.showPreloadDialog)
+        assertTrue(viewModel.uiState.value.songs.illustrationReady)
+        assertTrue(preloader.urls.isEmpty())
+    }
+
+    @Test
+    fun declinedPreloadKeepsLowIllustrationBlankWithoutRemoteFallback(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, illustrationPreloadDeclined = true)
+        val viewModel = createViewModel(settings, artworkFileCache = RecordingStandardArtworkCache())
+        advanceUntilIdle()
+
+        assertNull(viewModel.getLowIllustrationUrl("song-a.0"))
+    }
+
+    @Test
+    fun declinedPreloadStillReturnsLocallyCachedThumbnail(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, illustrationPreloadDeclined = true)
+        val artworkCache = RecordingStandardArtworkCache(cachedThumbnails = mapOf("song-a.0" to "/local/song-a.png"))
+        val viewModel = createViewModel(settings, artworkFileCache = artworkCache)
+        advanceUntilIdle()
+
+        assertEquals("/local/song-a.png", viewModel.getLowIllustrationUrl("song-a.0"))
+    }
+
+    @Test
+    fun notDeclinedKeepsRemoteFallbackForMissingThumbnail(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createViewModel(settings, artworkFileCache = RecordingStandardArtworkCache())
+        advanceUntilIdle()
+
+        assertEquals("https://example.test/illLow/song-a.png", viewModel.getLowIllustrationUrl("song-a.0"))
     }
 
     @Test
@@ -378,7 +434,7 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader,
+            illustrationPreloadCoordinator = preloadCoordinator(preloader = preloader),
             songDataUpdateCoordinator = fakeSongDataUpdateCoordinator()
         ).let(viewModelLifecycle::track)
         advanceUntilIdle()
@@ -428,7 +484,7 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader,
+            illustrationPreloadCoordinator = preloadCoordinator(preloader = preloader),
             songDataUpdateCoordinator = fakeSongDataUpdateCoordinator()
         ).let(viewModelLifecycle::track)
         advanceUntilIdle()
@@ -502,7 +558,7 @@ class HomeViewModelPreloadTest {
             illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settings,
-            thumbnailPreloader = preloader,
+            illustrationPreloadCoordinator = preloadCoordinator(preloader = preloader),
             songDataUpdateCoordinator = fakeSongDataUpdateCoordinator()
         ).let(viewModelLifecycle::track)
         advanceUntilIdle()
@@ -607,7 +663,8 @@ class HomeViewModelPreloadTest {
         artworkFileCache: StandardArtworkCache = RecordingStandardArtworkCache(),
         songDataProvider: SongDataProvider = testSongDataProvider,
         appVersionName: String = "",
-        repository: PhigrosRepository = FakePhigrosRepository()
+        repository: PhigrosRepository = FakePhigrosRepository(),
+        songDataUpdater: FakeSongDataUpdater = FakeSongDataUpdater()
     ): HomeViewModel {
         val illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") }
         return HomeViewModel(
@@ -620,11 +677,16 @@ class HomeViewModelPreloadTest {
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settingsRepository,
             artworkFileCache = artworkFileCache,
-            thumbnailPreloader = preloader,
+            illustrationPreloadCoordinator = preloadCoordinator(
+                songDataProvider = songDataProvider,
+                artworkFileCache = artworkFileCache,
+                preloader = preloader
+            ),
             appVersionNameProvider = { appVersionName },
             songDataUpdateCoordinator = fakeSongDataUpdateCoordinator(
                 songDataProvider = songDataProvider,
-                artworkFileCache = artworkFileCache
+                artworkFileCache = artworkFileCache,
+                updater = songDataUpdater
             )
         ).let(viewModelLifecycle::track)
     }
@@ -640,6 +702,17 @@ class HomeViewModelPreloadTest {
         artworkFileCache = artworkFileCache,
         thumbnailPreloader = RecordingPreloader(),
         clearCacheUrls = {}
+    )
+
+    private fun preloadCoordinator(
+        songDataProvider: SongDataProvider = testSongDataProvider,
+        artworkFileCache: StandardArtworkCache = RecordingStandardArtworkCache(),
+        preloader: IllustrationThumbnailPreloader = RecordingPreloader()
+    ): IllustrationPreloadCoordinator = IllustrationPreloadCoordinator(
+        songDataProvider = songDataProvider,
+        illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") },
+        artworkFileCache = artworkFileCache,
+        thumbnailPreloader = preloader
     )
 
     private class RecordingPreloader(
@@ -760,12 +833,15 @@ class HomeViewModelPreloadTest {
     private class FakeSettingsRepository(
         preloadDone: Boolean,
         autoCheckUpdate: Boolean = true,
+        autoCheckSongDataUpdate: Boolean = true,
         includePreRelease: Boolean = false,
         apiEnabled: Boolean = false,
         useApiData: Boolean = false,
         apiUserId: String = "",
         apiPlatform: String = "",
-        apiPlatformId: String = ""
+        apiPlatformId: String = "",
+        illustrationPreloadRequested: Boolean = false,
+        illustrationPreloadDeclined: Boolean = false
     ) : SettingsRepository {
         override val themeMode: Flow<Int> = flowOf(0)
         override val themeColorSource: Flow<String> = flowOf("system")
@@ -818,6 +894,8 @@ class HomeViewModelPreloadTest {
         override val includePreRelease: Flow<Boolean> = _includePreRelease.asStateFlow()
         private val _autoCheckUpdate = MutableStateFlow(autoCheckUpdate)
         override val autoCheckUpdate: Flow<Boolean> = _autoCheckUpdate.asStateFlow()
+        private val _autoCheckSongDataUpdate = MutableStateFlow(autoCheckSongDataUpdate)
+        override val autoCheckSongDataUpdate: Flow<Boolean> = _autoCheckSongDataUpdate.asStateFlow()
         var autoCheckUpdateSetValue: Boolean? = null
             private set
         override suspend fun setIncludePreRelease(enabled: Boolean) {
@@ -826,6 +904,9 @@ class HomeViewModelPreloadTest {
         override suspend fun setAutoCheckUpdate(enabled: Boolean) {
             autoCheckUpdateSetValue = enabled
             _autoCheckUpdate.value = enabled
+        }
+        override suspend fun setAutoCheckSongDataUpdate(enabled: Boolean) {
+            _autoCheckSongDataUpdate.value = enabled
         }
         override val apiEnabled: Flow<Boolean> = flowOf(apiEnabled)
         override suspend fun setApiEnabled(enabled: Boolean) = Unit
@@ -841,6 +922,20 @@ class HomeViewModelPreloadTest {
         override suspend fun setApiToken(apiToken: String) = Unit
         override val crashNotificationGuideShown: Flow<Boolean> = flowOf(false)
         override suspend fun setCrashNotificationGuideShown(shown: Boolean) = Unit
+        override val onboardingCompleted: Flow<Boolean> = flowOf(true)
+        override suspend fun setOnboardingCompleted(completed: Boolean) = Unit
+        override val onboardingRerunRequested: Flow<Boolean> = flowOf(false)
+        override suspend fun setOnboardingRerunRequested(requested: Boolean) = Unit
+        private val _illustrationPreloadRequested = MutableStateFlow(illustrationPreloadRequested)
+        override val illustrationPreloadRequested: Flow<Boolean> = _illustrationPreloadRequested.asStateFlow()
+        override suspend fun setIllustrationPreloadRequested(requested: Boolean) {
+            _illustrationPreloadRequested.value = requested
+        }
+        private val _illustrationPreloadDeclined = MutableStateFlow(illustrationPreloadDeclined)
+        override val illustrationPreloadDeclined: Flow<Boolean> = _illustrationPreloadDeclined.asStateFlow()
+        override suspend fun setIllustrationPreloadDeclined(declined: Boolean) {
+            _illustrationPreloadDeclined.value = declined
+        }
     }
 
     private open class FakePhigrosRepository : PhigrosRepository {
@@ -981,13 +1076,18 @@ class HomeViewModelPreloadTest {
         var updateCalled = false
             private set
         var upstreamChanged = false
+        var upstreamCheckCallCount = 0
+            private set
 
         override suspend fun updateAll(onProgress: (Int, Int, String) -> Unit): Result<Unit> {
             updateCalled = true
             return onUpdate(onProgress)
         }
 
-        override suspend fun checkUpstreamChanged(): Result<Boolean> = Result.success(upstreamChanged)
+        override suspend fun checkUpstreamChanged(): Result<Boolean> {
+            upstreamCheckCallCount++
+            return Result.success(upstreamChanged)
+        }
     }
 
     private class StatefulRecordDao(
@@ -1301,7 +1401,7 @@ class HomeViewModelPreloadTest {
             illustrationProvider = illustrationProvider,
             tipsProvider = TipsProvider(FakeTextAssetReader),
             settingsRepository = settingsRepository,
-            thumbnailPreloader = RecordingPreloader(),
+            illustrationPreloadCoordinator = preloadCoordinator(songDataProvider = songDataProvider),
             songDataUpdateCoordinator = fakeSongDataUpdateCoordinator(songDataProvider = songDataProvider)
         ).let(viewModelLifecycle::track)
     }
@@ -1369,6 +1469,44 @@ class HomeViewModelPreloadTest {
             "Should NOT call fetchLatestRelease when auto-check is disabled")
         assertTrue(viewModel.uiState.value.sync.updateCheckState is UpdateCheckState.Idle,
             "UpdateCheckState should remain Idle")
+    }
+
+    @Test
+    fun startupSongDataAutoCheckEnabledProbesUpstreamIndependentlyOfAppUpdate(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckUpdate = false)
+        val repository = FakePhigrosRepository()
+        val updater = FakeSongDataUpdater().apply { upstreamChanged = true }
+        val viewModel = createViewModel(
+            settings, RecordingPreloader(),
+            appVersionName = "0.1.0",
+            repository = repository,
+            songDataUpdater = updater
+        )
+        advanceUntilIdle()
+
+        assertEquals(0, repository.fetchLatestReleaseCallCount,
+            "App update check stays gated by autoCheckUpdate=false")
+        assertEquals(1, updater.upstreamCheckCallCount,
+            "Song data upstream probe should run once when its own toggle is on")
+        assertTrue(viewModel.uiState.value.songs.songDataUpdateAvailable,
+            "Song data update availability should be surfaced when upstream changed")
+    }
+
+    @Test
+    fun startupSongDataAutoCheckDisabledSkipsUpstreamProbe(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true, autoCheckSongDataUpdate = false)
+        val updater = FakeSongDataUpdater().apply { upstreamChanged = true }
+        val viewModel = createViewModel(
+            settings, RecordingPreloader(),
+            appVersionName = "0.1.0",
+            repository = FakePhigrosRepository(),
+            songDataUpdater = updater
+        )
+        advanceUntilIdle()
+
+        assertEquals(0, updater.upstreamCheckCallCount,
+            "Should NOT probe upstream when the song data auto-check toggle is off")
+        assertFalse(viewModel.uiState.value.songs.songDataUpdateAvailable)
     }
 
     @Test

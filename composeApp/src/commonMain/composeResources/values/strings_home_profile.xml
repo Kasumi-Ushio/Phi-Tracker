@@ -12,4 +12,6 @@
     <string name="profile_game_update_version">Phigros v%1$s</string>
     <string name="profile_collapse">Collapse</string>
     <string name="profile_expand">Expand</string>
+    <string name="profile_guest_title">Browsing as a guest</string>
+    <string name="profile_guest_message">Log in to sync your cloud save and view your scores, B30 and profile.</string>
 </resources>

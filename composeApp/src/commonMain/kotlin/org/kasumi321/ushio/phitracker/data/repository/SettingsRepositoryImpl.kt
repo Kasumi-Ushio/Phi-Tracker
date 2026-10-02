@@ -191,6 +191,14 @@ class SettingsRepositoryImpl(
         autoCheckUpdateState.value = enabled
     }
 
+    private val autoCheckSongDataUpdateState = MutableStateFlow(storage.getString(KEY_AUTO_CHECK_SONG_DATA_UPDATE)?.toBooleanStrictOrNull() ?: true)
+    override val autoCheckSongDataUpdate: Flow<Boolean> = autoCheckSongDataUpdateState.asStateFlow()
+
+    override suspend fun setAutoCheckSongDataUpdate(enabled: Boolean) {
+        storage.putString(KEY_AUTO_CHECK_SONG_DATA_UPDATE, enabled.toString())
+        autoCheckSongDataUpdateState.value = enabled
+    }
+
     private val apiEnabledState = MutableStateFlow(storage.getString(KEY_API_ENABLED)?.toBooleanStrictOrNull() ?: false)
     override val apiEnabled: Flow<Boolean> = apiEnabledState.asStateFlow()
 
@@ -251,6 +259,38 @@ class SettingsRepositoryImpl(
         crashNotificationGuideShownState.value = shown
     }
 
+    private val onboardingCompletedState = MutableStateFlow(storage.getString(KEY_ONBOARDING_COMPLETED)?.toBooleanStrictOrNull() ?: false)
+    override val onboardingCompleted: Flow<Boolean> = onboardingCompletedState.asStateFlow()
+
+    override suspend fun setOnboardingCompleted(completed: Boolean) {
+        storage.putString(KEY_ONBOARDING_COMPLETED, completed.toString())
+        onboardingCompletedState.value = completed
+    }
+
+    private val onboardingRerunRequestedState = MutableStateFlow(storage.getString(KEY_ONBOARDING_RERUN_REQUESTED)?.toBooleanStrictOrNull() ?: false)
+    override val onboardingRerunRequested: Flow<Boolean> = onboardingRerunRequestedState.asStateFlow()
+
+    override suspend fun setOnboardingRerunRequested(requested: Boolean) {
+        storage.putString(KEY_ONBOARDING_RERUN_REQUESTED, requested.toString())
+        onboardingRerunRequestedState.value = requested
+    }
+
+    private val illustrationPreloadRequestedState = MutableStateFlow(storage.getString(KEY_ILLUSTRATION_PRELOAD_REQUESTED)?.toBooleanStrictOrNull() ?: false)
+    override val illustrationPreloadRequested: Flow<Boolean> = illustrationPreloadRequestedState.asStateFlow()
+
+    override suspend fun setIllustrationPreloadRequested(requested: Boolean) {
+        storage.putString(KEY_ILLUSTRATION_PRELOAD_REQUESTED, requested.toString())
+        illustrationPreloadRequestedState.value = requested
+    }
+
+    private val illustrationPreloadDeclinedState = MutableStateFlow(storage.getString(KEY_ILLUSTRATION_PRELOAD_DECLINED)?.toBooleanStrictOrNull() ?: false)
+    override val illustrationPreloadDeclined: Flow<Boolean> = illustrationPreloadDeclinedState.asStateFlow()
+
+    override suspend fun setIllustrationPreloadDeclined(declined: Boolean) {
+        storage.putString(KEY_ILLUSTRATION_PRELOAD_DECLINED, declined.toString())
+        illustrationPreloadDeclinedState.value = declined
+    }
+
     private val gameUpdateInfoCacheState = MutableStateFlow(storage.getString(KEY_GAME_UPDATE_CACHE))
     override val gameUpdateInfoCache: Flow<String?> = gameUpdateInfoCacheState.asStateFlow()
 
@@ -285,6 +325,7 @@ class SettingsRepositoryImpl(
         const val KEY_MONEY_STRING = "money_string"
         const val KEY_INCLUDE_PRE_RELEASE = "include_pre_release"
         const val KEY_AUTO_CHECK_UPDATE = "auto_check_update"
+        const val KEY_AUTO_CHECK_SONG_DATA_UPDATE = "auto_check_song_data_update"
         const val KEY_API_ENABLED = "api_enabled"
         const val KEY_USE_API_DATA = "use_api_data"
         const val KEY_API_ID = "api_id"
@@ -292,6 +333,10 @@ class SettingsRepositoryImpl(
         const val KEY_API_PLATFORM_ID = "api_platform_id"
         const val KEY_API_TOKEN = "api_token"
         const val KEY_CRASH_NOTIFICATION_GUIDE_SHOWN = "crash_notification_guide_shown"
+        const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+        const val KEY_ONBOARDING_RERUN_REQUESTED = "onboarding_rerun_requested"
+        const val KEY_ILLUSTRATION_PRELOAD_REQUESTED = "illustration_preload_requested"
+        const val KEY_ILLUSTRATION_PRELOAD_DECLINED = "illustration_preload_declined"
         const val KEY_GAME_UPDATE_CACHE = "game_update_cache"
         const val KEY_HAZE_BLUR_ENABLED = "haze_blur_enabled"
         const val KEY_HAZE_BLUR_STRENGTH = "haze_blur_strength"

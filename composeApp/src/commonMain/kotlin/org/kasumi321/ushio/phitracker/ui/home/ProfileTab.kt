@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -67,12 +68,15 @@ import org.kasumi321.ushio.phitracker.ui.theme.DifficultyColors
 import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.action_go_login
 import phitracker.composeapp.generated.resources.profile_avatar
 import phitracker.composeapp.generated.resources.profile_collapse
 import phitracker.composeapp.generated.resources.profile_data_label
 import phitracker.composeapp.generated.resources.profile_expand
 import phitracker.composeapp.generated.resources.profile_game_update_label
 import phitracker.composeapp.generated.resources.profile_game_update_version
+import phitracker.composeapp.generated.resources.profile_guest_message
+import phitracker.composeapp.generated.resources.profile_guest_title
 import phitracker.composeapp.generated.resources.profile_never_synced
 import phitracker.composeapp.generated.resources.profile_no_score_changes
 import phitracker.composeapp.generated.resources.profile_not_logged_in
@@ -109,6 +113,8 @@ private val PhiTextColor = Color(0xFF5D4037)
 fun ProfileTab(
     state: ProfileUiState,
     displayRks: Float,
+    isLoggedIn: Boolean = true,
+    onNavigateToLogin: () -> Unit = {},
     onAvatarSelected: (String) -> Unit,
     onSongClick: (String, Difficulty?) -> Unit,
     getIllustrationUrl: (String) -> String?,
@@ -140,6 +146,34 @@ fun ProfileTab(
             .padding(horizontal = 16.dp)
     ) {
         Spacer(modifier = Modifier.height(contentPadding.calculateTopPadding()))
+
+        if (!isLoggedIn) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                )
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Text(
+                        text = stringResource(Res.string.profile_guest_title),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(Res.string.profile_guest_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(onClick = onNavigateToLogin, modifier = Modifier.align(Alignment.End)) {
+                        Text(stringResource(Res.string.action_go_login))
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+        }
 
         ProfileHeaderCard(
             nickname = nickname,

@@ -81,6 +81,8 @@ import phitracker.composeapp.generated.resources.settings_api_test_connection
 import phitracker.composeapp.generated.resources.settings_api_user_id
 import phitracker.composeapp.generated.resources.settings_artwork_preload_done
 import phitracker.composeapp.generated.resources.settings_artwork_preload_failed
+import phitracker.composeapp.generated.resources.settings_auto_check_song_data_update
+import phitracker.composeapp.generated.resources.settings_auto_check_song_data_update_desc
 import phitracker.composeapp.generated.resources.settings_auto_check_update
 import phitracker.composeapp.generated.resources.settings_auto_check_update_desc
 import phitracker.composeapp.generated.resources.settings_blur_strength
@@ -241,10 +243,12 @@ fun SettingsTab(
         onDismissUpdateError: () -> Unit = {},
         includePreRelease: Boolean = false,
         autoCheckUpdate: Boolean = true,
+        autoCheckSongDataUpdate: Boolean = true,
         updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
         onCheckForUpdate: () -> Unit = {},
         onIncludePreReleaseChange: (Boolean) -> Unit = {},
         onAutoCheckUpdateChange: (Boolean) -> Unit = {},
+        onAutoCheckSongDataUpdateChange: (Boolean) -> Unit = {},
         onDismissUpdateResult: () -> Unit = {},
         isDebugBuild: Boolean = false,
         hasRuntimeLogs: Boolean = false,
@@ -780,6 +784,28 @@ fun SettingsTab(
                     )
                 }
                 Switch(checked = autoCheckUpdate, onCheckedChange = { onAutoCheckUpdateChange(it) })
+            }
+
+            Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                            stringResource(Res.string.settings_auto_check_song_data_update),
+                            style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                            text = stringResource(Res.string.settings_auto_check_song_data_update_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                        checked = autoCheckSongDataUpdate,
+                        onCheckedChange = { onAutoCheckSongDataUpdateChange(it) }
+                )
             }
 
             Row(

@@ -181,6 +181,7 @@ fun MainScreen(
     onNavigateToAbout: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToSuggest: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -466,6 +467,8 @@ fun MainScreen(
                     ProfileTab(
                         state = state.profile,
                         displayRks = state.b30.displayRks,
+                        isLoggedIn = state.tools.sessionToken != null,
+                        onNavigateToLogin = onNavigateToLogin,
                         onAvatarSelected = { viewModel.setAvatarUri(it) },
                         onSongClick = { songId, difficulty ->
                             if (difficulty != null) {
@@ -553,6 +556,7 @@ fun MainScreen(
                 state = state.tools,
                 defaultRks = state.b30.displayRks,
                 onNavigateToSuggest = onNavigateToSuggest,
+                onNavigateToLogin = onNavigateToLogin,
                 onFetchRankByUser = { viewModel.fetchApiRankByUser() },
                 onFetchRankByPosition = { viewModel.fetchApiRankByPosition(it) },
                 onFetchRksRank = { viewModel.fetchApiRksRankForValue(it) },

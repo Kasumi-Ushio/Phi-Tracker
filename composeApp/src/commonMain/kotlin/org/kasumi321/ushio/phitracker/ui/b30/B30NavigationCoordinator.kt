@@ -4,6 +4,7 @@ internal interface B30NavigationGateway {
     fun navigateB30()
     fun navigateHomeReplacingLogin()
     fun navigateLoginReplacingHome()
+    fun navigateHomeSkippingLogin()
     fun popCurrent()
     fun popToHome(): Boolean
     fun navigateLoginClearingGraph()
@@ -46,6 +47,14 @@ internal class B30NavigationCoordinator(
     fun loginSuccess() {
         clearPayload()
         gateway.navigateHomeReplacingLogin()
+    }
+
+    fun skipLoginToHome() {
+        // When Home sits below Login (guest opened Login from Profile/Tools)
+        // just pop back; otherwise Login is the root and Home must be pushed.
+        if (!gateway.popToHome()) {
+            gateway.navigateHomeSkippingLogin()
+        }
     }
 
     fun recoverMissingPayload(): B30MissingPayloadRecovery {

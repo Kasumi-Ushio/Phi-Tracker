@@ -28,6 +28,8 @@
     <string name="settings_artwork_preload_failed">Preloading failed, please try again</string>
     <string name="settings_auto_check_update">Check for updates on launch</string>
     <string name="settings_auto_check_update_desc">Automatically check for new versions when the app starts</string>
+    <string name="settings_auto_check_song_data_update">Auto-check song data updates</string>
+    <string name="settings_auto_check_song_data_update_desc">Check for song database updates on launch.</string>
     <string name="settings_blur_strength">Blur strength</string>
     <string name="settings_cache_b30_artwork">Cache HD illustrations for B30</string>
     <string name="settings_cache_b30_artwork_desc">Download HD covers for the current B30 songs in advance so images can be generated offline</string>
@@ -101,6 +103,10 @@
     <string name="settings_redownload_artwork_desc">Deletes all images and forces an app restart</string>
     <string name="settings_redownload_dialog_text">Delete all local illustration data? If you confirm, the app will exit automatically and the preloading window will appear again the next time you open it.</string>
     <string name="settings_redownload_dialog_title">Re-download</string>
+    <string name="settings_rerun_onboarding">Restart the welcome tour</string>
+    <string name="settings_rerun_onboarding_desc">Restart the welcome tour on next startup.</string>
+    <string name="settings_rerun_onboarding_dialog_title">Restart the welcome tour?</string>
+    <string name="settings_rerun_onboarding_dialog_text">Are you sure you want to restart the welcome tour? This will not affect your account or save data.</string>
     <string name="settings_show_api_token">Show API Token</string>
     <string name="settings_show_overflow">Show Overflow</string>
     <string name="settings_show_overflow_desc">Show songs beyond B27 on the B30 page</string>

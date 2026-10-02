@@ -38,7 +38,18 @@ class SongDataUpdateCoordinator(
 
     suspend fun checkUpstreamChanged(): Result<Boolean> = songDataUpdater.checkUpstreamChanged()
 
+    /**
+     * Run the full song-data update: download the four data files, then
+     * reconcile the illustration cache for added/removed songs.
+     *
+     * [syncIllustrations] is false only on the onboarding wizard path: the
+     * preload step right after downloads every song's thumbnail from scratch
+     * anyway, so the per-diff downloads (and the removal cleanup) are skipped
+     * there — nothing already on disk is touched. Callers that need the
+     * in-use behavior (home pull-to-refresh, Settings) keep the default.
+     */
     suspend fun update(
+        syncIllustrations: Boolean = true,
         onFileProgress: (Int, Int, String) -> Unit = { _, _, _ -> },
         onIllustrationProgress: (IllustrationSyncProgress) -> Unit = {}
     ): Result<UpdateOutcome> {
@@ -46,6 +57,16 @@ class SongDataUpdateCoordinator(
         val result = songDataUpdater.updateAll(onFileProgress)
         if (result.isFailure) {
             return Result.failure(result.exceptionOrNull() ?: RuntimeException("unknown"))
+        }
+        if (!syncIllustrations) {
+            return runCatching {
+                val newSongIds = songDataProvider.getSongs().keys.toSet()
+                val songNames = songDataProvider.getSongNameMap()
+                UpdateOutcome(
+                    addedSongNames = (newSongIds - oldSongIds).sorted().map { songNames[it] ?: it },
+                    removedCount = (oldSongIds - newSongIds).size
+                )
+            }
         }
         return runCatching {
             reconcileIllustrationCache(

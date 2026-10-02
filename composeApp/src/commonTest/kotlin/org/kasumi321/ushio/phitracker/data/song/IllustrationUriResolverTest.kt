@@ -2,6 +2,7 @@ package org.kasumi321.ushio.phitracker.data.song
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 
 class IllustrationUriResolverTest {
@@ -46,6 +47,28 @@ class IllustrationUriResolverTest {
         val resolved = resolver.standardUri("song.0")
 
         assertEquals("https://example.test/ill/song.png", resolved)
+        assertEquals(0, cache.downloadCalls)
+    }
+
+    @Test
+    fun lowLocalUriReturnsLocalThumbnailWhenCached() {
+        val cache = RecordingArtworkCache(thumbnailUri = "/local/thumbnail.png")
+        val resolver = resolver(cache)
+
+        val resolved = resolver.lowLocalUri("song.0")
+
+        assertEquals("/local/thumbnail.png", resolved)
+        assertEquals(0, cache.downloadCalls)
+    }
+
+    @Test
+    fun lowLocalUriReturnsNullWithoutRemoteFallbackWhenThumbnailMissing() {
+        val cache = RecordingArtworkCache()
+        val resolver = resolver(cache)
+
+        val resolved = resolver.lowLocalUri("song.0")
+
+        assertNull(resolved, "local-only lookup must never fall back to the remote URL")
         assertEquals(0, cache.downloadCalls)
     }
 

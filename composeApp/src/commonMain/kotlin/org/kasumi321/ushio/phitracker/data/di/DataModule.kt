@@ -13,6 +13,7 @@ import org.kasumi321.ushio.phitracker.data.database.AppDatabase
 import org.kasumi321.ushio.phitracker.data.database.createAppDatabase
 import org.kasumi321.ushio.phitracker.data.parser.AesDecryptor
 import org.kasumi321.ushio.phitracker.data.parser.SaveParser
+import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.TokenManager
 import org.kasumi321.ushio.phitracker.data.platform.ArtworkFileCache
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
@@ -21,6 +22,7 @@ import org.kasumi321.ushio.phitracker.data.platform.createSecureKeyValueStorage
 import org.kasumi321.ushio.phitracker.data.repository.PhigrosRepositoryImpl
 import org.kasumi321.ushio.phitracker.data.repository.QrLoginRepositoryImpl
 import org.kasumi321.ushio.phitracker.data.repository.SettingsRepositoryImpl
+import org.kasumi321.ushio.phitracker.data.song.IllustrationPreloadCoordinator
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
@@ -88,4 +90,12 @@ val dataModule = module {
     single { TipsProvider() }
     single { SongDataUpdater(get(), get(), get()) }
     single { SongDataUpdateCoordinator(get(), get(), get(), get()) }
+    single {
+        IllustrationPreloadCoordinator(
+            songDataProvider = get(),
+            illustrationProvider = get(),
+            artworkFileCache = get(),
+            thumbnailPreloader = CoilIllustrationThumbnailPreloader
+        )
+    }
 }

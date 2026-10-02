@@ -32,4 +32,5 @@
     <string name="login_token_hint">請輸入 TapTap 的 sessionToken\n</string>
     <string name="login_token_hint_question">不知道如何取得 sessionToken？</string>
     <string name="login_token_tutorial_link">查看取得教學</string>
+    <string name="login_skip_to_home">暫不登入，直接進入</string>
 </resources>

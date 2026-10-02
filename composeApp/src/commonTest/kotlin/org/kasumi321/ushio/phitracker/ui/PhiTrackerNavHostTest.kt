@@ -110,6 +110,26 @@ class PhiTrackerNavHostTest {
     }
 
     @Test
+    fun skipLoginPopsBackToHomeWhenHomeIsBelowLogin() {
+        val gateway = RecordingGateway("home", "login")
+        val coordinator = B30NavigationCoordinator(gateway)
+
+        coordinator.skipLoginToHome()
+
+        assertEquals(listOf("home"), gateway.routes)
+    }
+
+    @Test
+    fun skipLoginPushesHomeWhenLoginIsRoot() {
+        val gateway = RecordingGateway("login")
+        val coordinator = B30NavigationCoordinator(gateway)
+
+        coordinator.skipLoginToHome()
+
+        assertEquals(listOf("home"), gateway.routes)
+    }
+
+    @Test
     fun missingPayloadClearsGraphToLoginWhenHomeIsAbsent() {
         val gateway = RecordingGateway("b30image")
         val coordinator = B30NavigationCoordinator(gateway)
@@ -169,6 +189,11 @@ class PhiTrackerNavHostTest {
             observeDuringNavigation()
             routes.clear()
             routes += "login"
+        }
+
+        override fun navigateHomeSkippingLogin() {
+            routes.removeAll { it == "login" }
+            routes += "home"
         }
 
         override fun popCurrent() {

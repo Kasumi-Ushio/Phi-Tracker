@@ -12,10 +12,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
-import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.math.roundToLong
@@ -30,11 +26,10 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.kasumi321.ushio.phitracker.data.TipsProvider
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
-import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPreloader
-import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.NoOpStandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
+import org.kasumi321.ushio.phitracker.data.song.IllustrationPreloadCoordinator
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.data.song.SongDataUpdateCoordinator
@@ -116,7 +111,7 @@ class HomeViewModel(
     private val tipsProvider: TipsProvider,
     private val settingsRepository: SettingsRepository,
     private val artworkFileCache: StandardArtworkCache = NoOpStandardArtworkCache,
-    private val thumbnailPreloader: IllustrationThumbnailPreloader = CoilIllustrationThumbnailPreloader,
+    private val illustrationPreloadCoordinator: IllustrationPreloadCoordinator,
     private val checkForUpdateUseCase: CheckForUpdateUseCase = CheckForUpdateUseCase(repository),
     private val appVersionNameProvider: () -> String = { getAppMetadata().versionName },
     private val analyzeB30TagsUseCase: AnalyzeB30TagsUseCase = AnalyzeB30TagsUseCase(),
@@ -130,6 +125,7 @@ class HomeViewModel(
     private var tagAnalysisJob: Job? = null
     private var tagAnalysisKey: String? = null
     private var lastAnalysisRecords: List<BestRecord>? = null
+    private var illustrationPreloadDeclined = false
 
     init {
         loadSongs()
@@ -195,6 +191,11 @@ class HomeViewModel(
                 updateProfile { it.copy(moneyString = money) }
             }
         }
+        viewModelScope.launch {
+            settingsRepository.illustrationPreloadDeclined.collect { declined ->
+                illustrationPreloadDeclined = declined
+            }
+        }
         // Tool tab: observe sync snapshots
         viewModelScope.launch {
             repository.observeSyncSnapshots().collect { list ->
@@ -242,9 +243,12 @@ class HomeViewModel(
             loadStats()
         }
         viewModelScope.launch {
-            val shouldAutoCheck = settingsRepository.autoCheckUpdate.first()
-            if (shouldAutoCheck) {
+            val shouldAutoCheckUpdate = settingsRepository.autoCheckUpdate.first()
+            if (shouldAutoCheckUpdate) {
                 checkForUpdate(appVersionNameProvider())
+            }
+            val shouldAutoCheckSongData = settingsRepository.autoCheckSongDataUpdate.first()
+            if (shouldAutoCheckSongData) {
                 val upstreamResult = songDataUpdateCoordinator.checkUpstreamChanged()
                 upstreamResult.fold(
                     onSuccess = { changed ->
@@ -504,17 +508,31 @@ class HomeViewModel(
             val thumbnailsPresent = artworkFileCache.hasAllThumbnails(songIds)
             if (alreadyDone && thumbnailsPresent) {
                 updateSongs { it.copy(illustrationReady = true) }
-            } else {
-                AppLogger.event(
-                    "cache",
-                    "thumbnail_sync_required",
-                    mapOf(
-                        "completionMarker" to alreadyDone.toString(),
-                        "assetsPresent" to thumbnailsPresent.toString(),
-                        "songCount" to songIds.size.toString()
-                    )
+                return@launch
+            }
+            AppLogger.event(
+                "cache",
+                "thumbnail_sync_required",
+                mapOf(
+                    "completionMarker" to alreadyDone.toString(),
+                    "assetsPresent" to thumbnailsPresent.toString(),
+                    "songCount" to songIds.size.toString()
                 )
-                updateSongs { it.copy(showPreloadDialog = true, illustrationReady = true) }
+            )
+            if (settingsRepository.illustrationPreloadDeclined.first()) {
+                // Declined in the onboarding wizard: never nag again; the
+                // Settings redownload action clears this flag.
+                updateSongs { it.copy(illustrationReady = true) }
+                return@launch
+            }
+            updateSongs { it.copy(showPreloadDialog = true, illustrationReady = true) }
+            if (settingsRepository.illustrationPreloadRequested.first()) {
+                // The onboarding wizard already asked for the download;
+                // start it immediately instead of waiting for another tap
+                // on the dialog. Consume the flag so a partial failure
+                // falls back to the manual dialog on the next launch.
+                settingsRepository.setIllustrationPreloadRequested(false)
+                startPreloadIllustrations()
             }
         }
     }
@@ -522,59 +540,21 @@ class HomeViewModel(
     /** Download low-res illustrations to persistent storage, then warm Coil for the current UI. */
     fun startPreloadIllustrations() {
         viewModelScope.launch {
-            val songs = songDataProvider.getSongs()
-            val total = songs.size
+            updateSongs {
+                it.copy(isPreloading = true, preloadTotal = 0, preloadCompleted = 0, preloadProgress = 0f)
+            }
 
-            if (total == 0) {
-                settingsRepository.setPreloadDone(true)
+            val result = illustrationPreloadCoordinator.preloadLowRes { done, total, _ ->
                 updateSongs {
                     it.copy(
-                        isPreloading = false,
-                        showPreloadDialog = false,
-                        illustrationReady = true,
-                        preloadProgress = 1f
+                        preloadCompleted = done,
+                        preloadTotal = total,
+                        preloadProgress = if (total == 0) 1f else done.toFloat() / total
                     )
                 }
-                return@launch
             }
 
-            val semaphore = Semaphore(6)
-            val mutex = Mutex()
-
-            updateSongs {
-                it.copy(isPreloading = true, preloadTotal = total, preloadCompleted = 0, preloadProgress = 0f)
-            }
-
-            var completed = 0
-            var hasChildError = false
-
-            val jobs = songs.keys.map { songId ->
-                launch {
-                    semaphore.withPermit {
-                        val result = runCatching {
-                            val remoteUrl = illustrationProvider.getLowUrl(songId)
-                            val localUri = artworkFileCache.getOrDownloadThumbnail(songId, remoteUrl)
-                            // Decode once now so a corrupt/unsupported file does not receive
-                            // the durable completion marker.
-                            thumbnailPreloader.preload(localUri).getOrThrow()
-                        }
-                        mutex.withLock {
-                            if (result.isFailure) hasChildError = true
-                            completed++
-                            updateSongs {
-                                it.copy(
-                                    preloadCompleted = completed,
-                                    preloadProgress = completed.toFloat() / total
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            jobs.forEach { it.join() }
-
-            val errorMessage = if (hasChildError) {
+            val errorMessage = if (result.failed > 0) {
                 UiText.Res(Res.string.songs_preload_partial_failed)
             } else {
                 val persistResult = runCatching { settingsRepository.setPreloadDone(true) }
@@ -834,6 +814,10 @@ class HomeViewModel(
     }
 
     fun getLowIllustrationUrl(songId: String): String? {
+        // Players who declined the preload keep blank thumbnails instead of
+        // silently re-downloading in lists; the Settings re-download action
+        // clears the flag and restores the remote fallback below.
+        if (illustrationPreloadDeclined) return artworkFileCache.getThumbnailIfPresent(songId)
         return artworkFileCache.getThumbnailIfPresent(songId)
             ?: illustrationProvider.getLowUrl(songId)
     }

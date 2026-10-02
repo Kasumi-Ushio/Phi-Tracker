@@ -32,4 +32,5 @@
     <string name="login_token_hint">Enter your TapTap sessionToken\n</string>
     <string name="login_token_hint_question">Don't know how to get your sessionToken?</string>
     <string name="login_token_tutorial_link">View the tutorial</string>
+    <string name="login_skip_to_home">Continue without logging in</string>
 </resources>

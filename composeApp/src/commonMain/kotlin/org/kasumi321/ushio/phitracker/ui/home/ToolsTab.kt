@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
 import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.action_go_login
 import phitracker.composeapp.generated.resources.tools_accuracy_label
 import phitracker.composeapp.generated.resources.tools_chart_constant_label
 import phitracker.composeapp.generated.resources.tools_close
@@ -122,6 +123,7 @@ fun ToolsTab(
         onFetchRankByUser: () -> Unit,
         onFetchRankByPosition: (Int) -> Unit,
         onFetchRksRank: (Float) -> Unit,
+        onNavigateToLogin: () -> Unit = {},
         contentPadding: PaddingValues = PaddingValues(),
         scrollState: ScrollState = rememberScrollState(),
         modifier: Modifier = Modifier
@@ -199,7 +201,7 @@ fun ToolsTab(
                     title = stringResource(Res.string.tools_session_token_title),
                     subtitle = stringResource(Res.string.tools_session_token_subtitle),
                     icon = Icons.Default.ContentCopy
-            ) { SessionTokenContent(sessionToken) }
+            ) { SessionTokenContent(sessionToken, onNavigateToLogin) }
 
             Spacer(modifier = Modifier.height(16.dp))
             Spacer(modifier = Modifier.height(contentPadding.calculateBottomPadding()))
@@ -626,7 +628,7 @@ private fun RankInfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun SessionTokenContent(sessionToken: String?) {
+private fun SessionTokenContent(sessionToken: String?, onNavigateToLogin: () -> Unit = {}) {
     var showTokenDialog by remember { mutableStateOf(false) }
     val copiedToClipboardMessage = stringResource(Res.string.tools_copied_to_clipboard)
 
@@ -636,6 +638,10 @@ private fun SessionTokenContent(sessionToken: String?) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedButton(onClick = onNavigateToLogin, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(Res.string.action_go_login))
+        }
     } else {
         OutlinedButton(onClick = { showTokenDialog = true }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Default.Key, contentDescription = null)

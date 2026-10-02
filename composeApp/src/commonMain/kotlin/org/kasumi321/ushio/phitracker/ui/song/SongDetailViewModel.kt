@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
@@ -221,13 +222,21 @@ class SongDetailViewModel(
 
     private fun loadRouteState() {
         viewModelScope.launch {
+            // Read once per page entry: a detail page opened after the flag
+            // flipped must not race an async subscription. Players who
+            // declined the preload keep the thumbnail blank instead of
+            // falling back to an on-demand remote download.
+            val declined = settingsRepository.illustrationPreloadDeclined.first()
             val songInfo = runCatching { songDataProvider.getSongs()[songId] }.getOrNull()
             mutableUiState.update {
                 it.copy(
                     isLoading = false,
                     notFound = songInfo == null,
                     songInfo = songInfo,
-                    lowIllustrationUrl = songInfo?.let { info -> illustrationUriResolver.lowUri(info.id) },
+                    lowIllustrationUrl = songInfo?.let { info ->
+                        if (declined) illustrationUriResolver.lowLocalUri(info.id)
+                        else illustrationUriResolver.lowUri(info.id)
+                    },
                     standardIllustrationUrl = songInfo?.let { info -> illustrationUriResolver.standardUri(info.id) }
                 )
             }

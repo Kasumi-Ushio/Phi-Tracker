@@ -128,6 +128,9 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val includePreRelease: Flow<Boolean> = includeState
     private val autoState = MutableStateFlow(true)
     override val autoCheckUpdate: Flow<Boolean> = autoState
+    private val autoSongDataState = MutableStateFlow(true)
+    override val autoCheckSongDataUpdate: Flow<Boolean> = autoSongDataState
+    private val preloadDoneState = MutableStateFlow(true)
     private val apiEnabledState = MutableStateFlow(false)
     override val apiEnabled: Flow<Boolean> = apiEnabledState
     private val useApiState = MutableStateFlow(false)
@@ -142,6 +145,14 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val apiToken: Flow<String> = apiTokenState
     private val guideState = MutableStateFlow(false)
     override val crashNotificationGuideShown: Flow<Boolean> = guideState
+    private val onboardingCompletedState = MutableStateFlow(false)
+    override val onboardingCompleted: Flow<Boolean> = onboardingCompletedState
+    private val onboardingRerunRequestedState = MutableStateFlow(false)
+    override val onboardingRerunRequested: Flow<Boolean> = onboardingRerunRequestedState
+    private val illustrationPreloadRequestedState = MutableStateFlow(false)
+    override val illustrationPreloadRequested: Flow<Boolean> = illustrationPreloadRequestedState
+    private val illustrationPreloadDeclinedState = MutableStateFlow(false)
+    override val illustrationPreloadDeclined: Flow<Boolean> = illustrationPreloadDeclinedState
     private val gameUpdateCacheState = MutableStateFlow<String?>(null)
     override val gameUpdateInfoCache: Flow<String?> = gameUpdateCacheState
     override val avatarUri: Flow<String?> = flowOf(null)
@@ -160,12 +171,17 @@ internal class FakeSettingsRepository : SettingsRepository {
     override suspend fun setB30ExportThemeMode(mode: Int) { b30ExportThemeModeState.value = mode.coerceIn(1, 3) }
     override suspend fun setHazeBlurEnabled(enabled: Boolean) { hazeEnabledState.value = enabled }
     override suspend fun setHazeBlurStrength(strength: Float) { hazeStrengthState.value = strength.coerceIn(0.5f, 1.5f) }
-    override suspend fun getPreloadDone() = true
-    override suspend fun setPreloadDone(done: Boolean) = Unit
+    override suspend fun getPreloadDone() = preloadDoneState.value
+    val preloadDoneWrites = mutableListOf<Boolean>()
+    override suspend fun setPreloadDone(done: Boolean) {
+        preloadDoneWrites += done
+        preloadDoneState.value = done
+    }
     override suspend fun setAvatarUri(uri: String?) = Unit
     override suspend fun setMoneyString(money: String) = Unit
     override suspend fun setIncludePreRelease(enabled: Boolean) { includeState.value = enabled }
     override suspend fun setAutoCheckUpdate(enabled: Boolean) { autoState.value = enabled }
+    override suspend fun setAutoCheckSongDataUpdate(enabled: Boolean) { autoSongDataState.value = enabled }
     override suspend fun setApiEnabled(enabled: Boolean) { apiEnabledState.value = enabled }
     override suspend fun setUseApiData(useApiData: Boolean) { useApiState.value = useApiData }
     override suspend fun setApiId(apiId: String) { apiIdState.value = apiId.trim() }
@@ -173,11 +189,20 @@ internal class FakeSettingsRepository : SettingsRepository {
     override suspend fun setApiPlatformId(platformId: String) { platformIdState.value = platformId.trim() }
     override suspend fun setApiToken(apiToken: String) { apiTokenState.value = apiToken.trim() }
     override suspend fun setCrashNotificationGuideShown(shown: Boolean) { guideState.value = shown }
+    override suspend fun setOnboardingCompleted(completed: Boolean) { onboardingCompletedState.value = completed }
+    override suspend fun setOnboardingRerunRequested(requested: Boolean) { onboardingRerunRequestedState.value = requested }
+    override suspend fun setIllustrationPreloadRequested(requested: Boolean) { illustrationPreloadRequestedState.value = requested }
+    override suspend fun setIllustrationPreloadDeclined(declined: Boolean) { illustrationPreloadDeclinedState.value = declined }
     override suspend fun setGameUpdateInfoCache(cache: String?) { gameUpdateCacheState.value = cache }
 }
 
 internal class FakePhigrosRepository : PhigrosRepository {
     var cachedSave: Save? = null
+        set(value) {
+            field = value
+            cachedSaveFlow.value = value
+        }
+    private val cachedSaveFlow = MutableStateFlow<Save?>(null)
     var profile: UserProfile? = null
     var songHistory: List<SongSyncHistoryEntry> = emptyList()
     var songApiDetail: Result<org.kasumi321.ushio.phitracker.domain.model.SongApiDetail> = Result.failure(IllegalStateException("not configured"))
@@ -194,7 +219,7 @@ internal class FakePhigrosRepository : PhigrosRepository {
     val voteChartTagRequests = mutableListOf<ChartTagVoteRequest>()
     override suspend fun validateToken(sessionToken: String, server: Server): Result<UserProfile> = Result.failure(IllegalStateException())
     override suspend fun syncSave(sessionToken: String, server: Server, mode: SyncMode): Result<SyncSaveResult> = Result.failure(IllegalStateException())
-    override fun getCachedSave(): Flow<Save?> = flowOf(cachedSave)
+    override fun getCachedSave(): Flow<Save?> = cachedSaveFlow
     override fun getUserProfile(): Flow<UserProfile?> = flowOf(profile)
     override suspend fun saveSessionToken(token: String, server: Server) = Unit
     override suspend fun getSessionToken(): Pair<String, Server>? = null

@@ -38,6 +38,7 @@ data class SettingsUiState(
     val updateResultSongNames: List<String>? = null,
     val includePreRelease: Boolean = false,
     val autoCheckUpdate: Boolean = true,
+    val autoCheckSongDataUpdate: Boolean = true,
     val updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
     val hasRuntimeLogs: Boolean = false,
     val hasCrashLogs: Boolean = false,

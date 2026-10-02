@@ -28,6 +28,8 @@
     <string name="settings_artwork_preload_failed">预加载失败，请重试</string>
     <string name="settings_auto_check_update">启动时自动检查更新</string>
     <string name="settings_auto_check_update_desc">应用启动时自动检查是否有新版本</string>
+    <string name="settings_auto_check_song_data_update">自动检查曲目更新</string>
+    <string name="settings_auto_check_song_data_update_desc">启动时自动检查曲库数据更新。</string>
     <string name="settings_blur_strength">模糊强度</string>
     <string name="settings_cache_b30_artwork">缓存 B30 高清曲绘</string>
     <string name="settings_cache_b30_artwork_desc">提前下载当前 B30 中曲目的高清封面，离线也能生成图片</string>
@@ -101,6 +103,10 @@
     <string name="settings_redownload_artwork_desc">清空所有图片并强制重启应用</string>
     <string name="settings_redownload_dialog_text">确定要删除本地所有曲绘信息吗？如点击确定，本应用将自动退出，下次进入应用时将自动重新唤起预加载窗口。</string>
     <string name="settings_redownload_dialog_title">重新下载</string>
+    <string name="settings_rerun_onboarding">重新开始开场引导</string>
+    <string name="settings_rerun_onboarding_desc">下次启动时重新开始开场引导</string>
+    <string name="settings_rerun_onboarding_dialog_title">重新开始开场引导？</string>
+    <string name="settings_rerun_onboarding_dialog_text">是否确定要重新开始开场引导？此项不会影响您的账号和存档记录。</string>
     <string name="settings_show_api_token">显示 API Token</string>
     <string name="settings_show_overflow">显示 Overflow</string>
     <string name="settings_show_overflow_desc">在 B30 页面展示 B27 之后的曲目</string>

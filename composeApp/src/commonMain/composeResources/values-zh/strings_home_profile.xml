@@ -12,4 +12,6 @@
     <string name="profile_game_update_version">Phigros v%1$s</string>
     <string name="profile_collapse">折叠</string>
     <string name="profile_expand">展开</string>
+    <string name="profile_guest_title">正在以游客身份浏览</string>
+    <string name="profile_guest_message">登录以同步云存档，查看你的成绩、B30 与个人数据。</string>
 </resources>

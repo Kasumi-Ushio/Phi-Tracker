@@ -12,15 +12,19 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.platform.getAppMetadata
+import org.kasumi321.ushio.phitracker.ui.components.AnimatedAlertDialog
 import org.kasumi321.ushio.phitracker.ui.components.CenteredListItem
 import phitracker.composeapp.generated.resources.Res
 import phitracker.composeapp.generated.resources.about_acknowledgments
@@ -43,6 +47,12 @@ import phitracker.composeapp.generated.resources.about_third_party_desc
 import phitracker.composeapp.generated.resources.about_title
 import phitracker.composeapp.generated.resources.about_version_label
 import phitracker.composeapp.generated.resources.action_back
+import phitracker.composeapp.generated.resources.common_confirm
+import phitracker.composeapp.generated.resources.settings_cancel
+import phitracker.composeapp.generated.resources.settings_rerun_onboarding
+import phitracker.composeapp.generated.resources.settings_rerun_onboarding_desc
+import phitracker.composeapp.generated.resources.settings_rerun_onboarding_dialog_text
+import phitracker.composeapp.generated.resources.settings_rerun_onboarding_dialog_title
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,7 +61,8 @@ fun AboutScreen(
     onNavigateToLicenses: () -> Unit,
     onNavigateToDisclaimer: () -> Unit,
     onNavigateToAcknowledgments: () -> Unit,
-    onNavigateToPrivacyPolicy: () -> Unit
+    onNavigateToPrivacyPolicy: () -> Unit,
+    onRerunOnboarding: () -> Unit = {}
 ) {
     val metadata = remember { getAppMetadata() }
     val buildType = if (metadata.buildType == "Debug") {
@@ -60,6 +71,7 @@ fun AboutScreen(
         stringResource(Res.string.about_build_type_release)
     }
     val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+    var showRerunOnboardingDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -146,6 +158,34 @@ fun AboutScreen(
                 trailingContent = { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) },
                 modifier = Modifier.clickable { onNavigateToLicenses() }
             )
+
+            CenteredListItem(
+                headlineContent = { Text(stringResource(Res.string.settings_rerun_onboarding)) },
+                supportingContent = { Text(stringResource(Res.string.settings_rerun_onboarding_desc)) },
+                leadingContent = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                modifier = Modifier.clickable { showRerunOnboardingDialog = true }
+            )
         }
+    }
+
+    if (showRerunOnboardingDialog) {
+        AnimatedAlertDialog(
+            onDismissRequest = { showRerunOnboardingDialog = false },
+            title = { Text(stringResource(Res.string.settings_rerun_onboarding_dialog_title)) },
+            text = { Text(stringResource(Res.string.settings_rerun_onboarding_dialog_text)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showRerunOnboardingDialog = false
+                        onRerunOnboarding()
+                    }
+                ) { Text(stringResource(Res.string.common_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRerunOnboardingDialog = false }) {
+                    Text(stringResource(Res.string.settings_cancel))
+                }
+            }
+        )
     }
 }

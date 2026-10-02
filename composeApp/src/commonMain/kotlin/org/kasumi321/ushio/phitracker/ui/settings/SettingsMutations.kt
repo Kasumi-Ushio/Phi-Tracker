@@ -73,4 +73,12 @@ fun SettingsViewModel.setApiPlatformId(value: String) = launchSetting { settings
 fun SettingsViewModel.setApiToken(value: String) = launchSetting { settingsRepository.setApiToken(value) }
 fun SettingsViewModel.setIncludePreRelease(value: Boolean) = launchSetting { settingsRepository.setIncludePreRelease(value) }
 fun SettingsViewModel.setAutoCheckUpdate(value: Boolean) = launchSetting { settingsRepository.setAutoCheckUpdate(value) }
+fun SettingsViewModel.setAutoCheckSongDataUpdate(value: Boolean) = launchSetting { settingsRepository.setAutoCheckSongDataUpdate(value) }
 fun SettingsViewModel.setCrashNotificationGuideShown() = launchSetting { settingsRepository.setCrashNotificationGuideShown(true) }
+
+/** Settings entry point for re-running the first-launch wizard on next cold start. */
+fun SettingsViewModel.requestOnboardingRerun() = launchSetting {
+    AppLogger.event("settings", "onboarding_rerun_requested")
+    settingsRepository.setOnboardingCompleted(false)
+    settingsRepository.setOnboardingRerunRequested(true)
+}

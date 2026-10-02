@@ -261,6 +261,33 @@ class SettingsRepositoryImplTest {
     }
 
     @Test
+    fun defaultsAutoCheckSongDataUpdateTrue(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals(true, repo.autoCheckSongDataUpdate.first())
+    }
+
+    @Test
+    fun setAndReadAutoCheckSongDataUpdate(): Unit = runTest {
+        val repo = createRepo()
+        repo.setAutoCheckSongDataUpdate(false)
+        assertEquals(false, repo.autoCheckSongDataUpdate.first())
+        repo.setAutoCheckSongDataUpdate(true)
+        assertEquals(true, repo.autoCheckSongDataUpdate.first())
+    }
+
+    @Test
+    fun autoCheckSongDataUpdatePersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setAutoCheckSongDataUpdate(false)
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(false, repo2.autoCheckSongDataUpdate.first())
+    }
+
+    @Test
     fun overflowCountClampedOnReadFromStorage(): Unit = runTest {
         val storage = FakeSecureKeyValueStorage()
         val preloadStorage = FakeSecureKeyValueStorage()
@@ -484,5 +511,76 @@ class SettingsRepositoryImplTest {
 
         val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
         assertEquals("en", repo2.appLanguage.first())
+    }
+
+    @Test
+    fun defaultsOnboardingFlagsFalse(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals(false, repo.onboardingCompleted.first())
+        assertEquals(false, repo.illustrationPreloadRequested.first())
+        assertEquals(false, repo.illustrationPreloadDeclined.first())
+    }
+
+    @Test
+    fun setAndReadOnboardingFlags(): Unit = runTest {
+        val repo = createRepo()
+        repo.setOnboardingCompleted(true)
+        repo.setIllustrationPreloadRequested(true)
+        assertEquals(true, repo.onboardingCompleted.first())
+        assertEquals(true, repo.illustrationPreloadRequested.first())
+        repo.setIllustrationPreloadRequested(false)
+        assertEquals(false, repo.illustrationPreloadRequested.first())
+    }
+
+    @Test
+    fun rerunRequestedRoundTripsAndPersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(false, repo1.onboardingRerunRequested.first())
+        repo1.setOnboardingRerunRequested(true)
+        assertEquals(true, repo1.onboardingRerunRequested.first())
+        assertEquals("true", storage.map["onboarding_rerun_requested"])
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(true, repo2.onboardingRerunRequested.first())
+        repo2.setOnboardingRerunRequested(false)
+        assertEquals(false, repo2.onboardingRerunRequested.first())
+    }
+
+    @Test
+    fun onboardingFlagsPersistInMainStorageBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setOnboardingCompleted(true)
+        repo1.setIllustrationPreloadRequested(true)
+
+        // Both flags live in the main storage, unlike preload_done
+        assertEquals("true", storage.map["onboarding_completed"])
+        assertEquals("true", storage.map["illustration_preload_requested"])
+        assertEquals(null, preloadStorage.map["onboarding_completed"])
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(true, repo2.onboardingCompleted.first())
+        assertEquals(true, repo2.illustrationPreloadRequested.first())
+    }
+
+    @Test
+    fun illustrationPreloadDeclinedPersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.setIllustrationPreloadDeclined(true)
+
+        assertEquals("true", storage.map["illustration_preload_declined"])
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(true, repo2.illustrationPreloadDeclined.first())
+
+        repo2.setIllustrationPreloadDeclined(false)
+        assertEquals(false, repo2.illustrationPreloadDeclined.first())
     }
 }

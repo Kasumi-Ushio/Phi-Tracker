@@ -82,6 +82,48 @@ class SongDetailViewModelTest {
     }
 
     @Test
+    fun declinedPreloadKeepsLowIllustrationBlankWithoutRemoteFallback() = runTest(dispatcher) {
+        // Given
+        val settings = FakeSettingsRepository().apply { setIllustrationPreloadDeclined(true) }
+        val artworkCache = RouteArtworkCache()
+        val viewModel = createViewModel(
+            songId = "song-a.0",
+            settingsRepository = settings,
+            illustrationUriResolver = IllustrationUriResolver(
+                artworkCache,
+                IllustrationProvider().apply { setBaseUrl("https://example.test") }
+            )
+        )
+
+        // When
+        advanceUntilIdle()
+
+        // Then
+        assertNull(viewModel.uiState.value.lowIllustrationUrl)
+        assertEquals(0, artworkCache.downloadCalls)
+    }
+
+    @Test
+    fun notDeclinedFallsBackToRemoteLowIllustration() = runTest(dispatcher) {
+        // Given
+        val artworkCache = RouteArtworkCache()
+        val viewModel = createViewModel(
+            songId = "song-a.0",
+            illustrationUriResolver = IllustrationUriResolver(
+                artworkCache,
+                IllustrationProvider().apply { setBaseUrl("https://example.test") }
+            )
+        )
+
+        // When
+        advanceUntilIdle()
+
+        // Then
+        assertEquals("https://example.test/illLow/song-a.png", viewModel.uiState.value.lowIllustrationUrl)
+        assertEquals(0, artworkCache.downloadCalls)
+    }
+
+    @Test
     fun usesExactB30FallbackWhenProfileRksIsZeroOrMissing() = runTest(dispatcher) {
         // Given
         val repository = FakePhigrosRepository().apply {

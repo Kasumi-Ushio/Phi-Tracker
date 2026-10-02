@@ -62,8 +62,10 @@ interface SettingsRepository {
 
     val includePreRelease: Flow<Boolean>
     val autoCheckUpdate: Flow<Boolean>
+    val autoCheckSongDataUpdate: Flow<Boolean>
     suspend fun setIncludePreRelease(enabled: Boolean)
     suspend fun setAutoCheckUpdate(enabled: Boolean)
+    suspend fun setAutoCheckSongDataUpdate(enabled: Boolean)
 
     val apiEnabled: Flow<Boolean>
     suspend fun setApiEnabled(enabled: Boolean)
@@ -85,6 +87,42 @@ interface SettingsRepository {
 
     val crashNotificationGuideShown: Flow<Boolean>
     suspend fun setCrashNotificationGuideShown(shown: Boolean)
+
+    /**
+     * Whether the first-launch onboarding wizard has been completed (or
+     * silently marked complete for upgrading users who already hold a session
+     * token or preload record). Gates the Onboarding start destination.
+     */
+    val onboardingCompleted: Flow<Boolean>
+    suspend fun setOnboardingCompleted(completed: Boolean)
+
+    /**
+     * One-shot flag set by the Settings "re-run onboarding" action: the next
+     * cold start opens the wizard even for token holders. The start gate
+     * consumes (clears) it once it has routed to Onboarding. Kept separate
+     * from [onboardingCompleted] so upgrading users whose flag is simply
+     * absent keep the silent-mark behavior instead of seeing the wizard.
+     */
+    val onboardingRerunRequested: Flow<Boolean>
+    suspend fun setOnboardingRerunRequested(requested: Boolean)
+
+    /**
+     * Set by the onboarding wizard when the user opts into downloading all
+     * low-res illustrations. HomeViewModel consumes it to auto-start the
+     * preload pipeline instead of showing the manual start/skip dialog; a
+     * wizard "skip" is recorded via [setPreloadDone] instead.
+     */
+    val illustrationPreloadRequested: Flow<Boolean>
+    suspend fun setIllustrationPreloadRequested(requested: Boolean)
+
+    /**
+     * Set by the onboarding wizard when the user declines the illustration
+     * download. Suppresses the Home preload dialog permanently (unlike
+     * [setPreloadDone], which still re-prompts when the thumbnails are
+     * actually missing); cleared by the Settings "redownload" action.
+     */
+    val illustrationPreloadDeclined: Flow<Boolean>
+    suspend fun setIllustrationPreloadDeclined(declined: Boolean)
 
     /**
      * JSON-serialized [org.kasumi321.ushio.phitracker.domain.model.GameUpdateInfo]

@@ -14,6 +14,7 @@ import org.kasumi321.ushio.phitracker.domain.usecase.FetchGameUpdateInfoUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
 import org.kasumi321.ushio.phitracker.ui.home.HomeViewModel
 import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
+import org.kasumi321.ushio.phitracker.ui.onboarding.OnboardingViewModel
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailViewModel
 import org.kasumi321.ushio.phitracker.ui.suggest.SuggestViewModel
@@ -41,6 +42,16 @@ val appModule = module {
         CrashReportExporter(store)
     }
     viewModel { LoginViewModel(get(), get(), get()) }
+    viewModel {
+        OnboardingViewModel(
+            settingsRepository = get(),
+            illustrationPreloadCoordinator = get(),
+            getB30UseCase = get(),
+            songDataProvider = get(),
+            songDataUpdateCoordinator = get(),
+            illustrationUriResolver = get()
+        )
+    }
     viewModel { parameters ->
         SongDetailViewModel(
             songId = parameters.get(),
@@ -87,6 +98,7 @@ val appModule = module {
             tipsProvider = get(),
             settingsRepository = get(),
             artworkFileCache = get(),
+            illustrationPreloadCoordinator = get(),
             checkForUpdateUseCase = get(),
             fetchGameUpdateInfoUseCase = get(),
             songDataUpdateCoordinator = get(),

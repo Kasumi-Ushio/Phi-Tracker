@@ -111,6 +111,7 @@ class SettingsViewModel(
         viewModelScope.launch { settingsRepository.apiToken.collect { value -> mutableUiState.update { it.copy(apiToken = value) } } }
         viewModelScope.launch { settingsRepository.includePreRelease.collect { value -> mutableUiState.update { it.copy(includePreRelease = value) } } }
         viewModelScope.launch { settingsRepository.autoCheckUpdate.collect { value -> mutableUiState.update { it.copy(autoCheckUpdate = value) } } }
+        viewModelScope.launch { settingsRepository.autoCheckSongDataUpdate.collect { value -> mutableUiState.update { it.copy(autoCheckSongDataUpdate = value) } } }
         viewModelScope.launch { settingsRepository.crashNotificationGuideShown.collect { value -> mutableUiState.update { it.copy(crashNotificationGuideShown = value) } } }
     }
 
@@ -238,6 +239,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             val result = runCatching {
                 settingsRepository.setPreloadDone(false)
+                settingsRepository.setIllustrationPreloadDeclined(false)
                 clearAllCache()
                 artworkFileCache.clearAllThumbnails()
                 artworkFileCache.clearAllStandard()

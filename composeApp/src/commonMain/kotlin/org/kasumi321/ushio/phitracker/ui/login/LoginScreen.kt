@@ -43,6 +43,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.alexzhirkevich.qrose.options.QrBallShape
@@ -87,6 +89,7 @@ import phitracker.composeapp.generated.resources.login_regenerate_qr
 import phitracker.composeapp.generated.resources.login_retry
 import phitracker.composeapp.generated.resources.login_security_tip
 import phitracker.composeapp.generated.resources.login_select_server
+import phitracker.composeapp.generated.resources.login_skip_to_home
 import phitracker.composeapp.generated.resources.login_success
 import phitracker.composeapp.generated.resources.login_syncing_game_data
 import phitracker.composeapp.generated.resources.login_tab_qr
@@ -100,11 +103,11 @@ private val QrCodeMaxSize = 280.dp
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
+    onSkip: () -> Unit,
     viewModel: LoginViewModel
 ) {
     val state by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
-    var selectedTab by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(state.isLoggedIn) {
         if (state.isLoggedIn) {
@@ -162,56 +165,93 @@ fun LoginScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Text(
-                text = stringResource(Res.string.login_select_server),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Server.entries.forEach { server ->
-                    FilterChip(
-                        selected = state.server == server,
-                        onClick = { viewModel.updateServer(server) },
-                        label = { Text(server.displayName) },
-                        enabled = !state.isLoading && state.qrStatus == QrStatus.Idle
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            LoginTabRow(
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it }
+            LoginMethodSection(
+                state = state,
+                onUpdateServer = viewModel::updateServer,
+                onStartQrLogin = viewModel::startQrLogin,
+                onCancelQrLogin = viewModel::cancelQrLogin,
+                onTokenChange = viewModel::updateToken,
+                onLogin = viewModel::login
             )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "login_tab"
-            ) { tab ->
-                when (tab) {
-                    0 -> QrLoginContent(
-                        state = state,
-                        onStartQrLogin = { viewModel.startQrLogin() },
-                        onCancel = { viewModel.cancelQrLogin() }
-                    )
-                    1 -> TokenLoginContent(
-                        state = state,
-                        onTokenChange = { viewModel.updateToken(it) },
-                        onLogin = { viewModel.login() }
-                    )
-                }
+            TextButton(onClick = onSkip) {
+                Text(
+                    text = stringResource(Res.string.login_skip_to_home),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             Spacer(modifier = Modifier.height(48.dp))
+        }
+    }
+}
+
+/**
+ * Server picker plus the QR / sessionToken login tabs. Shared by [LoginScreen]
+ * and the onboarding login step, where the whole flow is embedded inline; the
+ * host owns the [LoginViewModel] and the snackbar / navigation reactions.
+ */
+@Composable
+internal fun LoginMethodSection(
+    state: LoginUiState,
+    onUpdateServer: (Server) -> Unit,
+    onStartQrLogin: () -> Unit,
+    onCancelQrLogin: () -> Unit,
+    onTokenChange: (String) -> Unit,
+    onLogin: () -> Unit
+) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = stringResource(Res.string.login_select_server),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Server.entries.forEach { server ->
+                FilterChip(
+                    selected = state.server == server,
+                    onClick = { onUpdateServer(server) },
+                    label = { Text(server.displayName) },
+                    enabled = !state.isLoading && state.qrStatus == QrStatus.Idle
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        LoginTabRow(
+            selectedTab = selectedTab,
+            onTabSelected = { selectedTab = it }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        AnimatedContent(
+            targetState = selectedTab,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "login_tab"
+        ) { tab ->
+            when (tab) {
+                0 -> QrLoginContent(
+                    state = state,
+                    onStartQrLogin = onStartQrLogin,
+                    onCancel = onCancelQrLogin
+                )
+                1 -> TokenLoginContent(
+                    state = state,
+                    onTokenChange = onTokenChange,
+                    onLogin = onLogin
+                )
+            }
         }
     }
 }
@@ -393,7 +433,7 @@ internal fun QrLoginContent(
 }
 
 @Composable
-private fun TokenLoginContent(
+internal fun TokenLoginContent(
     state: LoginUiState,
     onTokenChange: (String) -> Unit,
     onLogin: () -> Unit
@@ -408,7 +448,8 @@ private fun TokenLoginContent(
             label = { Text("sessionToken") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            enabled = !state.isLoading
+            enabled = !state.isLoading,
+            visualTransformation = PasswordVisualTransformation()
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -418,7 +459,7 @@ private fun TokenLoginContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
-            enabled = state.token.isNotBlank() && !state.isLoading
+            enabled = state.token.isNotBlank() && !state.isLoading && !state.isLoggedIn
         ) {
             AnimatedVisibility(visible = state.isLoading) {
                 CircularProgressIndicator(
@@ -428,7 +469,17 @@ private fun TokenLoginContent(
                 )
             }
             AnimatedVisibility(visible = !state.isLoading) {
-                Text(stringResource(Res.string.login_login_and_sync))
+                // After a successful login the button turns into the success
+                // signal itself and locks, instead of leaving a live "log in"
+                // button behind (the QR tab shows the same text via its own
+                // Success state).
+                Text(
+                    text = if (state.isLoggedIn) {
+                        stringResource(Res.string.login_success)
+                    } else {
+                        stringResource(Res.string.login_login_and_sync)
+                    }
+                )
             }
         }
 

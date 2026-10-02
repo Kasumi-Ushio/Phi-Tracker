@@ -27,6 +27,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,8 +41,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.toRoute
+import kotlinx.coroutines.flow.first
 import org.kasumi321.ushio.phitracker.data.logging.AppLogger
+import org.kasumi321.ushio.phitracker.data.platform.triggerAppRestart
 import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
+import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
+import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.ui.b30.B30ImageScreen
 import org.kasumi321.ushio.phitracker.ui.b30.B30NavigationCoordinator
 import org.kasumi321.ushio.phitracker.ui.b30.B30NavigationGateway
@@ -51,6 +56,8 @@ import org.kasumi321.ushio.phitracker.ui.login.LoginScreen
 import org.kasumi321.ushio.phitracker.ui.login.LoginViewModel
 import org.kasumi321.ushio.phitracker.ui.navigation.IllustrationPreviewRoute
 import org.kasumi321.ushio.phitracker.ui.navigation.SongDetailRoute
+import org.kasumi321.ushio.phitracker.ui.onboarding.OnboardingScreen
+import org.kasumi321.ushio.phitracker.ui.onboarding.OnboardingViewModel
 import org.kasumi321.ushio.phitracker.ui.settings.AboutScreen
 import org.kasumi321.ushio.phitracker.ui.settings.AcknowledgmentsScreen
 import org.kasumi321.ushio.phitracker.ui.settings.DisclaimerScreen
@@ -58,6 +65,7 @@ import org.kasumi321.ushio.phitracker.ui.settings.LicensesScreen
 import org.kasumi321.ushio.phitracker.ui.settings.PrivacyPolicyScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsScreen
 import org.kasumi321.ushio.phitracker.ui.settings.SettingsViewModel
+import org.kasumi321.ushio.phitracker.ui.settings.requestOnboardingRerun
 import org.kasumi321.ushio.phitracker.ui.song.IllustrationPreviewScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailScreen
 import org.kasumi321.ushio.phitracker.ui.song.SongDetailViewModel
@@ -73,8 +81,11 @@ import phitracker.composeapp.generated.resources.action_back
 import phitracker.composeapp.generated.resources.nav_song_detail_title
 import phitracker.composeapp.generated.resources.nav_song_id
 import phitracker.composeapp.generated.resources.nav_song_not_found
+import phitracker.composeapp.generated.resources.settings_restart_required_message
+import phitracker.composeapp.generated.resources.settings_restart_required_title
 
 sealed class Screen(val route: String) {
+    data object Onboarding : Screen("onboarding")
     data object Login : Screen("login")
     data object Home : Screen("home")
     data object B30Image : Screen("b30image")
@@ -85,6 +96,41 @@ sealed class Screen(val route: String) {
     data object PrivacyPolicy : Screen("privacy_policy")
     data object Settings : Screen("settings")
     data object Suggest : Screen("suggest")
+}
+
+/** The route the cold start must open, plus the one-shot flag side effects. */
+internal data class StartGateDecision(
+    val route: String,
+    val consumeRerunRequest: Boolean,
+    val markOnboardingCompleted: Boolean
+)
+
+/**
+ * Pure start-gate decision, kept out of the composable so the precedence is
+ * unit-testable: an explicit rerun beats everything (token holders included);
+ * otherwise only brand-new installs (no token, no preload record, wizard
+ * never completed) see the wizard, and upgrading users are silently marked
+ * onboarded exactly once.
+ */
+internal fun decideStartGate(
+    onboardingCompleted: Boolean,
+    rerunRequested: Boolean,
+    preloadDone: Boolean,
+    hasToken: Boolean
+): StartGateDecision = when {
+    rerunRequested || (!onboardingCompleted && !hasToken && !preloadDone) ->
+        StartGateDecision(
+            route = Screen.Onboarding.route,
+            consumeRerunRequest = rerunRequested,
+            markOnboardingCompleted = false
+        )
+
+    else ->
+        StartGateDecision(
+            route = if (hasToken) Screen.Login.route else Screen.Home.route,
+            consumeRerunRequest = false,
+            markOnboardingCompleted = !onboardingCompleted
+        )
 }
 
 private const val NavTransitionDurationMillis = 250
@@ -133,6 +179,32 @@ private fun popExitTransition(reducedMotionEnabled: Boolean): ExitTransition =
 fun PhiTrackerNavHost() {
     AppLogger.event("startup", "NavHost.enter")
     val navController = rememberNavController()
+    val settingsRepository: SettingsRepository = koinInject()
+    val repository: PhigrosRepository = koinInject()
+
+    // Decide the start destination once. A rerun requested from Settings wins
+    // outright — token holders included — so the wizard can guide them again
+    // (its inline login restores the session from the cached token, and the
+    // wizard always hands off to Home afterwards). Fresh installs see the
+    // wizard; upgrading users who hold a token or preload record but never
+    // ran it are silently marked onboarded, as before.
+    val startRoute by produceState<String?>(initialValue = null) {
+        val decision = decideStartGate(
+                onboardingCompleted = settingsRepository.onboardingCompleted.first(),
+                rerunRequested = settingsRepository.onboardingRerunRequested.first(),
+                preloadDone = settingsRepository.getPreloadDone(),
+                hasToken = repository.getSessionToken() != null
+        )
+        if (decision.consumeRerunRequest) settingsRepository.setOnboardingRerunRequested(false)
+        if (decision.markOnboardingCompleted) settingsRepository.setOnboardingCompleted(true)
+        value = decision.route
+    }
+    val currentStartRoute = startRoute
+    if (currentStartRoute == null) {
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background))
+        return
+    }
+
     val b30Navigation = remember(navController) {
         B30NavigationCoordinator(
             object : B30NavigationGateway {
@@ -149,6 +221,12 @@ fun PhiTrackerNavHost() {
                 override fun navigateLoginReplacingHome() {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+                }
+
+                override fun navigateHomeSkippingLogin() {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 }
 
@@ -172,11 +250,39 @@ fun PhiTrackerNavHost() {
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Login.route,
+        startDestination = currentStartRoute,
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        composable(
+            route = Screen.Onboarding.route,
+            enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
+            exitTransition = { forwardExitTransition(reducedMotionEnabled) },
+            popEnterTransition = { popEnterTransition(reducedMotionEnabled) },
+            popExitTransition = { popExitTransition(reducedMotionEnabled) }
+        ) {
+            LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_onboarding") }
+            val onboardingViewModel: OnboardingViewModel = koinViewModel()
+            val restartRequiredTitle = stringResource(Res.string.settings_restart_required_title)
+            val restartRequiredMessage = stringResource(Res.string.settings_restart_required_message)
+            OnboardingScreen(
+                viewModel = onboardingViewModel,
+                onFinished = { restartRequired ->
+                    // The wizard always hands off to Home: logging in now
+                    // happens inline in the login step, so there is no
+                    // separate Login destination anymore.
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Onboarding.route) { inclusive = true }
+                    }
+                    // iOS applies the picked language only after a cold start;
+                    // Android already applied it immediately.
+                    if (restartRequired) {
+                        triggerAppRestart(restartRequiredTitle, restartRequiredMessage)
+                    }
+                }
+            )
+        }
         composable(
             route = Screen.Login.route,
             enterTransition = { forwardEnterTransition(reducedMotionEnabled) },
@@ -190,6 +296,7 @@ fun PhiTrackerNavHost() {
             AppLogger.event("startup", "Login.afterViewModel")
             LoginScreen(
                 onLoginSuccess = b30Navigation::loginSuccess,
+                onSkip = b30Navigation::skipLoginToHome,
                 viewModel = loginViewModel
             )
         }
@@ -219,6 +326,9 @@ fun PhiTrackerNavHost() {
                 },
                 onNavigateToSuggest = {
                     navController.navigate(Screen.Suggest.route)
+                },
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route)
                 },
                 viewModel = homeViewModel
             )
@@ -252,6 +362,9 @@ fun PhiTrackerNavHost() {
                 return@composable
             }
             val illustrationResolver: IllustrationUriResolver = koinInject()
+            val illustrationPreloadDeclined by settingsRepository.illustrationPreloadDeclined.collectAsState(
+                initial = false
+            )
             B30ImageScreen(
                 b30 = payload.b30,
                 displayRks = payload.displayRks,
@@ -266,7 +379,10 @@ fun PhiTrackerNavHost() {
                 overflowCount = payload.overflowCount,
                 themeSettings = payload.themeSettings,
                 tagAnalysis = payload.tagAnalysis,
-                getLowIllustrationUrl = illustrationResolver::lowUri,
+                getLowIllustrationUrl = { songId ->
+                    if (illustrationPreloadDeclined) illustrationResolver.lowLocalUri(songId)
+                    else illustrationResolver.lowUri(songId)
+                },
                 getStandardIllustrationUrl = illustrationResolver::standardUri,
                 onBack = b30Navigation::toolbarBack
             )
@@ -279,12 +395,14 @@ fun PhiTrackerNavHost() {
             popExitTransition = { popExitTransition(reducedMotionEnabled) }
         ) {
             LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_about") }
+            val aboutSettingsViewModel: SettingsViewModel = koinViewModel()
             AboutScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToLicenses = { navController.navigate(Screen.Licenses.route) },
                 onNavigateToDisclaimer = { navController.navigate(Screen.Disclaimer.route) },
                 onNavigateToAcknowledgments = { navController.navigate(Screen.Acknowledgments.route) },
-                onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) }
+                onNavigateToPrivacyPolicy = { navController.navigate(Screen.PrivacyPolicy.route) },
+                onRerunOnboarding = { aboutSettingsViewModel.requestOnboardingRerun() }
             )
         }
         composable(
@@ -346,9 +464,15 @@ fun PhiTrackerNavHost() {
             LaunchedEffect(Unit) { AppLogger.event("navigation", "entered_suggest") }
             val suggestViewModel: SuggestViewModel = koinViewModel()
             val illustrationResolver: IllustrationUriResolver = koinInject()
+            val illustrationPreloadDeclined by settingsRepository.illustrationPreloadDeclined.collectAsState(
+                initial = false
+            )
             SuggestScreen(
                 viewModel = suggestViewModel,
-                getIllustrationUrl = illustrationResolver::lowUri,
+                getIllustrationUrl = { songId ->
+                    if (illustrationPreloadDeclined) illustrationResolver.lowLocalUri(songId)
+                    else illustrationResolver.lowUri(songId)
+                },
                 onNavigateToSongDetail = { songId, difficulty ->
                     navController.navigate(SongDetailRoute.from(songId = songId, difficulty = difficulty))
                 },

@@ -52,6 +52,20 @@ class SettingsViewModelTest {
     }
 
     @Test
+    fun requestOnboardingRerunClearsCompletedFlagAndSetsMarker() = runTest(dispatcher) {
+        val settings = FakeSettingsRepository()
+        settings.setOnboardingCompleted(true)
+        val vm = createViewModel(settings = settings)
+        advanceUntilIdle()
+
+        vm.requestOnboardingRerun()
+        advanceUntilIdle()
+
+        assertEquals(false, settings.onboardingCompleted.first())
+        assertEquals(true, settings.onboardingRerunRequested.first())
+    }
+
+    @Test
     fun projectionsUpdateImmediatelyAndSurviveDestinationRecreation(): Unit = runTest(dispatcher) {
         val settings = FakeSettingsRepository()
         val first = createViewModel(settings = settings)
@@ -71,6 +85,7 @@ class SettingsViewModelTest {
         first.setApiPlatformId(" 42 ")
         first.setIncludePreRelease(true)
         first.setAutoCheckUpdate(false)
+        first.setAutoCheckSongDataUpdate(false)
         first.setCrashNotificationGuideShown()
         advanceUntilIdle()
 
@@ -91,6 +106,7 @@ class SettingsViewModelTest {
         assertEquals("42", recreated.uiState.value.apiPlatformId)
         assertTrue(recreated.uiState.value.includePreRelease)
         assertFalse(recreated.uiState.value.autoCheckUpdate)
+        assertFalse(recreated.uiState.value.autoCheckSongDataUpdate)
         assertTrue(recreated.uiState.value.crashNotificationGuideShown)
     }
 
