@@ -22,10 +22,12 @@ import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.ChartTagApiIdentity
 import org.kasumi321.ushio.phitracker.domain.usecase.GetChartTagsUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.ProposeSongAliasUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
 import org.kasumi321.ushio.phitracker.ui.utils.UiText
 import phitracker.composeapp.generated.resources.Res
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_failed
 import phitracker.composeapp.generated.resources.song_detail_data_load_failed
 import phitracker.composeapp.generated.resources.song_detail_tags_load_failed
 import phitracker.composeapp.generated.resources.song_detail_vote_failed
@@ -52,6 +54,12 @@ data class ChartTagUiState(
     val hasVoted: Boolean = false
 )
 
+data class AliasProposalUiState(
+    val submitting: Boolean = false,
+    val error: UiText? = null,
+    val succeeded: Boolean = false
+)
+
 data class SongDetailUiState(
     val isLoading: Boolean = true,
     val notFound: Boolean = false,
@@ -70,6 +78,7 @@ data class SongDetailUiState(
     val lowIllustrationUrls: Map<Difficulty, String?> = emptyMap(),
     val standardIllustrationUrls: Map<Difficulty, String?> = emptyMap(),
     val chartVoteKeys: Set<String> = emptySet(),
+    val aliasProposal: AliasProposalUiState = AliasProposalUiState(),
     val initialDifficulty: Difficulty? = null
 )
 
@@ -81,7 +90,8 @@ class SongDetailViewModel(
     private val songDataProvider: SongDataProvider,
     private val illustrationUriResolver: IllustrationUriResolver,
     private val getChartTagsUseCase: GetChartTagsUseCase,
-    private val voteChartTagsUseCase: VoteChartTagsUseCase
+    private val voteChartTagsUseCase: VoteChartTagsUseCase,
+    private val proposeSongAliasUseCase: ProposeSongAliasUseCase
 ) : ViewModel() {
     private val mutableUiState = MutableStateFlow(SongDetailUiState(initialDifficulty = initialDifficulty))
     val uiState: StateFlow<SongDetailUiState> = mutableUiState.asStateFlow()
@@ -210,6 +220,47 @@ class SongDetailViewModel(
         mutableUiState.update { state ->
             state.copy(chartTags = state.chartTags + (difficulty to transform(state.chartTags[difficulty])))
         }
+    }
+
+    /**
+     * Submits a community alias proposal for this song. Authentication rides
+     * on the login sessionToken, so no api_token gate here; proposals enter
+     * upstream review and never change the local alias list directly.
+     */
+    fun submitAliasProposal(alias: String, note: String) {
+        mutableUiState.update {
+            it.copy(aliasProposal = AliasProposalUiState(submitting = true))
+        }
+        viewModelScope.launch {
+            val result = proposeSongAliasUseCase(
+                songId = songId,
+                alias = alias,
+                note = note,
+                existingAliases = uiState.value.songInfo?.nicknames.orEmpty()
+            )
+            mutableUiState.update {
+                it.copy(
+                    aliasProposal = result.fold(
+                        onSuccess = { AliasProposalUiState(succeeded = true) },
+                        onFailure = { error ->
+                            AliasProposalUiState(
+                                error = error.message?.let(UiText::Raw)
+                                    ?: UiText.Res(Res.string.song_detail_alias_propose_failed)
+                            )
+                        }
+                    )
+                )
+            }
+        }
+    }
+
+    /**
+     * Resets the proposal flow when the dialog is (re)opened, so a previous
+     * success (which auto-closes the dialog) or failure does not leak into
+     * the next attempt.
+     */
+    fun resetAliasProposalState() {
+        mutableUiState.update { it.copy(aliasProposal = AliasProposalUiState()) }
     }
 
     /**

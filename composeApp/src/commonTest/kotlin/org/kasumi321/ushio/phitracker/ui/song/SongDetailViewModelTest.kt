@@ -21,6 +21,7 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongApiDetail
 import org.kasumi321.ushio.phitracker.domain.model.SongSyncHistoryEntry
 import org.kasumi321.ushio.phitracker.domain.usecase.GetChartTagsUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.ProposeSongAliasUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.VoteChartTagsUseCase
 import org.kasumi321.ushio.phitracker.domain.model.UserProfile
 import org.kasumi321.ushio.phitracker.ui.settings.FakePhigrosRepository
@@ -337,7 +338,8 @@ class SongDetailViewModelTest {
         songDataProvider = SongDataProvider(assetReader = assetReader),
         illustrationUriResolver = illustrationUriResolver,
         getChartTagsUseCase = GetChartTagsUseCase(repository),
-        voteChartTagsUseCase = VoteChartTagsUseCase(repository)
+        voteChartTagsUseCase = VoteChartTagsUseCase(repository),
+        proposeSongAliasUseCase = ProposeSongAliasUseCase(repository)
     )
 
     @Test
@@ -620,6 +622,115 @@ class SongDetailViewModelTest {
 
         // Then
         assertTrue(viewModel.getChartTagState(Difficulty.IN).hasVoted)
+    }
+
+    @Test
+    fun successfulAliasProposalMarksSucceededAndTrimsInput() = runTest(dispatcher) {
+        // Given
+        val repository = FakePhigrosRepository()
+        val viewModel = createViewModel("song-a.0", repository)
+        advanceUntilIdle()
+
+        // When
+        viewModel.submitAliasProposal("  新别名  ", "  来自玩家投稿  ")
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.uiState.value.aliasProposal
+        assertFalse(state.submitting)
+        assertNull(state.error)
+        assertTrue(state.succeeded)
+        assertEquals(
+            listOf(Triple<String, String, String?>("song-a.0", "新别名", "来自玩家投稿")),
+            repository.proposedAliases
+        )
+    }
+
+    @Test
+    fun blankAliasProposalFailsFastWithoutSendingRequest() = runTest(dispatcher) {
+        // Given
+        val repository = FakePhigrosRepository()
+        val viewModel = createViewModel("song-a.0", repository)
+        advanceUntilIdle()
+
+        // When
+        viewModel.submitAliasProposal("   ", "")
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.uiState.value.aliasProposal
+        assertFalse(state.submitting)
+        assertFalse(state.succeeded)
+        assertEquals(UiText.Raw("别名不能为空"), state.error)
+        assertTrue(repository.proposedAliases.isEmpty())
+    }
+
+    @Test
+    fun duplicateAliasProposalFailsFastWithoutSendingRequest() = runTest(dispatcher) {
+        // Given
+        val repository = FakePhigrosRepository()
+        val viewModel = createViewModel(
+            songId = "song-a.0",
+            repository = repository,
+            assetReader = object : TextAssetReader {
+                override fun readText(name: String): String = when (name) {
+                    "nicklist.yaml" -> "song-a:\n  - 已有别名\n"
+                    else -> TestAssets.readText(name)
+                }
+            }
+        )
+        advanceUntilIdle()
+
+        // When: same alias, different case, padded with whitespace.
+        viewModel.submitAliasProposal(" 已有别名 ", "")
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.uiState.value.aliasProposal
+        assertFalse(state.submitting)
+        assertFalse(state.succeeded)
+        assertEquals(UiText.Raw("该别名已存在"), state.error)
+        assertTrue(repository.proposedAliases.isEmpty())
+    }
+
+    @Test
+    fun failedAliasProposalExposesServerError() = runTest(dispatcher) {
+        // Given
+        val repository = FakePhigrosRepository().apply {
+            proposeSongAliasResult = Result.failure(IllegalStateException("服务器拒绝"))
+        }
+        val viewModel = createViewModel("song-a.0", repository)
+        advanceUntilIdle()
+
+        // When
+        viewModel.submitAliasProposal("新别名", "")
+        advanceUntilIdle()
+
+        // Then
+        val state = viewModel.uiState.value.aliasProposal
+        assertFalse(state.submitting)
+        assertFalse(state.succeeded)
+        assertEquals(UiText.Raw("服务器拒绝"), state.error)
+    }
+
+    @Test
+    fun reopeningProposalDialogResetsPreviousResult() = runTest(dispatcher) {
+        // Given: a successful submission (which auto-closes the dialog).
+        val repository = FakePhigrosRepository()
+        val viewModel = createViewModel("song-a.0", repository)
+        advanceUntilIdle()
+        viewModel.submitAliasProposal("新别名", "")
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.aliasProposal.succeeded)
+
+        // When: the user opens the dialog again.
+        viewModel.resetAliasProposalState()
+
+        // Then: stale success/error no longer leaks into the new attempt.
+        val state = viewModel.uiState.value.aliasProposal
+        assertFalse(state.submitting)
+        assertFalse(state.succeeded)
+        assertNull(state.error)
     }
 
     private suspend fun apiSettings(apiToken: String = "token-1") = FakeSettingsRepository().apply {

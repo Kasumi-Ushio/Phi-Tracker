@@ -319,6 +319,9 @@ class LoginViewModelQrRepositoryTest {
             apiToken: String
         ): Result<Unit> = Result.failure(UnsupportedOperationException())
 
+        override suspend fun proposeSongAlias(songId: String, alias: String, note: String?): Result<Unit> =
+            Result.failure(UnsupportedOperationException())
+
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> = offline()
 
         override suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo> = offline()

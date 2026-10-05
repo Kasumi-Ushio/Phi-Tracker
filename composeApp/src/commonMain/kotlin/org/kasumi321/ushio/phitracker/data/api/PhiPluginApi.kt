@@ -245,4 +245,22 @@ class PhiPluginApi(
             }
         })
     }.body()
+
+    // ── Alias proposals (alias-proposals) ───────────────────────────
+    // Proposal submission authenticates with the Phigros sessionToken
+    // (`token` field), not the api_token used by chartsTag voting.
+
+    suspend fun proposeAlias(
+        sessionToken: String,
+        songId: String,
+        alias: String,
+        note: String?
+    ): JsonObject = httpClient.post("$BASE_URL/alias-proposals") {
+        setJsonBody(buildJsonObject {
+            put("token", sessionToken)
+            put("songId", songId)
+            put("alias", alias)
+            if (!note.isNullOrBlank()) put("note", note.trim())
+        })
+    }.body()
 }

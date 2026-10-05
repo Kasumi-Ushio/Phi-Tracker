@@ -529,6 +529,9 @@ fun PhiTrackerNavHost() {
                     onLoadChartTags = viewModel::loadChartTags,
                     canVote = state.apiToken.isNotBlank(),
                     onSubmitChartTagVote = viewModel::submitChartTagVote,
+                    aliasProposal = state.aliasProposal,
+                    onSubmitAliasProposal = viewModel::submitAliasProposal,
+                    onAliasProposalDialogOpen = viewModel::resetAliasProposalState,
                     lowIllustrationUrls = state.lowIllustrationUrls,
                     onIllustrationClick = { difficulty ->
                         navController.navigate(IllustrationPreviewRoute.from(songInfo.id, difficulty))

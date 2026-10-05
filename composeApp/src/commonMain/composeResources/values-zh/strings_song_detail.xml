@@ -35,6 +35,17 @@
     <string name="song_detail_vote_instructions">主要：最能代表这张谱面的特征；次要：次要特征。点击标签加入当前分组，再次点击已选标签可移除。主题色高亮为主要印象，对比色高亮为次要印象，两组将分别提交。</string>
     <string name="song_detail_vote_submitting">提交中…</string>
     <string name="song_detail_vote_submit">提交投票</string>
+    <string name="song_detail_alias_contribute">贡献别名</string>
+    <string name="song_detail_alias_propose_title">提交别名提案</string>
+    <string name="song_detail_alias_propose_alias_label">别名</string>
+    <string name="song_detail_alias_propose_note_label">备注（可选，仅审核可见）</string>
+    <string name="song_detail_alias_propose_submit">提交提案</string>
+    <string name="song_detail_alias_propose_cancel">取消</string>
+    <string name="song_detail_alias_propose_success">别名提案已提交，审核通过后生效</string>
+    <string name="song_detail_alias_propose_failed">提交失败，请稍后重试</string>
+    <string name="song_detail_alias_propose_review_notice">通过此处提交的提案需等待人工审核，目前处理可能较慢。</string>
+    <string name="song_detail_alias_propose_doc_hint">想更快被收录？也可以在社区共享文档中直接登记别名。</string>
+    <string name="song_detail_alias_propose_doc_button">打开共享文档</string>
     <string name="ill_preview_save_failed">保存失败</string>
     <string name="ill_preview_saved_to_album">已保存到相册</string>
     <string name="ill_preview_save_failed_with_reason">保存失败: %1$s</string>

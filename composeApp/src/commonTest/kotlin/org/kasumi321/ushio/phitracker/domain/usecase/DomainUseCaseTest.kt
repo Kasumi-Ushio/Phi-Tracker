@@ -738,6 +738,9 @@ class DomainUseCaseTest {
             apiToken: String
         ): Result<Unit> = Result.failure(UnsupportedOperationException())
 
+        override suspend fun proposeSongAlias(songId: String, alias: String, note: String?): Result<Unit> =
+            Result.failure(UnsupportedOperationException())
+
         override suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo> =
             Result.failure(IllegalStateException("Not implemented in Phase E"))
 

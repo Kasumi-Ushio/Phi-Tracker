@@ -35,6 +35,17 @@
     <string name="song_detail_vote_instructions">主要：最能代表這張譜面的特徵；次要：次要特徵。點擊標籤加入目前分組，再次點擊已選標籤可移除。主題色高亮為主要印象，對比色高亮為次要印象，兩組將分別提交。</string>
     <string name="song_detail_vote_submitting">提交中…</string>
     <string name="song_detail_vote_submit">提交投票</string>
+    <string name="song_detail_alias_contribute">貢獻別名</string>
+    <string name="song_detail_alias_propose_title">提交別名提案</string>
+    <string name="song_detail_alias_propose_alias_label">別名</string>
+    <string name="song_detail_alias_propose_note_label">備註（可選，僅審核可見）</string>
+    <string name="song_detail_alias_propose_submit">提交提案</string>
+    <string name="song_detail_alias_propose_cancel">取消</string>
+    <string name="song_detail_alias_propose_success">別名提案已提交，審核通過後生效</string>
+    <string name="song_detail_alias_propose_failed">提交失敗，請稍後重試</string>
+    <string name="song_detail_alias_propose_review_notice">透過此處提交的提案需等待人工審核，目前處理可能較慢。</string>
+    <string name="song_detail_alias_propose_doc_hint">想更快被收錄？也可以在社群共享文件中直接登記別名。</string>
+    <string name="song_detail_alias_propose_doc_button">開啟共享文件</string>
     <string name="ill_preview_save_failed">儲存失敗</string>
     <string name="ill_preview_saved_to_album">已儲存到相簿</string>
     <string name="ill_preview_save_failed_with_reason">儲存失敗: %1$s</string>

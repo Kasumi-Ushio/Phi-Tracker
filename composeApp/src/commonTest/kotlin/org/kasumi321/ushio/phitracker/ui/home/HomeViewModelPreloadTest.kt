@@ -1036,6 +1036,9 @@ class HomeViewModelPreloadTest {
             apiToken: String
         ): Result<Unit> = Result.failure(UnsupportedOperationException())
 
+        override suspend fun proposeSongAlias(songId: String, alias: String, note: String?): Result<Unit> =
+            Result.failure(UnsupportedOperationException())
+
         open var fetchLatestReleaseCallCount = 0
         val fetchLatestReleaseIncludePreReleaseValues = mutableListOf<Boolean>()
         open var fetchLatestReleaseResult: Result<ReleaseInfo> =

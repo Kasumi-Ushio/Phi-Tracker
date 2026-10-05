@@ -422,4 +422,22 @@ class LogRedactorTest {
         assertContains(result, "token_new=<redacted>")
         assertFalse(result.contains("my-secret-token"))
     }
+
+    // ── Alias proposals: bare "token" carries the sessionToken ─────
+
+    @Test
+    fun `redacts bare token in JSON format`() {
+        val input = """{"token":"r_stok","songId":"song.0","alias":"别名"}"""
+        val result = LogRedactor.redact(input)
+        assertContains(result, """"token":"<redacted>"""")
+        assertContains(result, """"songId":"song.0"""")
+        assertFalse(result.contains("r_stok"))
+    }
+
+    @Test
+    fun `bare token redaction preserves tokenPresent and token_type`() {
+        val input = """tokenPresent=true {"token_type":"Bearer"}"""
+        val result = LogRedactor.redact(input)
+        assertEquals(input, result)
+    }
 }

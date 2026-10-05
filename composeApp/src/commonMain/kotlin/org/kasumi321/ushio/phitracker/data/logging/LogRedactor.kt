@@ -34,6 +34,10 @@ object LogRedactor {
         "apitoken",
         "token_new",
         "tokennew",
+        // Bare "token" is the field name carrying the Phigros sessionToken
+        // in alias-proposal requests; "tokenPresent" stays safe because the
+        // value patterns require an immediate =/:/" after the key.
+        "token",
         "mac_key",
         "client_id",
         "device_id",

@@ -37,6 +37,7 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,17 +45,20 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -81,6 +85,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -117,6 +122,16 @@ import org.kasumi321.ushio.phitracker.ui.utils.expandCollapseTransition
 import org.kasumi321.ushio.phitracker.ui.utils.rememberReducedMotionEnabled
 import phitracker.composeapp.generated.resources.Res
 import phitracker.composeapp.generated.resources.song_detail_aliases_label
+import phitracker.composeapp.generated.resources.song_detail_alias_contribute
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_alias_label
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_cancel
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_doc_button
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_doc_hint
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_note_label
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_review_notice
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_submit
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_success
+import phitracker.composeapp.generated.resources.song_detail_alias_propose_title
 import phitracker.composeapp.generated.resources.song_detail_avg_acc
 import phitracker.composeapp.generated.resources.song_detail_cd_back
 import phitracker.composeapp.generated.resources.song_detail_chapter
@@ -181,6 +196,9 @@ fun SongDetailScreen(
     onLoadChartTags: (Difficulty) -> Unit = {},
     canVote: Boolean = false,
     onSubmitChartTagVote: (Difficulty, List<String>, List<String>) -> Unit = { _, _, _ -> },
+    aliasProposal: AliasProposalUiState = AliasProposalUiState(),
+    onSubmitAliasProposal: (String, String) -> Unit = { _, _ -> },
+    onAliasProposalDialogOpen: () -> Unit = {},
     lowIllustrationUrls: Map<Difficulty, String?>,
     onIllustrationClick: (Difficulty) -> Unit,
     initialDifficulty: Difficulty? = null,
@@ -318,6 +336,9 @@ fun SongDetailScreen(
                     difficulty = selectedDifficulty,
                     thumbnailUrl = lowIllustrationUrls[selectedDifficulty],
                     onIllustrationClick = onIllustrationClick,
+                    aliasProposal = aliasProposal,
+                    onSubmitAliasProposal = onSubmitAliasProposal,
+                    onAliasProposalDialogOpen = onAliasProposalDialogOpen,
                     modifier = Modifier.onSizeChanged { infoHeaderHeightPx = it.height }
                 )
             }
@@ -363,6 +384,9 @@ private fun SongInfoHeader(
     difficulty: Difficulty,
     thumbnailUrl: String?,
     onIllustrationClick: (Difficulty) -> Unit,
+    aliasProposal: AliasProposalUiState,
+    onSubmitAliasProposal: (String, String) -> Unit,
+    onAliasProposalDialogOpen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -455,10 +479,13 @@ private fun SongInfoHeader(
                     onClick = {}
                 )
             )
-            if (songInfo.nicknames.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                AliasChips(nicknames = songInfo.nicknames)
-            }
+            Spacer(modifier = Modifier.height(8.dp))
+            AliasChips(
+                nicknames = songInfo.nicknames,
+                proposalState = aliasProposal,
+                onSubmitProposal = onSubmitAliasProposal,
+                onProposalDialogOpen = onAliasProposalDialogOpen
+            )
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
@@ -494,11 +521,21 @@ private fun SongInfoHeader(
  * an invisible unclipped copy of the chips is measured alongside the visible
  * row: the expand control only appears when the full set is taller than the
  * two collapsed rows, i.e. when there is actually more to reveal.
+ *
+ * The title row also carries the alias contribution entry, which stays
+ * visible even for songs without any alias yet. Both title-row controls use
+ * the same toggle-chip style as the collapse chip.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AliasChips(nicknames: List<String>) {
+private fun AliasChips(
+    nicknames: List<String>,
+    proposalState: AliasProposalUiState,
+    onSubmitProposal: (String, String) -> Unit,
+    onProposalDialogOpen: () -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
+    var showProposalDialog by remember { mutableStateOf(false) }
     val reducedMotion = rememberReducedMotionEnabled()
     var fullHeightPx by remember(nicknames) { mutableStateOf<Int?>(null) }
     var collapsedHeightPx by remember(nicknames) { mutableStateOf<Int?>(null) }
@@ -523,56 +560,174 @@ private fun AliasChips(nicknames: List<String>) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (!expanded && canExpand) {
-                Text(
-                    text = stringResource(Res.string.song_detail_expand_all, nicknames.size),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.clickable { expanded = true }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                AliasToggleChip(
+                    text = stringResource(Res.string.song_detail_alias_contribute),
+                    onClick = {
+                        onProposalDialogOpen()
+                        showProposalDialog = true
+                    }
                 )
+                if (!expanded && canExpand) {
+                    AliasToggleChip(
+                        text = stringResource(Res.string.song_detail_expand_all, nicknames.size),
+                        onClick = { expanded = true }
+                    )
+                }
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Box {
-            // Measurement copy: laid out with unlimited lines but reporting
-            // zero size, so it never affects layout or pixels.
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .alpha(0f)
-                    .layout { measurable, constraints ->
-                        val placeable = measurable.measure(constraints.copy(minHeight = 0))
-                        layout(0, 0) { placeable.place(0, 0) }
-                    }
-                    .onSizeChanged { fullHeightPx = it.height }
-            ) {
-                nicknames.forEach { AliasChip(it) }
-            }
-            AnimatedContent(
-                targetState = expanded,
-                transitionSpec = { expandCollapseTransition(reducedMotion) },
-                label = "aliasChips",
-                modifier = Modifier.fillMaxWidth()
-            ) { targetExpanded ->
-                // The collapse toggle rides as a real last item when expanded
+        if (nicknames.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Box {
+                // Measurement copy: laid out with unlimited lines but reporting
+                // zero size, so it never affects layout or pixels. The height
+                // is captured inside the layout block because any observation
+                // modifier placed around it would only see the reported (0, 0).
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    maxLines = if (targetExpanded) Int.MAX_VALUE else 2,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onSizeChanged { if (!targetExpanded) collapsedHeightPx = it.height }
+                        .alpha(0f)
+                        .layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints.copy(minHeight = 0))
+                            if (fullHeightPx != placeable.height) {
+                                fullHeightPx = placeable.height
+                            }
+                            layout(0, 0) { placeable.place(0, 0) }
+                        }
                 ) {
-                    repeat(nicknames.size + if (targetExpanded) 1 else 0) { index ->
-                        chipContent(index)
+                    nicknames.forEach { AliasChip(it) }
+                }
+                AnimatedContent(
+                    targetState = expanded,
+                    transitionSpec = { expandCollapseTransition(reducedMotion) },
+                    label = "aliasChips",
+                    modifier = Modifier.fillMaxWidth()
+                ) { targetExpanded ->
+                    // The collapse toggle rides as a real last item when expanded
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                        maxLines = if (targetExpanded) Int.MAX_VALUE else 2,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onSizeChanged { if (!targetExpanded) collapsedHeightPx = it.height }
+                    ) {
+                        repeat(nicknames.size + if (targetExpanded) 1 else 0) { index ->
+                            chipContent(index)
+                        }
                     }
                 }
             }
         }
+        if (proposalState.succeeded) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(Res.string.song_detail_alias_propose_success),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+    if (showProposalDialog) {
+        AliasProposalDialog(
+            state = proposalState,
+            onDismiss = { showProposalDialog = false },
+            onSubmit = onSubmitProposal
+        )
     }
 }
+
+@Composable
+private fun AliasProposalDialog(
+    state: AliasProposalUiState,
+    onDismiss: () -> Unit,
+    onSubmit: (String, String) -> Unit
+) {
+    var alias by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+    val uriHandler = LocalUriHandler.current
+
+    LaunchedEffect(state.succeeded) {
+        if (state.succeeded) onDismiss()
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!state.submitting) onDismiss() },
+        title = { Text(stringResource(Res.string.song_detail_alias_propose_title)) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
+                OutlinedTextField(
+                    value = alias,
+                    onValueChange = { alias = it },
+                    label = { Text(stringResource(Res.string.song_detail_alias_propose_alias_label)) },
+                    singleLine = true,
+                    enabled = !state.submitting,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = { note = it },
+                    label = { Text(stringResource(Res.string.song_detail_alias_propose_note_label)) },
+                    enabled = !state.submitting,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                state.error?.let { error ->
+                    Text(
+                        text = error.asString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+                Text(
+                    text = stringResource(Res.string.song_detail_alias_propose_review_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                HorizontalDivider()
+                Text(
+                    text = stringResource(Res.string.song_detail_alias_propose_doc_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(alias, note) },
+                enabled = !state.submitting && alias.isNotBlank()
+            ) {
+                Text(
+                    stringResource(
+                        if (state.submitting) Res.string.song_detail_vote_submitting
+                        else Res.string.song_detail_alias_propose_submit
+                    )
+                )
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = { uriHandler.openUri(ALIAS_SHARED_DOC_URL) }) {
+                    Text(stringResource(Res.string.song_detail_alias_propose_doc_button))
+                }
+                TextButton(onClick = onDismiss, enabled = !state.submitting) {
+                    Text(stringResource(Res.string.song_detail_alias_propose_cancel))
+                }
+            }
+        }
+    )
+}
+
+// Community-maintained shared spreadsheet for alias submissions, recommended
+// by the phi-plugin upstream while their proposal review queue is backlogged.
+private const val ALIAS_SHARED_DOC_URL = "https://kdocs.cn/l/catqcMM9UR5Y"
 
 @Composable
 private fun AliasChip(name: String) {

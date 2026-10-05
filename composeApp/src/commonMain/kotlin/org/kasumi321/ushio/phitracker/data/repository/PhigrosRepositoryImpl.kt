@@ -398,6 +398,14 @@ class PhigrosRepositoryImpl(
         }
     }
 
+    override suspend fun proposeSongAlias(songId: String, alias: String, note: String?): Result<Unit> =
+        runCatching {
+            val (sessionToken, _) = tokenManager.getToken()
+                ?: error("需要先登录 TapTap 账号")
+            phiPluginApi.proposeAlias(sessionToken, songId.trim(), alias.trim(), note?.trim())
+                .also { it.throwOnApiError() }
+        }
+
     private var chartTagTreeCache: Pair<Instant, List<ChartTagTreeNode>>? = null
 
     private fun parseTagTreeNode(element: JsonElement?): ChartTagTreeNode? {

@@ -199,6 +199,33 @@ class PhiPluginApiTest {
         assertTrue(request.body.contains("\"secondaryTags\":[\"连打\"]"), request.body)
     }
 
+    @Test
+    fun proposeAliasPostsSessionTokenSongIdAndAlias() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.proposeAlias("session-token", "song.0", "别名", "私密备注")
+
+        val request = requests.single()
+        assertEquals("POST", request.method)
+        assertEquals("/alias-proposals", request.path)
+        assertTrue(request.body.contains("\"token\":\"session-token\""), request.body)
+        assertTrue(request.body.contains("\"songId\":\"song.0\""), request.body)
+        assertTrue(request.body.contains("\"alias\":\"别名\""), request.body)
+        assertTrue(request.body.contains("\"note\":\"私密备注\""), request.body)
+        assertFalse(request.body.contains("api_token"), request.body)
+    }
+
+    @Test
+    fun proposeAliasOmitsBlankNote() = runTest {
+        val requests = mutableListOf<CapturedRequest>()
+        val api = createApi(requests)
+
+        api.proposeAlias("session-token", "song.0", "别名", " ")
+
+        assertFalse(requests.single().body.contains("note"), requests.single().body)
+    }
+
     private fun createApi(requests: MutableList<CapturedRequest>): PhiPluginApi {
         val engine = MockEngine { request ->
             requests += CapturedRequest(

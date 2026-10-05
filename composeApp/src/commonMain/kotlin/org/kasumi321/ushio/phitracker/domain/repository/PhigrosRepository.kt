@@ -76,6 +76,12 @@ interface PhigrosRepository {
         apiToken: String
     ): Result<Unit>
 
+    // ── Alias proposals (alias-proposals) ───────────────────────────
+    // Submission authenticates with the login sessionToken (the `token`
+    // field); unlike chart-tag voting no api_token is involved.
+
+    suspend fun proposeSongAlias(songId: String, alias: String, note: String?): Result<Unit>
+
     suspend fun fetchLatestRelease(includePreRelease: Boolean): Result<ReleaseInfo>
     suspend fun fetchGameUpdateInfo(): Result<GameUpdateInfo>
 }

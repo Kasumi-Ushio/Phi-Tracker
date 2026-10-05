@@ -289,6 +289,13 @@ internal class FakePhigrosRepository : PhigrosRepository {
         return voteChartTagsResult
     }
 
+    var proposeSongAliasResult: Result<Unit> = Result.success(Unit)
+    val proposedAliases = mutableListOf<Triple<String, String, String?>>()
+    override suspend fun proposeSongAlias(songId: String, alias: String, note: String?): Result<Unit> {
+        proposedAliases += Triple(songId, alias, note)
+        return proposeSongAliasResult
+    }
+
     override suspend fun fetchLatestRelease(includePreRelease: Boolean) = release
 
     var gameUpdateInfo: Result<GameUpdateInfo> =
