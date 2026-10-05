@@ -17,6 +17,7 @@ import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import org.kasumi321.ushio.phitracker.domain.model.SongRecord
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.GetSongLevelBoundsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
@@ -145,7 +146,10 @@ class SuggestViewModel(
         }
 
         val targetRks = normalizedInput.toFloatOrNull()
-        if (targetRks == null || targetRks !in 0f..17f) {
+        val maxTargetRks = GetSongLevelBoundsUseCase.fromConstants(
+            difficulties.values.flatMap { it.values }
+        )?.max?.toFloat() ?: 0f
+        if (targetRks == null || targetRks !in 0f..maxTargetRks) {
             return SuggestBuildResult(emptyList(), UiText.Res(Res.string.suggest_target_invalid))
         }
 

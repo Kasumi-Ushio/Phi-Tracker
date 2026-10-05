@@ -50,6 +50,7 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import org.kasumi321.ushio.phitracker.data.platform.saveArtworkToPictures
 import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 import phitracker.composeapp.generated.resources.Res
 import phitracker.composeapp.generated.resources.ill_preview_cd_rotate
 import phitracker.composeapp.generated.resources.ill_preview_save_failed
@@ -78,6 +79,7 @@ import kotlin.math.roundToInt
 fun IllustrationPreviewScreen(
     illustrationUrl: String?,
     songId: String,
+    difficulty: Difficulty? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -186,7 +188,8 @@ fun IllustrationPreviewScreen(
                     }
                     isDownloading = true
                     coroutineScope.launch {
-                        val fileName = "${songId.replace(".", "_")}_hq.png"
+                        val difficultySuffix = difficulty?.let { "_${it.name}" } ?: ""
+                        val fileName = "${songId.replace(".", "_")}${difficultySuffix}_hq.png"
                         val result = saveArtworkToPictures(standardArtworkUrl, fileName)
                         showPlatformMessage(
                             if (result.isSuccess) {

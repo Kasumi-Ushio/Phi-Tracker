@@ -936,6 +936,11 @@ class HomeViewModelPreloadTest {
         override suspend fun setIllustrationPreloadDeclined(declined: Boolean) {
             _illustrationPreloadDeclined.value = declined
         }
+        private val _chartVoteKeys = MutableStateFlow<Set<String>>(emptySet())
+        override val chartVoteKeys: Flow<Set<String>> = _chartVoteKeys.asStateFlow()
+        override suspend fun recordChartVote(chartVoteKey: String) {
+            _chartVoteKeys.value = _chartVoteKeys.value + chartVoteKey
+        }
     }
 
     private open class FakePhigrosRepository : PhigrosRepository {
@@ -1266,8 +1271,10 @@ class HomeViewModelPreloadTest {
         // All filters cleared
         assertTrue(viewModel.uiState.value.songs.selectedChapters.isEmpty())
         assertEquals(null, viewModel.uiState.value.songs.selectedDifficulty)
+        // Chapter fixture constants span 1.0..4.0, so reset restores the
+        // data-derived bounds rather than a hardcoded range.
         assertEquals(1, viewModel.uiState.value.songs.minLevel)
-        assertEquals(17, viewModel.uiState.value.songs.maxLevel)
+        assertEquals(4, viewModel.uiState.value.songs.maxLevel)
         assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size,
             "Reset should restore all songs")
     }
@@ -1286,7 +1293,7 @@ class HomeViewModelPreloadTest {
         viewModel.filterByDifficulty(Difficulty.IN)
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.songs.selectedChapters.isEmpty())
-        // All 3 songs have IN=3.0, min=1 max=16 → all should match
+        // All 3 songs have IN=3.0, inside the data-derived default bounds 1..4
         assertEquals(3, viewModel.uiState.value.songs.filteredSongs.size)
     }
 
@@ -1308,6 +1315,83 @@ class HomeViewModelPreloadTest {
             "Search + chapter filter should stack")
         assertEquals("song-a.0", viewModel.uiState.value.songs.filteredSongs.first().id)
     }
+
+    // --- Dynamic level-range bounds (Issue 17) ---
+
+    @Test
+    fun levelBoundsDerivedFromSongDataConstants(): Unit = runTest(dispatcher) {
+        val settings = FakeSettingsRepository(preloadDone = true)
+        val viewModel = createChapterFilterViewModel(settings)
+        advanceUntilIdle()
+
+        // Chapter fixture constants span 1.0..4.0 → floor 1, ceil 4
+        assertEquals(1, viewModel.uiState.value.songs.levelMinBound)
+        assertEquals(4, viewModel.uiState.value.songs.levelMaxBound)
+        // Untouched default selection snapped to the data-derived bounds
+        assertEquals(1, viewModel.uiState.value.songs.minLevel)
+        assertEquals(4, viewModel.uiState.value.songs.maxLevel)
+    }
+
+    @Test
+    fun levelBoundsSnapUntouchedSelectionWhenDataWidens(): Unit = runTest(dispatcher) {
+        val reader = LevelBoundsAssetReader(levelBoundsCsv("4.0"))
+        val provider = SongDataProvider(reader, testPlatformPaths)
+        val viewModel = createChapterFilterViewModel(FakeSettingsRepository(preloadDone = true), provider)
+        advanceUntilIdle()
+        assertEquals(4, viewModel.uiState.value.songs.levelMaxBound)
+
+        // Simulated song-data update adding a 16.5-constant chart
+        reader.infoCsv = levelBoundsCsv("16.5")
+        provider.invalidateCache()
+        advanceUntilIdle()
+
+        // Bounds recompute (ceil 16.5 = 17); the untouched 1..4 selection snaps to them
+        assertEquals(1, viewModel.uiState.value.songs.levelMinBound)
+        assertEquals(17, viewModel.uiState.value.songs.levelMaxBound)
+        assertEquals(1, viewModel.uiState.value.songs.minLevel)
+        assertEquals(17, viewModel.uiState.value.songs.maxLevel)
+        assertEquals(1, viewModel.uiState.value.songs.filteredSongs.size)
+    }
+
+    @Test
+    fun levelBoundsClampExplicitSelectionWhenDataNarrows(): Unit = runTest(dispatcher) {
+        val reader = LevelBoundsAssetReader(levelBoundsCsv("16.5"))
+        val provider = SongDataProvider(reader, testPlatformPaths)
+        val viewModel = createChapterFilterViewModel(FakeSettingsRepository(preloadDone = true), provider)
+        advanceUntilIdle()
+
+        // Explicit selection inside the initial 1..17 bounds
+        viewModel.filterByLevelRange(2, 16)
+        advanceUntilIdle()
+        assertEquals(2, viewModel.uiState.value.songs.minLevel)
+        assertEquals(16, viewModel.uiState.value.songs.maxLevel)
+
+        // Data update drops the widest chart: 1.0..3.0 → bounds 1..3
+        reader.infoCsv = levelBoundsCsv("3.0")
+        provider.invalidateCache()
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.songs.levelMinBound)
+        assertEquals(3, viewModel.uiState.value.songs.levelMaxBound)
+        assertEquals(2, viewModel.uiState.value.songs.minLevel, "min stays inside the new bounds")
+        assertEquals(3, viewModel.uiState.value.songs.maxLevel, "max clamps into the new bounds")
+    }
+
+    private class LevelBoundsAssetReader(
+        var infoCsv: String
+    ) : TextAssetReader {
+        override fun readText(name: String): String = when (name) {
+            "tips.txt" -> "Tip: test"
+            "info.csv" -> infoCsv
+            "infolist.json" -> "{}"
+            "notesInfo.json" -> "{}"
+            else -> error("Test asset not found: $name")
+        }
+    }
+
+    private fun levelBoundsCsv(maxConstant: String): String =
+        "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
+            "song-a\tSong A\tComposer\tIllus\t\t\t\t\t1.0\t2.0\t3.0\t$maxConstant"
 
     @Test
     fun apiToolResultPreservesRows() {
@@ -1386,9 +1470,9 @@ class HomeViewModelPreloadTest {
     }
 
     private fun createChapterFilterViewModel(
-        settingsRepository: FakeSettingsRepository
+        settingsRepository: FakeSettingsRepository,
+        songDataProvider: SongDataProvider = SongDataProvider(ChapterTestAssetReader, testPlatformPaths)
     ): HomeViewModel {
-        val songDataProvider = SongDataProvider(ChapterTestAssetReader, testPlatformPaths)
         val repository = FakePhigrosRepository()
         val illustrationProvider = IllustrationProvider().apply { setBaseUrl("https://example.test") }
         val logFileStore = createTestLogFileStore()

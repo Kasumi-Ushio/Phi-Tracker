@@ -29,6 +29,7 @@
     <string name="song_detail_no_tags_yet">该谱面还没有标签数据，欢迎成为第一个投票的人</string>
     <string name="song_detail_vote_success">投票成功，感谢参与！</string>
     <string name="song_detail_vote_button">为这张谱面投票</string>
+    <string name="song_detail_voted_button">已投票</string>
     <string name="song_detail_vote_primary">主要印象</string>
     <string name="song_detail_vote_secondary">次要印象</string>
     <string name="song_detail_vote_instructions">主要：最能代表这张谱面的特征；次要：次要特征。点击标签加入当前分组，再次点击已选标签可移除。主题色高亮为主要印象，对比色高亮为次要印象，两组将分别提交。</string>

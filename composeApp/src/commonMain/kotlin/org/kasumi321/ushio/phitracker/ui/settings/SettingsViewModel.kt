@@ -201,8 +201,12 @@ class SettingsViewModel(
                 launch {
                     semaphore.withPermit {
                         val result = runCatching {
+                            // The null difficulty lands per-difficulty songs
+                            // on their top variant slot, matching what the
+                            // B30 export resolves for display.
+                            val cacheKey = illustrationProvider.cacheKey(songId, null)
                             val url = illustrationProvider.getStandardUrl(songId)
-                            artworkFileCache.getOrDownloadStandard(songId, url)
+                            artworkFileCache.getOrDownloadStandard(cacheKey, url)
                             thumbnailPreloader.preload(url).getOrThrow()
                         }
                         mutex.withLock {

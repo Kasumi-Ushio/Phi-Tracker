@@ -40,7 +40,11 @@ data class SongsUiState(
     val selectedChapters: Set<String> = emptySet(),
     val selectedDifficulty: Difficulty? = null,
     val minLevel: Int = 1,
-    val maxLevel: Int = 17,
+    val maxLevel: Int = 18,
+    // Slider limits derived from the loaded song data; 1..18 is the pre-load
+    // fallback so a constant-18 chart is never hidden by a stale hard cap.
+    val levelMinBound: Int = 1,
+    val levelMaxBound: Int = 18,
     val showFilterSheet: Boolean = false,
     val illustrationReady: Boolean = true,
     val showPreloadDialog: Boolean = false,

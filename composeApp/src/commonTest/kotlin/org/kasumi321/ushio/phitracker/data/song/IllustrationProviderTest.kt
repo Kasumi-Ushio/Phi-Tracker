@@ -3,6 +3,7 @@ package org.kasumi321.ushio.phitracker.data.song
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 
 class IllustrationProviderTest {
 
@@ -56,5 +57,52 @@ class IllustrationProviderTest {
     fun defaultQualityIsLow() {
         val url = provider.getIllustrationUrl("song-d")
         assertTrue(url.contains("/illLow/"), "Default quality=getIllustrationUrl should return /illLow/")
+    }
+
+    private val perDifficultySong = IllustrationProvider.PER_DIFFICULTY_SONGS.keys.single()
+
+    @Test
+    fun knownSongUsesPerDifficultyLowUrl() {
+        val url = provider.getLowUrl("$perDifficultySong.0", Difficulty.IN)
+        assertEquals("https://example.test/illLow/IN/$perDifficultySong.png", url)
+    }
+
+    @Test
+    fun knownSongUsesPerDifficultyStandardUrl() {
+        val url = provider.getStandardUrl(perDifficultySong, Difficulty.AT)
+        assertEquals("https://example.test/ill/AT/$perDifficultySong.png", url)
+    }
+
+    @Test
+    fun knownSongUsesPerDifficultyBlurUrl() {
+        val url = provider.getBlurUrl(perDifficultySong, Difficulty.EZ)
+        assertEquals("https://example.test/illBlur/EZ/$perDifficultySong.png", url)
+    }
+
+    @Test
+    fun knownSongWithoutDifficultyUsesHighestVariantUrl() {
+        val url = provider.getLowUrl("$perDifficultySong.0")
+        assertEquals("https://example.test/illLow/AT/$perDifficultySong.png", url)
+    }
+
+    @Test
+    fun knownSongWithoutDifficultyUsesHighestVariantCacheSlot() {
+        assertEquals("$perDifficultySong.0_AT", provider.cacheKey("$perDifficultySong.0", null))
+        assertEquals("$perDifficultySong.0_HD", provider.cacheKey("$perDifficultySong.0", Difficulty.HD))
+    }
+
+    @Test
+    fun variantDifficultiesCoverEveryDifficultyUpToTheHighest() {
+        assertEquals(
+            listOf(Difficulty.EZ, Difficulty.HD, Difficulty.IN, Difficulty.AT),
+            provider.variantDifficulties("$perDifficultySong.0")
+        )
+        assertEquals(emptyList(), provider.variantDifficulties("song-a"))
+    }
+
+    @Test
+    fun unknownSongIgnoresDifficultyAndKeepsFlatUrl() {
+        val url = provider.getStandardUrl("song-e.0", Difficulty.HD)
+        assertEquals("https://example.test/ill/song-e.png", url)
     }
 }

@@ -29,6 +29,7 @@
     <string name="song_detail_no_tags_yet">該譜面還沒有標籤資料，歡迎成為第一個投票的人</string>
     <string name="song_detail_vote_success">投票成功，感謝參與！</string>
     <string name="song_detail_vote_button">為這張譜面投票</string>
+    <string name="song_detail_voted_button">已投票</string>
     <string name="song_detail_vote_primary">主要印象</string>
     <string name="song_detail_vote_secondary">次要印象</string>
     <string name="song_detail_vote_instructions">主要：最能代表這張譜面的特徵；次要：次要特徵。點擊標籤加入目前分組，再次點擊已選標籤可移除。主題色高亮為主要印象，對比色高亮為次要印象，兩組將分別提交。</string>

@@ -155,6 +155,9 @@ internal class FakeSettingsRepository : SettingsRepository {
     override val illustrationPreloadDeclined: Flow<Boolean> = illustrationPreloadDeclinedState
     private val gameUpdateCacheState = MutableStateFlow<String?>(null)
     override val gameUpdateInfoCache: Flow<String?> = gameUpdateCacheState
+    private val chartVoteKeysState = MutableStateFlow<Set<String>>(emptySet())
+    override val chartVoteKeys: Flow<Set<String>> = chartVoteKeysState
+    val chartVoteKeyWrites = mutableListOf<String>()
     override val avatarUri: Flow<String?> = flowOf(null)
     override val moneyString: Flow<String> = flowOf("")
     override suspend fun setThemeMode(mode: Int) { themeModeState.value = mode }
@@ -194,6 +197,10 @@ internal class FakeSettingsRepository : SettingsRepository {
     override suspend fun setIllustrationPreloadRequested(requested: Boolean) { illustrationPreloadRequestedState.value = requested }
     override suspend fun setIllustrationPreloadDeclined(declined: Boolean) { illustrationPreloadDeclinedState.value = declined }
     override suspend fun setGameUpdateInfoCache(cache: String?) { gameUpdateCacheState.value = cache }
+    override suspend fun recordChartVote(chartVoteKey: String) {
+        chartVoteKeyWrites += chartVoteKey
+        chartVoteKeysState.value = chartVoteKeysState.value + chartVoteKey
+    }
 }
 
 internal class FakePhigrosRepository : PhigrosRepository {
@@ -213,6 +220,7 @@ internal class FakePhigrosRepository : PhigrosRepository {
     var chartTagTree: Result<List<ChartTagTreeNode>> = Result.failure(IllegalStateException("not configured"))
     var chartTagData: Result<ChartTagSongData> = Result.failure(IllegalStateException("not configured"))
     var chartTagDataRequests = mutableListOf<Pair<String, Difficulty>>()
+    var chartTagsGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
     var myChartTagVotes: Result<Set<String>> = Result.success(emptySet())
     val myChartTagVoteRequests = mutableListOf<List<String>>()
     var voteChartTagsResult: Result<Unit> = Result.success(Unit)
@@ -246,6 +254,7 @@ internal class FakePhigrosRepository : PhigrosRepository {
 
     override suspend fun getChartTags(songId: String, difficulty: Difficulty): Result<ChartTagSongData> {
         chartTagDataRequests += songId to difficulty
+        chartTagsGate?.await()
         return chartTagData
     }
 

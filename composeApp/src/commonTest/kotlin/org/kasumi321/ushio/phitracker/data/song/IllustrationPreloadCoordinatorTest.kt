@@ -119,6 +119,51 @@ class IllustrationPreloadCoordinatorTest {
         assertTrue(events.isEmpty(), "no attempt finished, so progress must not advance")
     }
 
+    @Test
+    fun perDifficultySongDownloadsAllDifficultyVariantsIntoOwnSlots() = runTest {
+        val songId = IllustrationProvider.PER_DIFFICULTY_SONGS.keys.single()
+        val cache = RecordingArtworkCache()
+        val coordinator = coordinator(
+            preloader = RecordingPreloader(),
+            songDataProvider = SongDataProvider(PerDifficultyAssetReader(songId), testPaths),
+            artworkCache = cache
+        )
+
+        val result = coordinator.preloadLowRes()
+
+        assertEquals(PreloadResult(completed = 1, failed = 0), result)
+        // Per-difficulty songs have no flat slot: every resolution lands on a
+        // variant, so the preload must fetch exactly the variant set.
+        assertEquals(
+            mapOf(
+                "$songId.0_EZ" to "https://example.test/illLow/EZ/$songId.png",
+                "$songId.0_HD" to "https://example.test/illLow/HD/$songId.png",
+                "$songId.0_IN" to "https://example.test/illLow/IN/$songId.png",
+                "$songId.0_AT" to "https://example.test/illLow/AT/$songId.png"
+            ),
+            cache.downloads
+        )
+    }
+
+    @Test
+    fun variantDownloadFailureMarksTheSongFailed() = runTest {
+        val songId = IllustrationProvider.PER_DIFFICULTY_SONGS.keys.single()
+        val coordinator = coordinator(
+            preloader = RecordingPreloader(),
+            songDataProvider = SongDataProvider(PerDifficultyAssetReader(songId), testPaths),
+            artworkCache = object : PassthroughArtworkCache() {
+                override suspend fun getOrDownloadThumbnail(songId: String, url: String): String {
+                    if (songId.endsWith("_HD")) error("variant failed")
+                    return url
+                }
+            }
+        )
+
+        val result = coordinator.preloadLowRes()
+
+        assertEquals(PreloadResult(completed = 1, failed = 1), result)
+    }
+
     private fun coordinator(
         preloader: IllustrationThumbnailPreloader,
         songDataProvider: SongDataProvider = SongDataProvider(TwoSongAssetReader, testPaths),
@@ -129,6 +174,25 @@ class IllustrationPreloadCoordinatorTest {
         artworkFileCache = artworkCache,
         thumbnailPreloader = preloader
     )
+
+    private class RecordingArtworkCache : PassthroughArtworkCache() {
+        val downloads = mutableMapOf<String, String>()
+
+        override suspend fun getOrDownloadThumbnail(songId: String, url: String): String {
+            downloads[songId] = url
+            return url
+        }
+    }
+
+    private class PerDifficultyAssetReader(private val songId: String) : TextAssetReader {
+        override fun readText(name: String): String = when (name) {
+            "info.csv" ->
+                "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
+                    "$songId\tSong\tComposer\tIllustrator\t\t\t\t\t1.0\t2.0\t3.0\t4.0"
+            "infolist.json", "notesInfo.json" -> "{}"
+            else -> error("Test asset not found: $name")
+        }
+    }
 
     private open class PassthroughArtworkCache : StandardArtworkCache {
         override suspend fun getOrDownloadThumbnail(songId: String, url: String): String = url

@@ -5,6 +5,7 @@ import org.kasumi321.ushio.phitracker.data.logging.LoggingStateHolder
 import org.kasumi321.ushio.phitracker.data.logging.RuntimeLogExporter
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetChartTagsUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.GetSongLevelBoundsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
@@ -25,6 +26,7 @@ val appModule = module {
     single { SyncSaveUseCase(get()) }
     single { GetB30UseCase(get()) }
     single { GetSuggestUseCase() }
+    single { GetSongLevelBoundsUseCase() }
     single { SearchSongUseCase() }
     single { CheckForUpdateUseCase(get()) }
     single { FetchGameUpdateInfoUseCase(get()) }
@@ -93,6 +95,7 @@ val appModule = module {
             getB30UseCase = get(),
             syncSaveUseCase = get(),
             searchSongUseCase = get(),
+            getSongLevelBoundsUseCase = get(),
             songDataProvider = get(),
             illustrationProvider = get(),
             tipsProvider = get(),

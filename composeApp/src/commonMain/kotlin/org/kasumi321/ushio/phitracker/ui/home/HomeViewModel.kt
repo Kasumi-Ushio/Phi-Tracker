@@ -43,6 +43,7 @@ import org.kasumi321.ushio.phitracker.domain.model.SyncSnapshot
 import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.repository.SettingsRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.GetSongLevelBoundsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SearchSongUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.SyncSaveUseCase
@@ -106,6 +107,7 @@ class HomeViewModel(
     private val getB30UseCase: GetB30UseCase,
     private val syncSaveUseCase: SyncSaveUseCase,
     private val searchSongUseCase: SearchSongUseCase,
+    private val getSongLevelBoundsUseCase: GetSongLevelBoundsUseCase = GetSongLevelBoundsUseCase(),
     private val songDataProvider: SongDataProvider,
     private val illustrationProvider: IllustrationProvider,
     private val tipsProvider: TipsProvider,
@@ -301,8 +303,28 @@ class HomeViewModel(
             try {
                 val songs = songDataProvider.getSongs().values.toList().sortedBy { it.name }
                 val chapters = songs.map { it.chapter }.filter { it.isNotBlank() }.distinct().sorted()
-                updateSongs {
-                    it.copy(allSongs = songs, filteredSongs = songs, availableChapters = chapters)
+                val bounds = getSongLevelBoundsUseCase(songs)
+                updateSongs { state ->
+                    if (bounds == null) {
+                        state.copy(allSongs = songs, filteredSongs = songs, availableChapters = chapters)
+                    } else {
+                        // A selection still equal to the previous bounds is the untouched
+                        // default: snap it to the new bounds. An explicit selection only
+                        // gets clamped into them (e.g. after a song-data update).
+                        val untouched = state.minLevel == state.levelMinBound &&
+                            state.maxLevel == state.levelMaxBound
+                        val newMin = if (untouched) bounds.min else state.minLevel.coerceIn(bounds.min, bounds.max)
+                        val newMax = if (untouched) bounds.max else state.maxLevel.coerceIn(bounds.min, bounds.max)
+                        state.copy(
+                            allSongs = songs,
+                            filteredSongs = songs,
+                            availableChapters = chapters,
+                            levelMinBound = bounds.min,
+                            levelMaxBound = bounds.max,
+                            minLevel = newMin,
+                            maxLevel = newMax
+                        )
+                    }
                 }
                 applyFilters()
                 AppLogger.event("data", "song_data_loaded", mapOf("count" to songs.size.toString()))
@@ -505,7 +527,16 @@ class HomeViewModel(
         viewModelScope.launch {
             val alreadyDone = settingsRepository.getPreloadDone()
             val songIds = songDataProvider.getSongs().keys
-            val thumbnailsPresent = artworkFileCache.hasAllThumbnails(songIds)
+            // Per-difficulty variants are part of the durable set too, so
+            // installs that preloaded before variants existed get the repair
+            // dialog once instead of a permanently blank detail header. Those
+            // songs have no flat slot: every resolution lands on a variant.
+            val requiredCacheKeys = songIds.flatMap { songId ->
+                illustrationProvider.variantDifficulties(songId)
+                    .map { illustrationProvider.cacheKey(songId, it) }
+                    .ifEmpty { listOf(songId) }
+            }
+            val thumbnailsPresent = artworkFileCache.hasAllThumbnails(requiredCacheKeys)
             if (alreadyDone && thumbnailsPresent) {
                 updateSongs { it.copy(illustrationReady = true) }
                 return@launch
@@ -774,12 +805,13 @@ class HomeViewModel(
     }
 
     fun resetFilters() {
+        val (minBound, maxBound) = _uiState.value.songs.let { it.levelMinBound to it.levelMaxBound }
         updateSongs {
             it.copy(
                 selectedChapters = emptySet(),
                 selectedDifficulty = null,
-                minLevel = 1,
-                maxLevel = 17
+                minLevel = minBound,
+                maxLevel = maxBound
             )
         }
         applyFilters()
@@ -816,14 +848,16 @@ class HomeViewModel(
     fun getLowIllustrationUrl(songId: String): String? {
         // Players who declined the preload keep blank thumbnails instead of
         // silently re-downloading in lists; the Settings re-download action
-        // clears the flag and restores the remote fallback below.
-        if (illustrationPreloadDeclined) return artworkFileCache.getThumbnailIfPresent(songId)
-        return artworkFileCache.getThumbnailIfPresent(songId)
+        // clears the flag and restores the remote fallback below. The null
+        // difficulty lands per-difficulty songs on their top variant slot.
+        val cacheKey = illustrationProvider.cacheKey(songId, null)
+        if (illustrationPreloadDeclined) return artworkFileCache.getThumbnailIfPresent(cacheKey)
+        return artworkFileCache.getThumbnailIfPresent(cacheKey)
             ?: illustrationProvider.getLowUrl(songId)
     }
 
     fun getCachedOrStandardIllustrationUri(songId: String): String {
-        return artworkFileCache.getStandardIfPresent(songId)
+        return artworkFileCache.getStandardIfPresent(illustrationProvider.cacheKey(songId, null))
             ?: illustrationProvider.getStandardUrl(songId)
     }
 

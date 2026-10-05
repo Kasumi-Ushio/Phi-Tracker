@@ -48,7 +48,8 @@ data class ChartTagUiState(
     val allCategories: List<ChartTagCategoryDisplay> = emptyList(),
     val voteSubmitting: Boolean = false,
     val voteError: UiText? = null,
-    val voteSucceeded: Boolean = false
+    val voteSucceeded: Boolean = false,
+    val hasVoted: Boolean = false
 )
 
 data class SongDetailUiState(
@@ -66,8 +67,9 @@ data class SongDetailUiState(
     val apiToken: String = "",
     val apiDetails: Map<Difficulty, SongApiDetailState> = emptyMap(),
     val chartTags: Map<Difficulty, ChartTagUiState> = emptyMap(),
-    val lowIllustrationUrl: String? = null,
-    val standardIllustrationUrl: String? = null,
+    val lowIllustrationUrls: Map<Difficulty, String?> = emptyMap(),
+    val standardIllustrationUrls: Map<Difficulty, String?> = emptyMap(),
+    val chartVoteKeys: Set<String> = emptySet(),
     val initialDifficulty: Difficulty? = null
 )
 
@@ -84,6 +86,9 @@ class SongDetailViewModel(
     private val mutableUiState = MutableStateFlow(SongDetailUiState(initialDifficulty = initialDifficulty))
     val uiState: StateFlow<SongDetailUiState> = mutableUiState.asStateFlow()
 
+    // Main-thread confined load counters; see loadChartTags.
+    private val chartTagLoadSequences = mutableMapOf<Difficulty, Long>()
+
     init {
         loadRouteState()
     }
@@ -94,11 +99,23 @@ class SongDetailViewModel(
     fun getChartTagState(difficulty: Difficulty): ChartTagUiState =
         uiState.value.chartTags[difficulty] ?: ChartTagUiState()
 
+    fun getLowIllustrationUrl(difficulty: Difficulty): String? =
+        uiState.value.lowIllustrationUrls[difficulty]
+
+    fun getStandardIllustrationUrl(difficulty: Difficulty): String? =
+        uiState.value.standardIllustrationUrls[difficulty]
+
     fun loadChartTags(difficulty: Difficulty, markVoteSucceeded: Boolean = false) {
         val state = uiState.value
         // The chartsTag read endpoints are public; only voting needs the
         // api_token, which submitChartTagVote validates separately.
         if (state.songInfo == null) return
+        // Loads overlap on page entry (a public fetch fires before the
+        // identity settings arrive, then refires with identity). Only the
+        // latest load may write state, otherwise a stale identity-less
+        // result can win the race and lose the isMine markers.
+        val sequence = (chartTagLoadSequences[difficulty] ?: 0L) + 1L
+        chartTagLoadSequences[difficulty] = sequence
         updateChartTags(difficulty) {
             (it ?: ChartTagUiState()).copy(isLoading = true, error = null, voteSucceeded = markVoteSucceeded)
         }
@@ -110,16 +127,20 @@ class SongDetailViewModel(
                 apiToken = state.apiToken.trim()
             )
             val result = getChartTagsUseCase(songId, difficulty, identity.takeIf { it.isComplete })
-            if (uiState.value.chartTags[difficulty]?.isLoading != true) return@launch
+            if (chartTagLoadSequences[difficulty] != sequence) return@launch
             mutableUiState.update { current ->
                 current.copy(
                     chartTags = current.chartTags + (
                         difficulty to result.fold(
                             onSuccess = { data ->
+                                val serverIsMine = data.all.any { category ->
+                                    category.tags.any { it.isMine }
+                                }
                                 ChartTagUiState(
                                     categories = data.display,
                                     allCategories = data.all,
-                                    voteSucceeded = markVoteSucceeded
+                                    voteSucceeded = markVoteSucceeded,
+                                    hasVoted = serverIsMine || hasLocalVoteRecord(current, difficulty)
                                 )
                             },
                             onFailure = {
@@ -168,7 +189,11 @@ class SongDetailViewModel(
                 )
             )
             result.fold(
-                onSuccess = { loadChartTags(difficulty, markVoteSucceeded = true) },
+                onSuccess = {
+                    chartVoteKey(state, difficulty)?.let { settingsRepository.recordChartVote(it) }
+                    updateChartTags(difficulty) { (it ?: ChartTagUiState()).copy(hasVoted = true) }
+                    loadChartTags(difficulty, markVoteSucceeded = true)
+                },
                 onFailure = { error ->
                     updateChartTags(difficulty) {
                         (it ?: ChartTagUiState()).copy(
@@ -185,6 +210,26 @@ class SongDetailViewModel(
         mutableUiState.update { state ->
             state.copy(chartTags = state.chartTags + (difficulty to transform(state.chartTags[difficulty])))
         }
+    }
+
+    /**
+     * Persisted-vote key for one chart: `{userKey}:{songId}:{difficulty}`,
+     * where userKey is the phi-plugin identity triplet
+     * `platform:platformId:apiUserId`, so records of different accounts never
+     * overlap. Null while the identity is incomplete (no vote can succeed in
+     * that state anyway).
+     */
+    private fun chartVoteKey(state: SongDetailUiState, difficulty: Difficulty): String? {
+        val platform = state.apiPlatform.trim()
+        val platformId = state.apiPlatformId.trim()
+        val apiUserId = state.apiUserId.trim()
+        if (platform.isEmpty() || platformId.isEmpty() || apiUserId.isEmpty()) return null
+        return "$platform:$platformId:$apiUserId:$songId:${difficulty.name}"
+    }
+
+    private fun hasLocalVoteRecord(state: SongDetailUiState, difficulty: Difficulty): Boolean {
+        val key = chartVoteKey(state, difficulty) ?: return false
+        return key in state.chartVoteKeys
     }
 
     fun loadSongApiDetail(difficulty: Difficulty) {
@@ -222,25 +267,45 @@ class SongDetailViewModel(
 
     private fun loadRouteState() {
         viewModelScope.launch {
-            // Read once per page entry: a detail page opened after the flag
-            // flipped must not race an async subscription. Players who
-            // declined the preload keep the thumbnail blank instead of
-            // falling back to an on-demand remote download.
-            val declined = settingsRepository.illustrationPreloadDeclined.first()
+            // Thumbnails resolve from the local preload cache only, matching
+            // the song cards: never fall back to an on-demand remote download
+            // here. The preload also fetches the per-difficulty variants of
+            // songs that ship them, so tab switches never hit the network.
             val songInfo = runCatching { songDataProvider.getSongs()[songId] }.getOrNull()
             mutableUiState.update {
                 it.copy(
                     isLoading = false,
                     notFound = songInfo == null,
                     songInfo = songInfo,
-                    lowIllustrationUrl = songInfo?.let { info ->
-                        if (declined) illustrationUriResolver.lowLocalUri(info.id)
-                        else illustrationUriResolver.lowUri(info.id)
-                    },
-                    standardIllustrationUrl = songInfo?.let { info -> illustrationUriResolver.standardUri(info.id) }
+                    lowIllustrationUrls = songInfo?.let { info ->
+                        info.difficulties.keys.associateWith { difficulty ->
+                            illustrationUriResolver.lowLocalUri(info.id, difficulty)
+                        }
+                    } ?: emptyMap(),
+                    standardIllustrationUrls = songInfo?.let { info ->
+                        info.difficulties.keys.associateWith { difficulty ->
+                            illustrationUriResolver.standardUri(info.id, difficulty)
+                        }
+                    } ?: emptyMap()
                 )
             }
             if (songInfo == null) return@launch
+
+            launch {
+                settingsRepository.chartVoteKeys.collect { keys ->
+                    mutableUiState.update { current ->
+                        val updated = current.copy(chartVoteKeys = keys)
+                        updated.copy(
+                            chartTags = updated.chartTags.mapValues { (difficulty, tagState) ->
+                                val serverIsMine = tagState.allCategories.any { category ->
+                                    category.tags.any { it.isMine }
+                                }
+                                tagState.copy(hasVoted = serverIsMine || hasLocalVoteRecord(updated, difficulty))
+                            }
+                        )
+                    }
+                }
+            }
 
             launch {
                 repository.observeSongSyncHistory(songId).collect { history ->

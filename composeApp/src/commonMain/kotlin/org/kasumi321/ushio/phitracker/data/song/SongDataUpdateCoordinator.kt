@@ -11,6 +11,7 @@ import org.kasumi321.ushio.phitracker.data.platform.CoilIllustrationThumbnailPre
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.clearImageCacheUrls
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 
 /**
  * Shared song-data update flow used by both the settings entry and the songs
@@ -98,8 +99,19 @@ class SongDataUpdateCoordinator(
                             onProgress(IllustrationSyncProgress(completed, added.size, name))
                         }
                         val result = runCatching {
-                            val localUri = artworkFileCache.getOrDownloadThumbnail(songId, illustrationProvider.getLowUrl(songId))
-                            thumbnailPreloader.preload(localUri).getOrThrow()
+                            val variants = illustrationProvider.variantDifficulties(songId)
+                            if (variants.isEmpty()) {
+                                val localUri = artworkFileCache.getOrDownloadThumbnail(songId, illustrationProvider.getLowUrl(songId))
+                                thumbnailPreloader.preload(localUri).getOrThrow()
+                            } else {
+                                for (difficulty in variants) {
+                                    val localUri = artworkFileCache.getOrDownloadThumbnail(
+                                        illustrationProvider.cacheKey(songId, difficulty),
+                                        illustrationProvider.getLowUrl(songId, difficulty)
+                                    )
+                                    thumbnailPreloader.preload(localUri).getOrThrow()
+                                }
+                            }
                         }
                         mutex.withLock {
                             completed++
@@ -110,9 +122,27 @@ class SongDataUpdateCoordinator(
             }.forEach { it.join() }
         }
         if (removed.isNotEmpty()) {
-            clearCacheUrls(removed.flatMap { listOf(illustrationProvider.getLowUrl(it), illustrationProvider.getStandardUrl(it), illustrationProvider.getBlurUrl(it)) })
-            artworkFileCache.clearThumbnails(removed)
-            artworkFileCache.clearStandard(removed)
+            clearCacheUrls(removed.flatMap { songId ->
+                // Per-difficulty songs only ever populate variant slots, so
+                // clear those (plus the legacy flat URLs, which pre-variant
+                // installs may still have warm in Coil).
+                val difficulties = illustrationProvider.variantDifficulties(songId)
+                val difficultyList: List<Difficulty?> = difficulties.ifEmpty { listOf(null) }
+                difficultyList.flatMap { difficulty ->
+                    listOf(
+                        illustrationProvider.getLowUrl(songId, difficulty),
+                        illustrationProvider.getStandardUrl(songId, difficulty),
+                        illustrationProvider.getBlurUrl(songId, difficulty)
+                    )
+                }
+            })
+            val removedCacheKeys = removed.flatMap { songId ->
+                illustrationProvider.variantDifficulties(songId)
+                    .map { illustrationProvider.cacheKey(songId, it) }
+                    .ifEmpty { listOf(songId) }
+            }
+            artworkFileCache.clearThumbnails(removedCacheKeys)
+            artworkFileCache.clearStandard(removedCacheKeys)
         }
         AppLogger.event("cache", "song_data_illustration_reconcile", mapOf("added" to added.size.toString(), "addedSuccess" to (added.size - failures).toString(), "addedFailure" to failures.toString(), "removed" to removed.size.toString()))
         if (failures > 0) throw IllegalStateException("曲目数据已更新，但部分曲绘未能下载，可稍后在设置中重试")

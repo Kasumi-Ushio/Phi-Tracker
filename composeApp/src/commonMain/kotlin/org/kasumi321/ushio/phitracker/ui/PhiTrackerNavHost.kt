@@ -523,15 +523,15 @@ fun PhiTrackerNavHost() {
                     apiEnabled = state.apiEnabled,
                     useApiData = state.useApiData,
                     apiRequestKey = "${state.apiPlatform.trim()}\u0000${state.apiPlatformId.trim()}\u0000${state.apiUserId.trim()}\u0000${state.displayRks}",
-                    getSongApiDetail = viewModel::getSongApiDetail,
+                    apiDetails = state.apiDetails,
                     onLoadSongApiDetail = viewModel::loadSongApiDetail,
-                    getChartTags = viewModel::getChartTagState,
+                    chartTags = state.chartTags,
                     onLoadChartTags = viewModel::loadChartTags,
                     canVote = state.apiToken.isNotBlank(),
                     onSubmitChartTagVote = viewModel::submitChartTagVote,
-                    getLowIllustrationUrl = { state.lowIllustrationUrl },
-                    onIllustrationClick = {
-                        navController.navigate(IllustrationPreviewRoute.from(songInfo.id))
+                    lowIllustrationUrls = state.lowIllustrationUrls,
+                    onIllustrationClick = { difficulty ->
+                        navController.navigate(IllustrationPreviewRoute.from(songInfo.id, difficulty))
                     },
                     initialDifficulty = state.initialDifficulty,
                     onBack = { navController.popBackStack() }
@@ -555,8 +555,9 @@ fun PhiTrackerNavHost() {
             }
             val illustrationResolver: IllustrationUriResolver = koinInject()
             IllustrationPreviewScreen(
-                illustrationUrl = illustrationResolver.standardUri(route.songId),
+                illustrationUrl = illustrationResolver.standardUri(route.songId, route.difficulty()),
                 songId = route.songId,
+                difficulty = route.difficulty(),
                 onClose = { navController.popBackStack() }
             )
         }

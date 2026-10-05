@@ -29,7 +29,7 @@
     <string name="settings_auto_check_update">啟動時自動檢查更新</string>
     <string name="settings_auto_check_update_desc">應用程式啟動時自動檢查是否有新版本</string>
     <string name="settings_auto_check_song_data_update">自動檢查曲目更新</string>
-    <string name="settings_auto_check_song_data_update_desc">啟動時自動檢查曲庫資料更新。</string>
+    <string name="settings_auto_check_song_data_update_desc">啟動時自動檢查曲庫資料更新</string>
     <string name="settings_blur_strength">模糊強度</string>
     <string name="settings_cache_b30_artwork">快取 B30 高畫質曲繪</string>
     <string name="settings_cache_b30_artwork_desc">提前下載目前 B30 中曲目的高畫質封面，離線也能產生圖片</string>

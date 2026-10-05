@@ -303,6 +303,22 @@ class SettingsRepositoryImpl(
         gameUpdateInfoCacheState.value = cache
     }
 
+    private val chartVoteKeysState = MutableStateFlow(readChartVoteKeys())
+    override val chartVoteKeys: Flow<Set<String>> = chartVoteKeysState.asStateFlow()
+
+    override suspend fun recordChartVote(chartVoteKey: String) {
+        val updated = chartVoteKeysState.value + chartVoteKey
+        storage.putString(KEY_CHART_VOTE_KEYS, updated.joinToString("\n"))
+        chartVoteKeysState.value = updated
+    }
+
+    private fun readChartVoteKeys(): Set<String> =
+        storage.getString(KEY_CHART_VOTE_KEYS)
+            ?.lineSequence()
+            ?.filter { it.isNotBlank() }
+            ?.toSet()
+            ?: emptySet()
+
     private companion object {
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_THEME_COLOR_SOURCE = "theme_color_source"
@@ -340,5 +356,6 @@ class SettingsRepositoryImpl(
         const val KEY_GAME_UPDATE_CACHE = "game_update_cache"
         const val KEY_HAZE_BLUR_ENABLED = "haze_blur_enabled"
         const val KEY_HAZE_BLUR_STRENGTH = "haze_blur_strength"
+        const val KEY_CHART_VOTE_KEYS = "chart_vote_keys"
     }
 }

@@ -134,12 +134,30 @@ class SuggestViewModelTest {
         )
         awaitUiState(viewModel) { !it.isLoading }
 
-        viewModel.setTargetInput("16")
-        awaitUiState(viewModel) { it.targetInput == "16" && it.items.isNotEmpty() }
+        viewModel.setTargetInput("12")
+        awaitUiState(viewModel) { it.targetInput == "12" && it.items.isNotEmpty() }
 
         assertTrue(viewModel.uiState.value.items.isNotEmpty(),
             "A reachable target should produce suggestions")
         assertEquals(null, viewModel.uiState.value.targetError)
+    }
+
+    @Test
+    fun targetInputAboveCatalogMaxConstantIsRejected(): Unit = runTest(dispatcher) {
+        val viewModel = createViewModel(
+            FakeSuggestRepository(cachedSave = saveWithRecord("song-a", Difficulty.IN, 950_000, 95f, false))
+        )
+        awaitUiState(viewModel) { !it.isLoading }
+
+        // Fixture catalog tops out at constant 15.0
+        viewModel.setTargetInput("15.5")
+        awaitUiState(viewModel) { it.targetError != null }
+
+        assertEquals(
+            UiText.Res(Res.string.suggest_target_invalid),
+            viewModel.uiState.value.targetError
+        )
+        assertTrue(viewModel.uiState.value.items.isEmpty())
     }
 
     private fun createViewModel(repository: FakeSuggestRepository): SuggestViewModel {

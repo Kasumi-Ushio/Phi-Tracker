@@ -9,6 +9,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import org.kasumi321.ushio.phitracker.data.platform.IllustrationThumbnailPreloader
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 
 /** Aggregate outcome of a [IllustrationPreloadCoordinator.preloadLowRes] run. */
 data class PreloadResult(
@@ -64,11 +65,16 @@ class IllustrationPreloadCoordinator(
                         currentSongName = songs[songId]?.name
                     }
                     val error = try {
-                        val remoteUrl = illustrationProvider.getLowUrl(songId)
-                        val localUri = artworkFileCache.getOrDownloadThumbnail(songId, remoteUrl)
-                        // Decode once now so a corrupt/unsupported file does not
-                        // receive the durable completion marker from the caller.
-                        thumbnailPreloader.preload(localUri).exceptionOrNull()
+                        val variants = illustrationProvider.variantDifficulties(songId)
+                        if (variants.isEmpty()) {
+                            val remoteUrl = illustrationProvider.getLowUrl(songId)
+                            val localUri = artworkFileCache.getOrDownloadThumbnail(songId, remoteUrl)
+                            // Decode once now so a corrupt/unsupported file does not
+                            // receive the durable completion marker from the caller.
+                            thumbnailPreloader.preload(localUri).exceptionOrNull()
+                        } else {
+                            preloadPerDifficultyVariants(songId, variants)
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -84,5 +90,35 @@ class IllustrationPreloadCoordinator(
         }.forEach { it.join() }
 
         PreloadResult(completed = completed, failed = failed)
+    }
+
+    /**
+     * Songs that ship per-difficulty jackets (see
+     * [IllustrationProvider.PER_DIFFICULTY_SONGS]) have no flat slot at all:
+     * every resolution lands on a variant slot (difficulty-less displays use
+     * the highest one), so the preload caches exactly [variants], each under
+     * its own slot. The detail page reads thumbnails from local storage only,
+     * so a missing variant would show a blank header when the player switches
+     * difficulty tabs. Returns the first error, if any.
+     */
+    private suspend fun preloadPerDifficultyVariants(
+        songId: String,
+        variants: List<Difficulty>
+    ): Throwable? {
+        for (difficulty in variants) {
+            try {
+                val url = illustrationProvider.getLowUrl(songId, difficulty)
+                val localUri = artworkFileCache.getOrDownloadThumbnail(
+                    illustrationProvider.cacheKey(songId, difficulty),
+                    url
+                )
+                thumbnailPreloader.preload(localUri).exceptionOrNull()?.let { return it }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                return e
+            }
+        }
+        return null
     }
 }

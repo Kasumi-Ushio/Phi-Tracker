@@ -583,4 +583,48 @@ class SettingsRepositoryImplTest {
         repo2.setIllustrationPreloadDeclined(false)
         assertEquals(false, repo2.illustrationPreloadDeclined.first())
     }
+
+    @Test
+    fun chartVoteKeysDefaultToEmpty(): Unit = runTest {
+        val repo = createRepo()
+        assertEquals(emptySet(), repo.chartVoteKeys.first())
+    }
+
+    @Test
+    fun recordChartVoteAccumulatesKeysAndPersistsBetweenInstances(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+
+        val repo1 = SettingsRepositoryImpl(storage, preloadStorage)
+        repo1.recordChartVote("taptap:player-id:api-user:song-a.0:IN")
+        repo1.recordChartVote("taptap:player-id:api-user:song-a.0:EZ")
+        assertEquals(
+            setOf("taptap:player-id:api-user:song-a.0:IN", "taptap:player-id:api-user:song-a.0:EZ"),
+            repo1.chartVoteKeys.first()
+        )
+
+        val repo2 = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(
+            setOf("taptap:player-id:api-user:song-a.0:IN", "taptap:player-id:api-user:song-a.0:EZ"),
+            repo2.chartVoteKeys.first()
+        )
+    }
+
+    @Test
+    fun recordChartVoteIsIdempotent(): Unit = runTest {
+        val repo = createRepo()
+        repo.recordChartVote("taptap:player-id:api-user:song-a.0:IN")
+        repo.recordChartVote("taptap:player-id:api-user:song-a.0:IN")
+        assertEquals(setOf("taptap:player-id:api-user:song-a.0:IN"), repo.chartVoteKeys.first())
+    }
+
+    @Test
+    fun blankStorageEntryReadsAsEmptyKeySet(): Unit = runTest {
+        val storage = FakeSecureKeyValueStorage()
+        val preloadStorage = FakeSecureKeyValueStorage()
+        storage.putString("chart_vote_keys", "")
+
+        val repo = SettingsRepositoryImpl(storage, preloadStorage)
+        assertEquals(emptySet(), repo.chartVoteKeys.first())
+    }
 }

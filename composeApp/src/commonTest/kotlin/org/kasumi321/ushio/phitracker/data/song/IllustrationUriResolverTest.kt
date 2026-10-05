@@ -4,8 +4,72 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
+import org.kasumi321.ushio.phitracker.domain.model.Difficulty
 
 class IllustrationUriResolverTest {
+    private val perDifficultySong = IllustrationProvider.PER_DIFFICULTY_SONGS.keys.single()
+
+    @Test
+    fun perDifficultySongResolvesDifficultyUrlAndCacheSlot() {
+        val cache = RecordingArtworkCache()
+        val resolver = resolver(cache)
+
+        val resolved = resolver.lowUri("$perDifficultySong.0", Difficulty.IN)
+
+        assertEquals(
+            "https://example.test/illLow/IN/$perDifficultySong.png",
+            resolved
+        )
+        assertEquals(listOf("$perDifficultySong.0_IN"), cache.thumbnailLookups)
+    }
+
+    @Test
+    fun perDifficultySongUsesDistinctCacheSlotPerDifficulty() {
+        val cache = RecordingArtworkCache()
+        val resolver = resolver(cache)
+
+        resolver.standardUri(perDifficultySong, Difficulty.EZ)
+        resolver.standardUri(perDifficultySong, Difficulty.AT)
+
+        assertEquals(
+            listOf("${perDifficultySong}_EZ", "${perDifficultySong}_AT"),
+            cache.standardLookups
+        )
+    }
+
+    @Test
+    fun perDifficultySongWithoutDifficultyUsesHighestVariantCacheSlot() {
+        val cache = RecordingArtworkCache()
+        val resolver = resolver(cache)
+
+        val resolved = resolver.lowUri(perDifficultySong)
+
+        assertEquals("https://example.test/illLow/AT/$perDifficultySong.png", resolved)
+        assertEquals(listOf("${perDifficultySong}_AT"), cache.thumbnailLookups)
+    }
+
+    @Test
+    fun unknownSongIgnoresDifficultyForUrlAndCacheSlot() {
+        val cache = RecordingArtworkCache()
+        val resolver = resolver(cache)
+
+        val resolved = resolver.lowUri("song.0", Difficulty.HD)
+
+        assertEquals("https://example.test/illLow/song.png", resolved)
+        assertEquals(listOf("song.0"), cache.thumbnailLookups)
+    }
+
+    @Test
+    fun lowLocalUriUsesPerDifficultyCacheSlot() {
+        val cache = RecordingArtworkCache(thumbnailUri = "/local/per-difficulty.png")
+        val resolver = resolver(cache)
+
+        val resolved = resolver.lowLocalUri(perDifficultySong, Difficulty.IN)
+
+        assertEquals("/local/per-difficulty.png", resolved)
+        assertEquals(listOf("${perDifficultySong}_IN"), cache.thumbnailLookups)
+    }
+
     @Test
     fun lowUriUsesLocalThumbnailBeforeRemoteFallback() {
         val cache = RecordingArtworkCache(thumbnailUri = "/local/thumbnail.png")
@@ -83,13 +147,19 @@ class IllustrationUriResolverTest {
     ) : StandardArtworkCache {
         var downloadCalls = 0
             private set
+        val thumbnailLookups = mutableListOf<String>()
+        val standardLookups = mutableListOf<String>()
 
         override suspend fun getOrDownloadThumbnail(songId: String, url: String): String {
             downloadCalls += 1
             return url
         }
 
-        override fun getThumbnailIfPresent(songId: String): String? = thumbnailUri
+        override fun getThumbnailIfPresent(songId: String): String? {
+            thumbnailLookups += songId
+            return thumbnailUri
+        }
+
         override fun hasAllThumbnails(songIds: Iterable<String>): Boolean = false
         override fun clearThumbnails(songIds: Iterable<String>) = Unit
         override fun clearAllThumbnails() = Unit
@@ -99,7 +169,11 @@ class IllustrationUriResolverTest {
             return url
         }
 
-        override fun getStandardIfPresent(songId: String): String? = standardUri
+        override fun getStandardIfPresent(songId: String): String? {
+            standardLookups += songId
+            return standardUri
+        }
+
         override fun clearStandard(songIds: Iterable<String>) = Unit
         override fun clearAllStandard() = Unit
     }

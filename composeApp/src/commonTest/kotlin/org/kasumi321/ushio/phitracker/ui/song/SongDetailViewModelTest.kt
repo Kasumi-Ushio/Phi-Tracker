@@ -5,6 +5,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.kasumi321.ushio.phitracker.data.song.IllustrationProvider
@@ -12,6 +13,7 @@ import org.kasumi321.ushio.phitracker.data.song.IllustrationUriResolver
 import org.kasumi321.ushio.phitracker.data.song.SongDataProvider
 import org.kasumi321.ushio.phitracker.data.platform.NoOpStandardArtworkCache
 import org.kasumi321.ushio.phitracker.data.platform.StandardArtworkCache
+import org.kasumi321.ushio.phitracker.data.platform.TextAssetReader
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagSongData
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagTreeNode
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagVoteCount
@@ -99,12 +101,12 @@ class SongDetailViewModelTest {
         advanceUntilIdle()
 
         // Then
-        assertNull(viewModel.uiState.value.lowIllustrationUrl)
+        assertNull(viewModel.getLowIllustrationUrl(Difficulty.IN))
         assertEquals(0, artworkCache.downloadCalls)
     }
 
     @Test
-    fun notDeclinedFallsBackToRemoteLowIllustration() = runTest(dispatcher) {
+    fun missingLocalThumbnailStaysBlankWithoutRemoteFallback() = runTest(dispatcher) {
         // Given
         val artworkCache = RouteArtworkCache()
         val viewModel = createViewModel(
@@ -118,8 +120,9 @@ class SongDetailViewModelTest {
         // When
         advanceUntilIdle()
 
-        // Then
-        assertEquals("https://example.test/illLow/song-a.png", viewModel.uiState.value.lowIllustrationUrl)
+        // Then: like the song cards, the detail header never triggers an
+        // on-demand remote download when the preloaded thumbnail is absent.
+        assertNull(viewModel.getLowIllustrationUrl(Difficulty.IN))
         assertEquals(0, artworkCache.downloadCalls)
     }
 
@@ -231,7 +234,7 @@ class SongDetailViewModelTest {
     }
 
     @Test
-    fun routeOwnsPersistedHistoryAndRemoteIllustrationUrls() = runTest(dispatcher) {
+    fun routeOwnsPersistedHistoryAndStandardIllustrationUrls() = runTest(dispatcher) {
         // Given
         val history = historyEntry(snapshotId = 3L)
         val repository = FakePhigrosRepository().apply { songHistory = listOf(history) }
@@ -242,9 +245,12 @@ class SongDetailViewModelTest {
 
         // Then
         assertEquals(listOf(history), viewModel.uiState.value.syncHistory)
-        assertTrue(viewModel.uiState.value.lowIllustrationUrl.orEmpty().contains("/illLow/song-a.png"))
-        assertTrue(viewModel.uiState.value.standardIllustrationUrl.orEmpty().contains("/ill/song-a.png"))
-        assertFalse(viewModel.uiState.value.standardIllustrationUrl.orEmpty().contains("/cache/"))
+        // Thumbnails are local-only; the standard preview keeps its remote URL.
+        assertNull(viewModel.getLowIllustrationUrl(Difficulty.IN))
+        assertTrue(
+            viewModel.getStandardIllustrationUrl(Difficulty.IN).orEmpty().contains("/ill/song-a.png")
+        )
+        assertFalse(viewModel.getStandardIllustrationUrl(Difficulty.IN).orEmpty().contains("/cache/"))
     }
 
     @Test
@@ -263,9 +269,55 @@ class SongDetailViewModelTest {
         advanceUntilIdle()
 
         // Then
-        assertEquals("/persistent/thumbnail/song-a.0.png", viewModel.uiState.value.lowIllustrationUrl)
-        assertEquals("/persistent/standard/song-a.0.png", viewModel.uiState.value.standardIllustrationUrl)
+        assertEquals("/persistent/thumbnail/song-a.0.png", viewModel.getLowIllustrationUrl(Difficulty.IN))
+        assertEquals("/persistent/standard/song-a.0.png", viewModel.getStandardIllustrationUrl(Difficulty.IN))
         assertEquals(0, cache.downloadCalls)
+    }
+
+    private val perDifficultySongId = IllustrationProvider.PER_DIFFICULTY_SONGS.keys.single()
+
+    @Test
+    fun perDifficultySongResolvesIllustrationUrlsPerDifficulty() = runTest(dispatcher) {
+        // Given
+        val viewModel = createViewModel(
+            songId = "$perDifficultySongId.0",
+            illustrationUriResolver = IllustrationUriResolver(
+                NoOpStandardArtworkCache,
+                IllustrationProvider().apply { setBaseUrl("https://example.test") }
+            ),
+            assetReader = PerDifficultyAssets(perDifficultySongId)
+        )
+
+        // When
+        advanceUntilIdle()
+
+        // Then: thumbnails are local-only (NoOp cache has none); the standard
+        // preview still resolves the per-difficulty remote URL.
+        assertNull(viewModel.getLowIllustrationUrl(Difficulty.IN))
+        assertEquals(
+            "https://example.test/ill/EZ/$perDifficultySongId.png",
+            viewModel.getStandardIllustrationUrl(Difficulty.EZ)
+        )
+    }
+
+    @Test
+    fun flatSongKeepsFlatIllustrationUrlsForEveryDifficulty() = runTest(dispatcher) {
+        // Given
+        val viewModel = createViewModel(
+            songId = "song-a.0",
+            illustrationUriResolver = IllustrationUriResolver(
+                NoOpStandardArtworkCache,
+                IllustrationProvider().apply { setBaseUrl("https://example.test") }
+            )
+        )
+
+        // When
+        advanceUntilIdle()
+
+        // Then: local-only thumbnail stays blank; the standard preview keeps
+        // the flat remote URL for every difficulty.
+        assertNull(viewModel.getLowIllustrationUrl(Difficulty.AT))
+        assertEquals("https://example.test/ill/song-a.png", viewModel.getStandardIllustrationUrl(Difficulty.EZ))
     }
 
     private fun createViewModel(
@@ -275,13 +327,14 @@ class SongDetailViewModelTest {
         illustrationUriResolver: IllustrationUriResolver = IllustrationUriResolver(
             NoOpStandardArtworkCache,
             IllustrationProvider()
-        )
+        ),
+        assetReader: TextAssetReader = TestAssets
     ): SongDetailViewModel = SongDetailViewModel(
         songId = songId,
         initialDifficulty = Difficulty.IN,
         repository = repository,
         settingsRepository = settingsRepository,
-        songDataProvider = SongDataProvider(assetReader = TestAssets),
+        songDataProvider = SongDataProvider(assetReader = assetReader),
         illustrationUriResolver = illustrationUriResolver,
         getChartTagsUseCase = GetChartTagsUseCase(repository),
         voteChartTagsUseCase = VoteChartTagsUseCase(repository)
@@ -330,6 +383,7 @@ class SongDetailViewModelTest {
             listOf(listOf("song-a.0", "IN", "taptap", "player-id", "api-user", "token-1")),
             repository.myChartTagVoteRequests
         )
+        assertTrue(state.hasVoted)
     }
 
     @Test
@@ -374,6 +428,46 @@ class SongDetailViewModelTest {
         assertFalse(state.isLoading)
         assertEquals(UiText.Res(Res.string.song_detail_tags_load_failed), state.error)
         assertTrue(state.categories.isEmpty())
+    }
+
+    @Test
+    fun staleChartTagLoadCannotOverwriteNewerResult() = runTest(dispatcher) {
+        // Given: two overlapping loads; the first one is held back until the
+        // second has already started, reproducing the page-entry race where a
+        // public (identity-less) fetch competes with the identity refire.
+        val settings = apiSettings()
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.success(chartTagTreeFixture())
+            chartTagData = Result.success(chartTagDataFixture())
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        val firstGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        repository.chartTagsGate = firstGate
+        viewModel.loadChartTags(Difficulty.IN)
+        runCurrent()
+
+        val secondGate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        repository.chartTagsGate = secondGate
+        viewModel.loadChartTags(Difficulty.IN, markVoteSucceeded = true)
+        runCurrent()
+
+        // When: the stale load finishes first...
+        firstGate.complete(Unit)
+        runCurrent()
+        // ...it must be dropped, keeping the newer load's in-flight state.
+        assertTrue(viewModel.getChartTagState(Difficulty.IN).isLoading)
+
+        // When: the newer load finishes.
+        secondGate.complete(Unit)
+        advanceUntilIdle()
+
+        // Then: only the newer result is visible.
+        val state = viewModel.getChartTagState(Difficulty.IN)
+        assertFalse(state.isLoading)
+        assertTrue(state.voteSucceeded)
+        assertEquals(listOf("高速", "连打"), state.categories.single { it.name == "配置" }.tags.map { it.name })
     }
 
     @Test
@@ -427,6 +521,107 @@ class SongDetailViewModelTest {
         assertEquals(listOf("高速", "连打"), state.categories.single { it.name == "配置" }.tags.map { it.name })
     }
 
+    @Test
+    fun successfulVotePersistsAccountScopedRecordAndGatesHasVoted() = runTest(dispatcher) {
+        // Given
+        val settings = apiSettings(apiToken = "token-1")
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.success(chartTagTreeFixture())
+            chartTagData = Result.success(chartTagDataFixture())
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When
+        viewModel.submitChartTagVote(Difficulty.IN, listOf("高速"), listOf("多指"))
+        advanceUntilIdle()
+
+        // Then: the local record is written for the current identity + chart...
+        assertEquals(
+            listOf("taptap:player-id:api-user:song-a.0:IN"),
+            settings.chartVoteKeyWrites
+        )
+        // ...and the chart reports hasVoted without any server-side isMine.
+        val state = viewModel.getChartTagState(Difficulty.IN)
+        assertTrue(state.hasVoted)
+        assertTrue(state.voteSucceeded)
+    }
+
+    @Test
+    fun persistedVoteRecordGatesHasVotedWithoutServerTruth() = runTest(dispatcher) {
+        // Given
+        val settings = apiSettings().apply {
+            recordChartVote("taptap:player-id:api-user:song-a.0:IN")
+        }
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.success(chartTagTreeFixture())
+            chartTagData = Result.success(chartTagDataFixture())
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When
+        viewModel.loadChartTags(Difficulty.IN)
+        advanceUntilIdle()
+
+        // Then: only the recorded difficulty is gated.
+        assertTrue(viewModel.getChartTagState(Difficulty.IN).hasVoted)
+        viewModel.loadChartTags(Difficulty.EZ)
+        advanceUntilIdle()
+        assertFalse(viewModel.getChartTagState(Difficulty.EZ).hasVoted)
+    }
+
+    @Test
+    fun hasVotedIsTrackedPerDifficultyAfterVoting() = runTest(dispatcher) {
+        // Given
+        val settings = apiSettings(apiToken = "token-1")
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.success(chartTagTreeFixture())
+            chartTagData = Result.success(chartTagDataFixture())
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When
+        viewModel.submitChartTagVote(Difficulty.IN, listOf("高速"), emptyList())
+        advanceUntilIdle()
+
+        // Then
+        assertTrue(viewModel.getChartTagState(Difficulty.IN).hasVoted)
+        assertFalse(viewModel.getChartTagState(Difficulty.EZ).hasVoted)
+        assertFalse(viewModel.getChartTagState(Difficulty.AT).hasVoted)
+    }
+
+    @Test
+    fun voteRecordsAreIsolatedBetweenAccounts() = runTest(dispatcher) {
+        // Given: account-a voted this chart in a previous session.
+        val settings = apiSettings().apply {
+            recordChartVote("taptap:account-a:api-user:song-a.0:IN")
+        }
+        val repository = FakePhigrosRepository().apply {
+            chartTagTree = Result.success(chartTagTreeFixture())
+            chartTagData = Result.success(chartTagDataFixture())
+        }
+        val viewModel = createViewModel("song-a.0", repository, settings)
+        advanceUntilIdle()
+
+        // When: account-b (the configured identity) loads the same chart.
+        viewModel.loadChartTags(Difficulty.IN)
+        advanceUntilIdle()
+
+        // Then: account-a's record does not gate account-b.
+        assertFalse(viewModel.getChartTagState(Difficulty.IN).hasVoted)
+
+        // When: switching back to account-a and reloading.
+        settings.setApiPlatformId("account-a")
+        advanceUntilIdle()
+        viewModel.loadChartTags(Difficulty.IN)
+        advanceUntilIdle()
+
+        // Then
+        assertTrue(viewModel.getChartTagState(Difficulty.IN).hasVoted)
+    }
+
     private suspend fun apiSettings(apiToken: String = "token-1") = FakeSettingsRepository().apply {
         setApiEnabled(true)
         setApiId("api-user")
@@ -471,6 +666,17 @@ class SongDetailViewModelTest {
         secondary = mapOf("高速" to 4, "连打" to 3),
         categories = emptyList()
     )
+
+    private class PerDifficultyAssets(private val songId: String) : TextAssetReader {
+        override fun readText(name: String): String = when (name) {
+            "info.csv" ->
+                "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
+                    "$songId\tHappy Ending\tComposer\tIllustrator" +
+                    "\t\t\t\t\t1.0\t2.0\t3.0\t4.0"
+
+            else -> TestAssets.readText(name)
+        }
+    }
 
     private class RouteArtworkCache(
         private val thumbnailUri: String? = null,

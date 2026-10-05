@@ -4,11 +4,14 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -96,6 +99,8 @@ import kotlinx.coroutines.launch
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.jetbrains.compose.resources.stringResource
+import org.kasumi321.ushio.phitracker.data.platform.copyToClipboard
+import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagCategoryDisplay
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagVoteCount
@@ -141,6 +146,8 @@ import phitracker.composeapp.generated.resources.song_detail_vote_secondary
 import phitracker.composeapp.generated.resources.song_detail_vote_submit
 import phitracker.composeapp.generated.resources.song_detail_vote_submitting
 import phitracker.composeapp.generated.resources.song_detail_vote_success
+import phitracker.composeapp.generated.resources.song_detail_voted_button
+import phitracker.composeapp.generated.resources.tools_copied_to_clipboard
 import kotlin.math.roundToInt
 import kotlin.time.Instant
 
@@ -168,14 +175,14 @@ fun SongDetailScreen(
     apiEnabled: Boolean = false,
     useApiData: Boolean = false,
     apiRequestKey: String = "",
-    getSongApiDetail: (Difficulty) -> SongApiDetailState = { SongApiDetailState() },
+    apiDetails: Map<Difficulty, SongApiDetailState> = emptyMap(),
     onLoadSongApiDetail: (Difficulty) -> Unit = {},
-    getChartTags: (Difficulty) -> ChartTagUiState = { ChartTagUiState() },
+    chartTags: Map<Difficulty, ChartTagUiState> = emptyMap(),
     onLoadChartTags: (Difficulty) -> Unit = {},
     canVote: Boolean = false,
     onSubmitChartTagVote: (Difficulty, List<String>, List<String>) -> Unit = { _, _, _ -> },
-    getLowIllustrationUrl: (String) -> String?,
-    onIllustrationClick: () -> Unit,
+    lowIllustrationUrls: Map<Difficulty, String?>,
+    onIllustrationClick: (Difficulty) -> Unit,
     initialDifficulty: Difficulty? = null,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -185,7 +192,7 @@ fun SongDetailScreen(
     val initialTabIndex = initialDifficulty?.let { availableDifficulties.indexOf(it) }?.takeIf { it >= 0 }
     val pagerState = rememberPagerState(initialPage = initialTabIndex ?: defaultTabIndex) { availableDifficulties.size }
     val selectedDifficulty = availableDifficulties.getOrNull(pagerState.currentPage) ?: Difficulty.IN
-    val songApiDetail = getSongApiDetail(selectedDifficulty)
+    val songApiDetail = apiDetails[selectedDifficulty] ?: SongApiDetailState()
 
     LaunchedEffect(apiEnabled, useApiData, apiRequestKey, selectedDifficulty) {
         if (apiEnabled && useApiData) {
@@ -279,7 +286,6 @@ fun SongDetailScreen(
         ) {
             Spacer(modifier = Modifier.height(innerPadding.calculateTopPadding()))
             val contentBottomPadding = innerPadding.calculateBottomPadding()
-            val thumbnailUrl = getLowIllustrationUrl(songInfo.id)
 
             // Collapsing header: the layout shrinks while the content translates
             // up behind the glass bar; no clip so the sliding header stays
@@ -309,7 +315,8 @@ fun SongDetailScreen(
             ) {
                 SongInfoHeader(
                     songInfo = songInfo,
-                    thumbnailUrl = thumbnailUrl,
+                    difficulty = selectedDifficulty,
+                    thumbnailUrl = lowIllustrationUrls[selectedDifficulty],
                     onIllustrationClick = onIllustrationClick,
                     modifier = Modifier.onSizeChanged { infoHeaderHeightPx = it.height }
                 )
@@ -336,8 +343,8 @@ fun SongDetailScreen(
                         userRecords = userRecords,
                         apiEnabled = apiEnabled,
                         useApiData = useApiData,
-                        songApiDetail = getSongApiDetail(pageDifficulty),
-                        chartTagState = getChartTags(pageDifficulty),
+                        songApiDetail = apiDetails[pageDifficulty] ?: SongApiDetailState(),
+                        chartTagState = chartTags[pageDifficulty] ?: ChartTagUiState(),
                         canVote = canVote,
                         onSubmitChartTagVote = onSubmitChartTagVote,
                         syncHistory = syncHistory,
@@ -349,11 +356,13 @@ fun SongDetailScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SongInfoHeader(
     songInfo: SongInfo,
+    difficulty: Difficulty,
     thumbnailUrl: String?,
-    onIllustrationClick: () -> Unit,
+    onIllustrationClick: (Difficulty) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -380,15 +389,26 @@ private fun SongInfoHeader(
                 .size(120.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable(onClick = onIllustrationClick),
+                .clickable { onIllustrationClick(difficulty) },
             contentScale = ContentScale.Crop
         )
 
         Spacer(modifier = Modifier.width(16.dp))
 
+        val copiedMessage = stringResource(Res.string.tools_copied_to_clipboard)
+
         Column(modifier = Modifier.weight(1f)) {
             BasicText(
                 text = songInfo.name,
+                modifier = Modifier.combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onLongClick = {
+                        copyToClipboard(songInfo.name, songInfo.name)
+                        showPlatformMessage(copiedMessage)
+                    },
+                    onClick = {}
+                ),
                 style = MaterialTheme.typography.titleLarge.copy(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
@@ -405,15 +425,35 @@ private fun SongInfoHeader(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
+            val composerText = stringResource(Res.string.song_detail_composer, songInfo.composer)
             Text(
-                text = stringResource(Res.string.song_detail_composer, songInfo.composer),
+                text = composerText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onLongClick = {
+                        copyToClipboard(songInfo.composer, songInfo.composer)
+                        showPlatformMessage(copiedMessage)
+                    },
+                    onClick = {}
+                )
             )
+            val illustratorText = stringResource(Res.string.song_detail_illustrator, songInfo.illustrator)
             Text(
-                text = stringResource(Res.string.song_detail_illustrator, songInfo.illustrator),
+                text = illustratorText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onLongClick = {
+                        copyToClipboard(songInfo.illustrator, songInfo.illustrator)
+                        showPlatformMessage(copiedMessage)
+                    },
+                    onClick = {}
+                )
             )
             if (songInfo.nicknames.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -961,14 +1001,21 @@ private fun ChartTagSection(
             }
 
             // Voting is only possible with an api_token; without one the
-            // button stays hidden instead of failing at submit time.
+            // button stays hidden instead of failing at submit time. Once the
+            // chart has a vote on record (local or server-side) the button
+            // stays visible but greyed out so re-voting is clearly a no-op.
             if (canVote) {
                 OutlinedButton(
                     onClick = { showVoteSheet = true },
-                    enabled = !state.isLoading && state.error == null,
+                    enabled = !state.isLoading && state.error == null && !state.hasVoted,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(stringResource(Res.string.song_detail_vote_button))
+                    Text(
+                        stringResource(
+                            if (state.hasVoted) Res.string.song_detail_voted_button
+                            else Res.string.song_detail_vote_button
+                        )
+                    )
                 }
             }
         }

@@ -1,8 +1,8 @@
 # Phi Tracker 隐私政策
 
-最后更新日期：2026 年 4 月 3 日
+最后更新日期：2026 年 10 月 5 日
 
-感谢您使用 Phi Tracker（以下简称“本应用”）。我们非常重视您的隐私，并深知您的信赖对我们非常重要，因此我们会按照法律要求以及业界成熟的安全标准，通过合理有效的方式保护您的个人信息。本隐私政策旨在向您说明本应用如何收集、使用和保护您的数据。
+感谢您使用 Phi Tracker（以下简称“本应用”）。我们非常重视您的隐私，并深知您的信赖对我们非常重要，因此我们会按照法律要求以及业界成熟的安全标准，通过合理有效的方式保护您的个人信息。
 
 我们将通过本隐私政策帮助您了解我们在收集、使用、存储、共享和保护您的个人信息方面所做的努力。
 
@@ -16,7 +16,7 @@
 2. **Phigros 游戏存档**：包括您的游戏昵称、课题模式评级、游玩记录（成绩、准确率、Full Combo 状态等）和 RKS 数值。
 3. **本地设置偏好**：包括您选择的主题模式、自定义头像的本地 URI、B30 溢出显示设置等。
 4. **运行日志（仅 Debug 版本）**：Debug 版本提供导出运行日志功能。该日志用于排查故障，可能包含网络请求相关技术信息（在特定情况下可能出现账号凭证字段，如 sessionToken）。请仅在您信任的渠道中分享日志，并在公开前自行检查和脱敏。
-5. **Phi-Plugin「滦鸠」联合查分 API 请求凭证（可选）**：当您选择在设置页面中开启“启用查分 API”功能时，本应用将根据您填写的“平台名称”和“平台 ID”向该 API 发送请求，以获取对应的查分数据。
+5. **Phi-Plugin「滦鸠」联合查分 API 请求凭证（可选）**：当您选择在设置页面中开启“启用查分 API”功能时，本应用将根据您填写的“平台名称”、“平台 ID”、“API 用户 ID”和“API Token”向该 API 发送请求，以获取对应的查分数据。
 
 ## 二、数据的使用方式
 
@@ -25,7 +25,7 @@
 - 读取并展示您的 Phigros 游戏存档与成绩分析（B30、RKS 计算等）。
 - 存储您的个性化设置，以便在下次启动时恢复。
 - 缓存曲绘资源，减少网络流量消耗。
-- 根据您开启查分 API 功能后填写的平台名称和平台 ID，向该 API 发送请求，以获取对应的查分数据。
+- 根据您开启查分 API 功能后填写的平台名称、平台 ID、API 用户 ID 和 API Token，向该 API 发送请求，以获取对应的查分数据。
 
 ## 三、数据的存储与安全
 
@@ -36,7 +36,7 @@
 - 游戏存档和成绩数据存储在应用本地的 Room 数据库中。
 - 设置偏好存储在 Android SharedPreferences 中。
 - 曲绘缓存存储在应用的专用缓存目录中。
-- sessionToken 存储在应用的本地数据库中，且不会以任何形式被传输到除 TapTap 以外的第三方。
+- sessionToken, API Token 等敏感信息存储在您使用的操作系统的密钥库中，且不会以任何形式被传输到除 TapTap 以外的第三方。
 
 但请您理解，互联网并非绝对安全的环境，任何安全措施都无法做到无懈可击。我们建议您采取积极措施保护个人信息的安全。
 
@@ -78,11 +78,12 @@
 1. TapTap OAuth 服务 & LeanCloud：https://www.taptap.cn/doc/privacy-policy/
 2. Phigros：https://phigros.pigeongames.cn/privacy_policy.txt
 3. GitHub：https://docs.github.com/zh/site-policy/privacy-policies/github-general-privacy-statement
-
-部分第三方服务目前暂没有提供隐私政策文本，我们将在这些第三方服务提供隐私政策文本后及时更新本隐私政策。
+4. Gh-Proxy：https://gh-proxy.com/privacy
+5. 联合查分 API：https://www.phib19.top/privacy
 
 ## 九、联系我们
 
 如果您对本隐私政策有任何疑问或建议，请通过以下方式与我们联系：
 
 - GitHub Issues：https://github.com/Kasumi-Ushio/Ushio-Prober-Phigros/issues
+- 电子邮件：asahinahotaruchan@gmail.com

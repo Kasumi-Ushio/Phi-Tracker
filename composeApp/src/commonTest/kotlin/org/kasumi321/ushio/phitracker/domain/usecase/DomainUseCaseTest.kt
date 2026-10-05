@@ -258,6 +258,64 @@ class DomainUseCaseTest {
     }
 
     @Test
+    fun levelBoundsFloorAndCeilChartConstants() {
+        val songs = listOf(
+            SongInfo("a.0", "A", "", "", mapOf(Difficulty.IN to 7.4f)),
+            SongInfo("b.0", "B", "", "", mapOf(Difficulty.EZ to 1.2f, Difficulty.AT to 17.6f))
+        )
+
+        val bounds = GetSongLevelBoundsUseCase()(songs)
+        assertEquals(1, bounds?.min, "min bound floors the smallest constant")
+        assertEquals(18, bounds?.max, "max bound ceils the largest constant (17.6)")
+        assertEquals(
+            null,
+            GetSongLevelBoundsUseCase()(emptyList()),
+            "No chart constants → no bounds"
+        )
+
+        val degenerate = GetSongLevelBoundsUseCase()(
+            listOf(SongInfo("c.0", "C", "", "", mapOf(Difficulty.IN to 15f)))
+        )
+        assertEquals(15, degenerate?.min)
+        assertEquals(15, degenerate?.max)
+    }
+
+    @Test
+    fun suggestTargetCapTracksMaxChartConstant() {
+        val useCase = GetSuggestUseCase()
+        val currentB30 = (0 until 20).map { i ->
+            BestRecord("b-$i", "B $i", Difficulty.IN, 900_000, 90f, false, 10f, 8f)
+        }
+        // Widest constant 17.6 → cap 18f: 17.5 was rejected by the old
+        // hardcoded 17f limit, while 18.5 is unachievable in this catalog.
+        val difficulties = mapOf("candidate" to mapOf(Difficulty.IN to 17.6f))
+        val names = mapOf("candidate" to "Candidate")
+
+        assertTrue(
+            useCase(
+                currentB30 = currentB30,
+                records = emptyMap(),
+                difficulties = difficulties,
+                songNames = names,
+                targetMode = SuggestTargetMode.SingleChartRks,
+                targetRks = 17.5f
+            ).isNotEmpty(),
+            "A target within the widest chart constant must be accepted"
+        )
+        assertTrue(
+            useCase(
+                currentB30 = currentB30,
+                records = emptyMap(),
+                difficulties = difficulties,
+                songNames = names,
+                targetMode = SuggestTargetMode.SingleChartRks,
+                targetRks = 18.5f
+            ).isEmpty(),
+            "A target above the widest chart constant must be rejected"
+        )
+    }
+
+    @Test
     fun suggestSingleChartTargetUsesProvidedRks() {
         val useCase = GetSuggestUseCase()
         val currentB30 = (0 until 20).map { i ->

@@ -29,7 +29,7 @@
     <string name="settings_auto_check_update">Check for updates on launch</string>
     <string name="settings_auto_check_update_desc">Automatically check for new versions when the app starts</string>
     <string name="settings_auto_check_song_data_update">Auto-check song data updates</string>
-    <string name="settings_auto_check_song_data_update_desc">Check for song database updates on launch.</string>
+    <string name="settings_auto_check_song_data_update_desc">Check for song database updates on launch</string>
     <string name="settings_blur_strength">Blur strength</string>
     <string name="settings_cache_b30_artwork">Cache HD illustrations for B30</string>
     <string name="settings_cache_b30_artwork_desc">Download HD covers for the current B30 songs in advance so images can be generated offline</string>

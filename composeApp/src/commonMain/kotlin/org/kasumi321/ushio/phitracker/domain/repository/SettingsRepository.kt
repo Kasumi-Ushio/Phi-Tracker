@@ -131,4 +131,14 @@ interface SettingsRepository {
      */
     val gameUpdateInfoCache: Flow<String?>
     suspend fun setGameUpdateInfoCache(cache: String?)
+
+    /**
+     * Chart-tag votes already cast by the local user, as opaque record keys.
+     * A key is `{userKey}:{songId}:{difficulty}` where userKey is the
+     * phi-plugin identity triplet `platform:platformId:apiUserId`, so records
+     * stay isolated per account. Consumers treat this as a hint for offline
+     * gating only; the server's isMine markers remain the source of truth.
+     */
+    val chartVoteKeys: Flow<Set<String>>
+    suspend fun recordChartVote(chartVoteKey: String)
 }

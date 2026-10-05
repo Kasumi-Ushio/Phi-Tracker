@@ -85,7 +85,7 @@ class GetSuggestUseCase {
         songNames: Map<String, String>,
         limit: Int
     ): List<SuggestItem> {
-        if (targetRks !in 0f..17f) return emptyList()
+        if (targetRks !in 0f..maxAchievableRks(difficulties)) return emptyList()
         return buildDirectTargetSuggestions(
             targetRks = targetRks,
             records = records,
@@ -156,7 +156,7 @@ class GetSuggestUseCase {
         difficulties: Map<String, Map<Difficulty, Float>>,
         songNames: Map<String, String>
     ): List<SuggestItem> {
-        if (targetDisplayRks !in 0f..17f) return emptyList()
+        if (targetDisplayRks !in 0f..maxAchievableRks(difficulties)) return emptyList()
 
         val currentRecords = flattenCurrentRecords(records, difficulties, songNames)
         val currentContribution = calculateContribution(currentRecords)
@@ -248,6 +248,13 @@ class GetSuggestUseCase {
             currentContribution
         )
     }
+
+    // A single chart's RKS can at most equal its constant (at 100% accuracy),
+    // so the achievable target range tracks the widest constant in the
+    // catalog instead of a hardcoded level cap.
+    private fun maxAchievableRks(difficulties: Map<String, Map<Difficulty, Float>>): Float =
+        GetSongLevelBoundsUseCase.fromConstants(difficulties.values.flatMap { it.values })
+            ?.max?.toFloat() ?: 0f
 
     private data class ContributionRecord(
         val songId: String,

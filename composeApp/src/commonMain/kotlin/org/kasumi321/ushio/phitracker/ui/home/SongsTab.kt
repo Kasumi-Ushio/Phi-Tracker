@@ -110,6 +110,8 @@ fun SongsTab(
     val selectedDifficulty = state.selectedDifficulty
     val minLevel = state.minLevel
     val maxLevel = state.maxLevel
+    val levelMinBound = state.levelMinBound
+    val levelMaxBound = state.levelMaxBound
     val showFilterSheet = state.showFilterSheet
 
     // Title, tip, search and filter live in the floating SongsHeader; the list
@@ -179,6 +181,8 @@ fun SongsTab(
                 onDifficultySelect = onDifficultySelect,
                 minLevel = minLevel,
                 maxLevel = maxLevel,
+                levelMinBound = levelMinBound,
+                levelMaxBound = levelMaxBound,
                 onLevelRangeSelect = onLevelRangeSelect,
                 onResetFilters = onResetFilters,
                 onClose = { onToggleFilterSheet(false) }
@@ -234,6 +238,8 @@ private fun FilterBottomSheetContent(
     onDifficultySelect: (Difficulty?) -> Unit,
     minLevel: Int,
     maxLevel: Int,
+    levelMinBound: Int,
+    levelMaxBound: Int,
     onLevelRangeSelect: (Int, Int) -> Unit,
     onResetFilters: () -> Unit,
     onClose: () -> Unit
@@ -291,6 +297,10 @@ private fun FilterBottomSheetContent(
 
         Text(stringResource(Res.string.songs_level_range_label, minLevel, maxLevel), style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(6.dp))
+        // RangeSlider requires a positive span, so a degenerate single-level
+        // catalog still renders one step instead of crashing the sheet.
+        val rangeStart = levelMinBound.toFloat()
+        val rangeEnd = levelMaxBound.toFloat().coerceAtLeast(rangeStart + 1f)
         var sliderPosition by remember(minLevel, maxLevel) { mutableStateOf(minLevel.toFloat()..maxLevel.toFloat()) }
         RangeSlider(
             value = sliderPosition,
@@ -298,15 +308,15 @@ private fun FilterBottomSheetContent(
             onValueChangeFinished = {
                 onLevelRangeSelect(sliderPosition.start.roundToInt(), sliderPosition.endInclusive.roundToInt())
             },
-            valueRange = 1f..17f,
-            steps = 15
+            valueRange = rangeStart..rangeEnd,
+            steps = (levelMaxBound - levelMinBound - 1).coerceAtLeast(0)
         )
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("1", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("17", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(levelMinBound.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(levelMaxBound.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
 
         Spacer(modifier = Modifier.height(10.dp))

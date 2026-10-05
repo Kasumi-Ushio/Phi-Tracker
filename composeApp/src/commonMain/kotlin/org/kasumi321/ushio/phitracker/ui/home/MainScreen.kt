@@ -360,12 +360,14 @@ fun MainScreen(
         state.songs.selectedChapters,
         state.songs.selectedDifficulty,
         state.songs.minLevel,
-        state.songs.maxLevel
+        state.songs.maxLevel,
+        state.songs.levelMinBound,
+        state.songs.levelMaxBound
     ) {
         var count = 0
         if (state.songs.selectedChapters.isNotEmpty()) count += state.songs.selectedChapters.size
         if (state.songs.selectedDifficulty != null) count++
-        if (state.songs.minLevel > 1 || state.songs.maxLevel < 17) count++
+        if (state.songs.minLevel > state.songs.levelMinBound || state.songs.maxLevel < state.songs.levelMaxBound) count++
         count
     }
 
