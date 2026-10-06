@@ -192,7 +192,7 @@ fun SuggestScreen(
                                     onValueChange = { viewModel.setTargetInput(it) },
                                     label = { Text(stringResource(Res.string.suggest_target_label)) },
                                     placeholder = { Text(stringResource(Res.string.suggest_target_placeholder)) },
-                                    supportingText = { Text(state.targetError?.asString() ?: stringResource(Res.string.suggest_target_range_hint)) },
+                                    supportingText = { Text(state.targetError?.asString() ?: stringResource(Res.string.suggest_target_range_hint, state.maxTargetRks.formatTwo())) },
                                     isError = state.targetError != null,
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

@@ -6,8 +6,8 @@
     <string name="song_detail_data_load_failed">Failed to load data. Please try again later.</string>
     <string name="song_detail_title">Song Detail</string>
     <string name="song_detail_cd_back">Back</string>
-    <string name="song_detail_composer">Composer: %1$s</string>
-    <string name="song_detail_illustrator">Illustration: %1$s</string>
+    <string name="song_detail_composer">Composer:&#160;</string>
+    <string name="song_detail_illustrator">Illustration:&#160;</string>
     <string name="song_detail_duration">Duration</string>
     <string name="song_detail_chapter">Chapter: %1$s</string>
     <string name="song_detail_aliases_label">Aliases</string>
@@ -20,7 +20,7 @@
     <string name="song_detail_chart_ranking">Chart Ranking: %1$s / %2$s</string>
     <string name="song_detail_avg_acc">Avg ACC: %1$s (from %2$d samples)</string>
     <string name="song_detail_chart_info">Chart Info</string>
-    <string name="song_detail_charter">Charter: %1$s</string>
+    <string name="song_detail_charter">Charter:&#160;</string>
     <string name="song_detail_notes_distribution">Notes Distribution (Total: %1$d)</string>
     <string name="song_detail_no_notes_data">No notes data yet</string>
     <string name="song_detail_sync_history">Sync History</string>

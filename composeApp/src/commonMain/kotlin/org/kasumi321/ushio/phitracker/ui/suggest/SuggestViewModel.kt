@@ -19,8 +19,10 @@ import org.kasumi321.ushio.phitracker.domain.repository.PhigrosRepository
 import org.kasumi321.ushio.phitracker.domain.usecase.GetB30UseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSongLevelBoundsUseCase
 import org.kasumi321.ushio.phitracker.domain.usecase.GetSuggestUseCase
+import org.kasumi321.ushio.phitracker.domain.usecase.RksCalculator
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestItem
 import org.kasumi321.ushio.phitracker.domain.usecase.SuggestTargetMode
+import org.kasumi321.ushio.phitracker.ui.home.formatTwo
 import org.kasumi321.ushio.phitracker.ui.utils.UiText
 import phitracker.composeapp.generated.resources.Res
 import phitracker.composeapp.generated.resources.suggest_target_invalid
@@ -32,7 +34,11 @@ data class SuggestUiState(
     val targetMode: SuggestTargetMode = SuggestTargetMode.PlayerDisplayRks,
     val targetInput: String = "",
     val targetError: UiText? = null,
-    val items: List<SuggestItem> = emptyList()
+    val items: List<SuggestItem> = emptyList(),
+    // Upper bound of the current mode's valid target range, derived from the
+    // song catalog (display-RKS ceiling for player mode, widest constant for
+    // single-chart mode) so newly added charts raise it automatically.
+    val maxTargetRks: Float = 0f
 )
 
 class SuggestViewModel(
@@ -48,16 +54,30 @@ class SuggestViewModel(
     private var suggestJob: Job? = null
     private var currentB30: List<BestRecord> = emptyList()
     private var currentRecords: Map<String, SongRecord>? = null
+    private var maxDisplayRksCap = 0f
+    private var maxSingleChartCap = 0f
+
+    private fun capForMode(mode: SuggestTargetMode): Float = when (mode) {
+        SuggestTargetMode.PlayerDisplayRks -> maxDisplayRksCap
+        else -> maxSingleChartCap
+    }
 
     init {
         viewModelScope.launch {
             val diffMap = songDataProvider.getDifficultyMap()
             val nameMap = songDataProvider.getSongNameMap()
+            val catalogConstants = diffMap.values.flatMap { it.values }
+            maxDisplayRksCap = RksCalculator.calculateMaxDisplayRks(catalogConstants)
+            maxSingleChartCap = GetSongLevelBoundsUseCase.fromConstants(catalogConstants)?.max?.toFloat() ?: 0f
             getB30UseCase(diffMap, nameMap).collect { (b30, _) ->
                 currentB30 = b30
                 currentRecords = repository.getCachedSave().first()?.gameRecord
                 _uiState.update {
-                    it.copy(isLoading = false, hasSaveData = currentRecords != null)
+                    it.copy(
+                        isLoading = false,
+                        hasSaveData = currentRecords != null,
+                        maxTargetRks = capForMode(it.targetMode)
+                    )
                 }
                 recalculateSuggestItems()
             }
@@ -65,7 +85,7 @@ class SuggestViewModel(
     }
 
     fun setTargetMode(mode: SuggestTargetMode) {
-        _uiState.update { it.copy(targetMode = mode) }
+        _uiState.update { it.copy(targetMode = mode, maxTargetRks = capForMode(mode)) }
         recalculateSuggestItems()
     }
 
@@ -141,16 +161,15 @@ class SuggestViewModel(
         }
 
         val targetInputPattern = Regex("""\d+(\.\d{0,2})?""")
+        val maxTargetRks = capForMode(mode)
+        val invalidError = UiText.Res(Res.string.suggest_target_invalid, maxTargetRks.formatTwo())
         if (!targetInputPattern.matches(normalizedInput)) {
-            return SuggestBuildResult(emptyList(), UiText.Res(Res.string.suggest_target_invalid))
+            return SuggestBuildResult(emptyList(), invalidError)
         }
 
         val targetRks = normalizedInput.toFloatOrNull()
-        val maxTargetRks = GetSongLevelBoundsUseCase.fromConstants(
-            difficulties.values.flatMap { it.values }
-        )?.max?.toFloat() ?: 0f
         if (targetRks == null || targetRks !in 0f..maxTargetRks) {
-            return SuggestBuildResult(emptyList(), UiText.Res(Res.string.suggest_target_invalid))
+            return SuggestBuildResult(emptyList(), invalidError)
         }
 
         val items = withContext(Dispatchers.Default) {

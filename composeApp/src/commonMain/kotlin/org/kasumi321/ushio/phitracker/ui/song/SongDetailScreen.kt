@@ -7,11 +7,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +32,7 @@ import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -104,8 +103,6 @@ import kotlinx.coroutines.launch
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import org.jetbrains.compose.resources.stringResource
-import org.kasumi321.ushio.phitracker.data.platform.copyToClipboard
-import org.kasumi321.ushio.phitracker.data.platform.showPlatformMessage
 import org.kasumi321.ushio.phitracker.domain.model.BestRecord
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagCategoryDisplay
 import org.kasumi321.ushio.phitracker.domain.model.ChartTagVoteCount
@@ -162,7 +159,6 @@ import phitracker.composeapp.generated.resources.song_detail_vote_submit
 import phitracker.composeapp.generated.resources.song_detail_vote_submitting
 import phitracker.composeapp.generated.resources.song_detail_vote_success
 import phitracker.composeapp.generated.resources.song_detail_voted_button
-import phitracker.composeapp.generated.resources.tools_copied_to_clipboard
 import kotlin.math.roundToInt
 import kotlin.time.Instant
 
@@ -419,66 +415,56 @@ private fun SongInfoHeader(
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        val copiedMessage = stringResource(Res.string.tools_copied_to_clipboard)
-
         Column(modifier = Modifier.weight(1f)) {
-            BasicText(
-                text = songInfo.name,
-                modifier = Modifier.combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onLongClick = {
-                        copyToClipboard(songInfo.name, songInfo.name)
-                        showPlatformMessage(copiedMessage)
-                    },
-                    onClick = {}
-                ),
-                style = MaterialTheme.typography.titleLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    // Fixed titleLarge line height would let an auto-shrunk
-                    // title drift off-center; Unspecified follows the font.
-                    lineHeight = TextUnit.Unspecified
-                ),
-                autoSize = TextAutoSize.StepBased(
-                    minFontSize = 12.sp,
-                    maxFontSize = MaterialTheme.typography.titleLarge.fontSize,
-                    stepSize = 1.sp
-                ),
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
-            )
+            SelectionContainer {
+                BasicText(
+                    text = songInfo.name,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                        // Fixed titleLarge line height would let an auto-shrunk
+                        // title drift off-center; Unspecified follows the font.
+                        lineHeight = TextUnit.Unspecified
+                    ),
+                    autoSize = TextAutoSize.StepBased(
+                        minFontSize = 12.sp,
+                        maxFontSize = MaterialTheme.typography.titleLarge.fontSize,
+                        stepSize = 1.sp
+                    ),
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Spacer(modifier = Modifier.height(4.dp))
-            val composerText = stringResource(Res.string.song_detail_composer, songInfo.composer)
-            Text(
-                text = composerText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onLongClick = {
-                        copyToClipboard(songInfo.composer, songInfo.composer)
-                        showPlatformMessage(copiedMessage)
-                    },
-                    onClick = {}
+            Row {
+                Text(
+                    text = stringResource(Res.string.song_detail_composer),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            )
-            val illustratorText = stringResource(Res.string.song_detail_illustrator, songInfo.illustrator)
-            Text(
-                text = illustratorText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onLongClick = {
-                        copyToClipboard(songInfo.illustrator, songInfo.illustrator)
-                        showPlatformMessage(copiedMessage)
-                    },
-                    onClick = {}
+                // Only the value is selectable, so copying never picks up the label
+                SelectionContainer(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = songInfo.composer,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Row {
+                Text(
+                    text = stringResource(Res.string.song_detail_illustrator),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            )
+                SelectionContainer(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = songInfo.illustrator,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(8.dp))
             AliasChips(
                 nicknames = songInfo.nicknames,
@@ -735,11 +721,13 @@ private fun AliasChip(name: String) {
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         shape = RoundedCornerShape(8.dp)
     ) {
-        Text(
-            text = name,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-        )
+        SelectionContainer {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
     }
 }
 
@@ -910,10 +898,18 @@ private fun DifficultyContent(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = stringResource(Res.string.song_detail_charter, charter),
-                    style = MaterialTheme.typography.bodyLarge
-                )
+                Row {
+                    Text(
+                        text = stringResource(Res.string.song_detail_charter),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    SelectionContainer(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = charter,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 

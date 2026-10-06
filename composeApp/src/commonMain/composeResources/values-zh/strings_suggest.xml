@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="suggest_target_invalid">目标 RKS 需要是 0.00 到 17.00 之间的数字，最多两位小数</string>
+    <string name="suggest_target_invalid">目标 RKS 需要是 0.00 到 %1$s 之间的数字，最多两位小数</string>
     <string name="suggest_target_reached">当前数据下已达到目标，或没有可提升的谱面能帮助达成该目标</string>
     <string name="suggest_title">推分建议</string>
     <string name="suggest_hint_input">不填则根据当前成绩自动推荐；填写目标 RKS 后按所选模式分析。</string>
@@ -10,7 +10,7 @@
     <string name="suggest_mode_single_chart_rks">单谱面 RKS</string>
     <string name="suggest_target_label">目标 RKS</string>
     <string name="suggest_target_placeholder">例如 16.50</string>
-    <string name="suggest_target_range_hint">范围 0.00 到 17.00，最多两位小数</string>
+    <string name="suggest_target_range_hint">范围 0.00 到 %1$s，最多两位小数</string>
     <string name="suggest_need_save_sync">请先回到首页同步存档后再使用此功能</string>
     <string name="suggest_empty">暂无推荐曲目。试试同步数据或调整目标 RKS？</string>
     <string name="suggest_no_data">暂无</string>

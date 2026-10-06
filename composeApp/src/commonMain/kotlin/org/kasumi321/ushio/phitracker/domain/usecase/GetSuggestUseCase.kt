@@ -156,7 +156,7 @@ class GetSuggestUseCase {
         difficulties: Map<String, Map<Difficulty, Float>>,
         songNames: Map<String, String>
     ): List<SuggestItem> {
-        if (targetDisplayRks !in 0f..maxAchievableRks(difficulties)) return emptyList()
+        if (targetDisplayRks !in 0f..maxAchievableDisplayRks(difficulties)) return emptyList()
 
         val currentRecords = flattenCurrentRecords(records, difficulties, songNames)
         val currentContribution = calculateContribution(currentRecords)
@@ -255,6 +255,12 @@ class GetSuggestUseCase {
     private fun maxAchievableRks(difficulties: Map<String, Map<Difficulty, Float>>): Float =
         GetSongLevelBoundsUseCase.fromConstants(difficulties.values.flatMap { it.values })
             ?.max?.toFloat() ?: 0f
+
+    // The player-target mode caps the target at the theoretical display-RKS
+    // ceiling of the current catalog (phi3 + B27 at AP), derived from the chart
+    // constants themselves so newly added charts raise it automatically.
+    private fun maxAchievableDisplayRks(difficulties: Map<String, Map<Difficulty, Float>>): Float =
+        RksCalculator.calculateMaxDisplayRks(difficulties.values.flatMap { it.values })
 
     private data class ContributionRecord(
         val songId: String,

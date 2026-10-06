@@ -281,6 +281,28 @@ class DomainUseCaseTest {
     }
 
     @Test
+    fun maxDisplayRksAveragesTop3AndTop27Constants() {
+        // 30 charts at 15.0 → phi3 and B27 are all 15.0 → ceiling is exactly 15
+        val flat = List(30) { 15f }
+        assertClose(15f, RksCalculator.calculateMaxDisplayRks(flat))
+
+        // Uneven catalog: phi slots double-count the top constants
+        val constants = listOf(16f, 15f, 14f) + List(27) { 10f }
+        val expected = ((16f + 15f + 14f) + (16f + 15f + 14f + 24 * 10f)) / 30f
+        assertClose(expected, RksCalculator.calculateMaxDisplayRks(constants))
+    }
+
+    @Test
+    fun maxDisplayRksHandlesSmallAndEmptyCatalogs() {
+        assertEquals(0f, RksCalculator.calculateMaxDisplayRks(emptyList()))
+
+        // Fewer than 30 charts: the slots just take what exists
+        val tiny = listOf(12f, 10f)
+        val expected = ((12f + 10f) + (12f + 10f)) / 30f
+        assertClose(expected, RksCalculator.calculateMaxDisplayRks(tiny))
+    }
+
+    @Test
     fun suggestTargetCapTracksMaxChartConstant() {
         val useCase = GetSuggestUseCase()
         val currentB30 = (0 until 20).map { i ->
@@ -518,6 +540,15 @@ class DomainUseCaseTest {
         // old "must close the whole gap alone" gate hid it; it must now be suggested.
         difficulties["candidate"] = mapOf(Difficulty.IN to 12f)
         names["candidate"] = "Candidate"
+        // The player-target gate rejects targets above the catalog's theoretical
+        // ceiling ((top3 + top27 constants, phi double-counted) / 30). With only the
+        // charts above the ceiling is ≈10.13 < 10.4, so add three more unplayed
+        // 12-constant charts to lift the ceiling to ≈10.47 without touching the
+        // 300-contribution premise.
+        repeat(3) { i ->
+            difficulties["filler-$i"] = mapOf(Difficulty.IN to 12f)
+            names["filler-$i"] = "Filler $i"
+        }
 
         val result = useCase(
             currentB30 = emptyList(),

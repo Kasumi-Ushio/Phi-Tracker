@@ -79,6 +79,19 @@ object RksCalculator {
         return Pair(b30List, allRecords)
     }
 
+    // Theoretical ceiling for the displayed RKS given a chart catalog: AP every
+    // chart, so phi3 takes the 3 highest constants and B27 the 27 highest. Phi
+    // charts double-count, matching calculateDisplayRks / calculateContribution.
+    // Catalog-driven so future chart additions (e.g. a new Lv.17+) raise the cap
+    // automatically. Fewer than 30 charts just use what exists.
+    fun calculateMaxDisplayRks(chartConstants: Collection<Float>): Float {
+        if (chartConstants.isEmpty()) return 0f
+        val sorted = chartConstants.sortedDescending()
+        val phiSum = sorted.take(3).sumOf { it.toDouble() }
+        val b27Sum = sorted.take(27).sumOf { it.toDouble() }
+        return ((phiSum + b27Sum) / 30.0).toFloat()
+    }
+
     fun calculateTargetAcc(targetRks: Float, chartConstant: Float): Float? {
         if (chartConstant <= 0f) return null
         val sqrtPart = sqrt((targetRks / chartConstant).toDouble()).toFloat()

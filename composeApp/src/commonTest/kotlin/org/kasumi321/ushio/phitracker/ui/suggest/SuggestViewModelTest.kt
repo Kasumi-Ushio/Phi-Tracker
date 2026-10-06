@@ -113,7 +113,7 @@ class SuggestViewModelTest {
 
         assertEquals("16.123", viewModel.uiState.value.targetInput)
         assertEquals(
-            UiText.Res(Res.string.suggest_target_invalid),
+            UiText.Res(Res.string.suggest_target_invalid, "15.00"),
             viewModel.uiState.value.targetError
         )
 
@@ -122,7 +122,7 @@ class SuggestViewModelTest {
 
         assertEquals("abc", viewModel.uiState.value.targetInput)
         assertEquals(
-            UiText.Res(Res.string.suggest_target_invalid),
+            UiText.Res(Res.string.suggest_target_invalid, "15.00"),
             viewModel.uiState.value.targetError
         )
     }
@@ -149,12 +149,13 @@ class SuggestViewModelTest {
         )
         awaitUiState(viewModel) { !it.isLoading }
 
-        // Fixture catalog tops out at constant 15.0
+        // Fixture catalog tops out at constant 15.0, so the display-RKS ceiling
+        // is exactly 15.0 as well
         viewModel.setTargetInput("15.5")
         awaitUiState(viewModel) { it.targetError != null }
 
         assertEquals(
-            UiText.Res(Res.string.suggest_target_invalid),
+            UiText.Res(Res.string.suggest_target_invalid, "15.00"),
             viewModel.uiState.value.targetError
         )
         assertTrue(viewModel.uiState.value.items.isEmpty())
@@ -193,10 +194,16 @@ class SuggestViewModelTest {
     }
 
     private object SuggestTestAssetReader : TextAssetReader {
+        // song-a/song-b carry varied constants; filler-c* are flat 15.0 charts so
+        // the catalog holds >= 30 charts and the dynamic display-RKS ceiling
+        // (top3 + top27 at AP, phi double-counted) lands exactly on 15.0.
         override fun readText(name: String): String = when (name) {
             "info.csv" -> "id\tsong\tcomposer\tillustrator\tEZC\tHDC\tINC\tATC\tEZ\tHD\tIN\tAT\n" +
                 "song-a\tSong A\tComposer\tIllus\t\t\t\t\t1.0\t5.0\t10.0\t14.0\n" +
-                "song-b\tSong B\tComposer\tIllus\t\t\t\t\t2.0\t6.0\t11.0\t15.0"
+                "song-b\tSong B\tComposer\tIllus\t\t\t\t\t2.0\t6.0\t11.0\t15.0\n" +
+                (1..7).joinToString("\n") { i ->
+                    "filler-$i\tFiller $i\tComposer\tIllus\t\t\t\t\t15.0\t15.0\t15.0\t15.0"
+                }
             "infolist.json" -> """{"song-a":{"chapter":"Single"},"song-b":{"chapter":"Single"}}"""
             "notesInfo.json" -> "{}"
             else -> error("Test asset not found: $name")

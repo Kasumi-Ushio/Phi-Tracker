@@ -6,8 +6,8 @@
     <string name="song_detail_data_load_failed">数据获取失败，请稍后重试</string>
     <string name="song_detail_title">曲目详情</string>
     <string name="song_detail_cd_back">返回</string>
-    <string name="song_detail_composer">作曲: %1$s</string>
-    <string name="song_detail_illustrator">曲绘: %1$s</string>
+    <string name="song_detail_composer">作曲:&#160;</string>
+    <string name="song_detail_illustrator">曲绘:&#160;</string>
     <string name="song_detail_duration">时长</string>
     <string name="song_detail_chapter">章节: %1$s</string>
     <string name="song_detail_aliases_label">别名</string>
@@ -20,7 +20,7 @@
     <string name="song_detail_chart_ranking">单曲排名: %1$s / %2$s</string>
     <string name="song_detail_avg_acc">平均 ACC: %1$s（由 %2$d 个样本取得）</string>
     <string name="song_detail_chart_info">谱面信息</string>
-    <string name="song_detail_charter">制谱: %1$s</string>
+    <string name="song_detail_charter">制谱:&#160;</string>
     <string name="song_detail_notes_distribution">Notes 分布 (Total: %1$d)</string>
     <string name="song_detail_no_notes_data">暂无 Notes 数据</string>
     <string name="song_detail_sync_history">同步历史</string>

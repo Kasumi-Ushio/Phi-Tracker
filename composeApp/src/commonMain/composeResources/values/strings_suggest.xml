@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="suggest_target_invalid">Target RKS must be a number between 0.00 and 17.00 with up to two decimal places</string>
+    <string name="suggest_target_invalid">Target RKS must be a number between 0.00 and %1$s with up to two decimal places</string>
     <string name="suggest_target_reached">Target already reached with the current data, or no charts can help you reach it</string>
     <string name="suggest_title">RKS Push Suggestions</string>
     <string name="suggest_hint_input">Leave blank to auto-recommend based on your current scores; enter a target RKS to analyze with the selected mode.</string>
@@ -10,7 +10,7 @@
     <string name="suggest_mode_single_chart_rks">Single Chart RKS</string>
     <string name="suggest_target_label">Target RKS</string>
     <string name="suggest_target_placeholder">e.g. 16.50</string>
-    <string name="suggest_target_range_hint">Range 0.00 to 17.00, up to two decimal places</string>
+    <string name="suggest_target_range_hint">Range 0.00 to %1$s, up to two decimal places</string>
     <string name="suggest_need_save_sync">Go back to Home and sync your save before using this feature</string>
     <string name="suggest_empty">No recommended charts yet. Try syncing data or adjusting the target RKS?</string>
     <string name="suggest_no_data">N/A</string>
